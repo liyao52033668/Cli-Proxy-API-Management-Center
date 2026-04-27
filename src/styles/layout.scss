@@ -42,32 +42,32 @@
   z-index: $z-dropdown - 2;
   height: 188px;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--bg-secondary) 88%, #0d0c0a) 0%,
-    color-mix(in srgb, var(--bg-secondary) 54%, transparent) 36%,
-    color-mix(in srgb, var(--bg-secondary) 22%, transparent) 66%,
-    transparent 100%
-  );
-  --glass-blur: 22px;
-  backdrop-filter: var(--glass-backdrop-filter);
-  -webkit-backdrop-filter: var(--glass-backdrop-filter);
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    rgb(0 0 0 / 0.9) 24%,
-    rgb(0 0 0 / 0.58) 48%,
-    rgb(0 0 0 / 0.22) 72%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    rgb(0 0 0 / 0.9) 24%,
-    rgb(0 0 0 / 0.58) 48%,
-    rgb(0 0 0 / 0.22) 72%,
-    transparent 100%
-  );
+  // background: linear-gradient(
+  //   180deg,
+  //   color-mix(in srgb, var(--bg-secondary) 88%, #0d0c0a) 0%,
+  //   color-mix(in srgb, var(--bg-secondary) 54%, transparent) 36%,
+  //   color-mix(in srgb, var(--bg-secondary) 22%, transparent) 66%,
+  //   transparent 100%
+  // );
+  // --glass-blur: 22px;
+  // backdrop-filter: var(--glass-backdrop-filter);
+  // -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  // mask-image: linear-gradient(
+  //   to bottom,
+  //   #000 0%,
+  //   rgb(0 0 0 / 0.9) 24%,
+  //   rgb(0 0 0 / 0.58) 48%,
+  //   rgb(0 0 0 / 0.22) 72%,
+  //   transparent 100%
+  // );
+  // -webkit-mask-image: linear-gradient(
+  //   to bottom,
+  //   #000 0%,
+  //   rgb(0 0 0 / 0.9) 24%,
+  //   rgb(0 0 0 / 0.58) 48%,
+  //   rgb(0 0 0 / 0.22) 72%,
+  //   transparent 100%
+  // );
 }
 
 .main-header {

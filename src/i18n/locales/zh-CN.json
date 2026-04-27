@@ -466,10 +466,17 @@
     "openai_test_all_success": "所有 {{count}} 个密钥测试通过",
     "openai_test_all_failed": "所有 {{count}} 个密钥测试失败",
     "openai_test_all_partial": "测试完成：{{success}} 个通过，{{failed}} 个失败",
-    "model_search_placeholder": "按模型筛选...",
+    "model_search_placeholder": "按模型筛选",
     "model_search_clear": "清除",
+    "model_search_no_results": "未找到匹配的模型",
     "model_select_all": "全选",
-    "model_filter_empty": "暂无可筛选模型"
+    "model_filter_empty": "暂无可筛选模型",
+    "provider_search_placeholder": "按提供商筛选",
+    "provider_search_clear": "清除",
+    "provider_search_no_results": "未找到匹配的提供商",
+    "provider_select_all": "全选",
+    "provider_filter_empty": "暂无可筛选提供商",
+    "provider_selected_count": "已选 {{count}} 个提供商"
   },
   "auth_files": {
     "title": "认证文件管理",

@@ -468,8 +468,15 @@
     "openai_test_all_partial": "Test completed: {{success}} passed, {{failed}} failed",
     "model_search_placeholder": "Filter by models...",
     "model_search_clear": "Clear",
+    "model_search_no_results": "No matching models found",
     "model_select_all": "Select All",
-    "model_filter_empty": "No models to filter"
+    "model_filter_empty": "No models to filter",
+    "provider_search_placeholder": "Filter by providers...",
+    "provider_search_clear": "Clear",
+    "provider_search_no_results": "No matching providers found",
+    "provider_select_all": "Select All",
+    "provider_filter_empty": "No providers to filter",
+    "provider_selected_count": "{{count}} providers selected"
   },
   "auth_files": {
     "title": "Auth Files Management",

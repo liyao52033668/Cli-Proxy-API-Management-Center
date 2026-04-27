@@ -468,8 +468,15 @@
     "openai_test_all_partial": "測試完成：{{success}} 個通過，{{failed}} 個失敗",
     "model_search_placeholder": "依模型篩選...",
     "model_search_clear": "清除",
+    "model_search_no_results": "未找到匹配的模型",
     "model_select_all": "全選",
-    "model_filter_empty": "暫無可篩選模型"
+    "model_filter_empty": "暫無可篩選模型",
+    "provider_search_placeholder": "依提供商篩選...",
+    "provider_search_clear": "清除",
+    "provider_search_no_results": "未找到匹配的提供商",
+    "provider_select_all": "全選",
+    "provider_filter_empty": "暫無可篩選提供商",
+    "provider_selected_count": "已選 {{count}} 個提供商"
   },
   "auth_files": {
     "title": "驗證檔案管理",
