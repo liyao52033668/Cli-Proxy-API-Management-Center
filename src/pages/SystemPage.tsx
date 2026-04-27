@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { Input } from '@/components/ui/Input';
 import { IconGithub, IconBookOpen, IconExternalLink, IconCode } from '@/components/ui/icons';
 import {
   useAuthStore,
@@ -87,6 +88,7 @@ export function SystemPage() {
     type: 'success' | 'warning' | 'error' | 'muted';
     message: string;
   }>();
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [requestLogModalOpen, setRequestLogModalOpen] = useState(false);
   const [requestLogDraft, setRequestLogDraft] = useState(false);
   const [requestLogTouched, setRequestLogTouched] = useState(false);
@@ -397,7 +399,7 @@ export function SystemPage() {
           <p className={styles.sectionDescription}>{t('system_info.quick_links_desc')}</p>
           <div className={styles.quickLinks}>
             <a
-              href="https://github.com/router-for-me/CLIProxyAPI"
+              href="https://github.com/liyao52033668/CLIProxyAPIPlus"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -415,7 +417,7 @@ export function SystemPage() {
             </a>
 
             <a
-              href="https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
+              href="https://github.com/liyao52033668/Cli-Proxy-API-Management-Center"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.linkCard}
@@ -475,36 +477,59 @@ export function SystemPage() {
           ) : models.length === 0 ? (
             <div className="hint">{t('system_info.models_empty')}</div>
           ) : (
-            <div className="item-list">
-              {groupedModels.map((group) => {
-                const iconSrc = getIconForCategory(group.id);
-                return (
-                  <div key={group.id} className="item-row">
-                    <div className="item-meta">
-                      <div className={styles.groupTitle}>
-                        {iconSrc && <img src={iconSrc} alt="" className={styles.groupIcon} />}
-                        <span className="item-title">{group.label}</span>
+            <>
+              <div className={styles.modelsSearchWrapper}>
+                <Input
+                  type="text"
+                  placeholder={t('system_info.models_search_placeholder', { defaultValue: 'Search models...' })}
+                  value={modelSearchQuery}
+                  onChange={(e) => setModelSearchQuery(e.target.value)}
+                  className={styles.modelsSearchInput}
+                />
+              </div>
+              <div className="item-list">
+                {groupedModels
+                  .map((group) => {
+                    const filteredItems = group.items.filter((model) => {
+                      if (!modelSearchQuery) return true;
+                      const query = modelSearchQuery.toLowerCase();
+                      return (
+                        model.name.toLowerCase().includes(query) ||
+                        model.alias?.toLowerCase().includes(query) ||
+                        model.description?.toLowerCase().includes(query)
+                      );
+                    });
+                    if (filteredItems.length === 0) return null;
+                    const iconSrc = getIconForCategory(group.id);
+                    return (
+                      <div key={group.id} className="item-row">
+                        <div className="item-meta">
+                          <div className={styles.groupTitle}>
+                            {iconSrc && <img src={iconSrc} alt="" className={styles.groupIcon} />}
+                            <span className="item-title">{group.label}</span>
+                          </div>
+                          <div className="item-subtitle">
+                            {t('system_info.models_count', { count: filteredItems.length })}
+                          </div>
+                        </div>
+                        <div className={styles.modelTags}>
+                          {filteredItems.map((model) => (
+                            <span
+                              key={`${model.name}-${model.alias ?? 'default'}`}
+                              className={styles.modelTag}
+                              title={model.description || ''}
+                            >
+                              <span className={styles.modelName}>{model.name}</span>
+                              {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="item-subtitle">
-                        {t('system_info.models_count', { count: group.items.length })}
-                      </div>
-                    </div>
-                    <div className={styles.modelTags}>
-                      {group.items.map((model) => (
-                        <span
-                          key={`${model.name}-${model.alias ?? 'default'}`}
-                          className={styles.modelTag}
-                          title={model.description || ''}
-                        >
-                          <span className={styles.modelName}>{model.name}</span>
-                          {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })
+                  .filter(Boolean)}
+              </div>
+            </>
           )}
         </Card>
 

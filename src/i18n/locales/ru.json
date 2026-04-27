@@ -468,8 +468,15 @@
     "openai_test_all_partial": "Тест завершен: {{success}} прошло, {{failed}} не прошло",
     "model_search_placeholder": "Фильтр по моделям...",
     "model_search_clear": "Очистить",
+    "model_search_no_results": "Модели не найдены",
     "model_select_all": "Выбрать все",
-    "model_filter_empty": "Нет моделей для фильтра"
+    "model_filter_empty": "Нет моделей для фильтра",
+    "provider_search_placeholder": "Фильтр по провайдерам...",
+    "provider_search_clear": "Очистить",
+    "provider_search_no_results": "Провайдеры не найдены",
+    "provider_select_all": "Выбрать все",
+    "provider_filter_empty": "Нет провайдеров для фильтра",
+    "provider_selected_count": "Выбрано {{count}} провайдеров"
   },
   "auth_files": {
     "title": "Управление файлами авторизации",

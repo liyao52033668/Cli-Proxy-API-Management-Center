@@ -4,12 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
-import { Select } from '@/components/ui/Select';
 import {
   IconCheck,
   IconChevronDown,
-  IconChevronUp,
   IconSlidersHorizontal,
   IconX,
 } from '@/components/ui/icons';
@@ -28,9 +27,6 @@ import {
   getOpenAIProviderStats,
   getStatsForIdentity,
 } from '../utils';
-
-type SortOption = 'name' | 'priority' | 'recent-success';
-type SortDirection = 'asc' | 'desc';
 
 interface FloatingToolbarStyle {
   left: number;
@@ -85,21 +81,31 @@ export function OpenAISection({
   const pageTransitionLayer = usePageTransitionLayer();
   const isTransitionAnimating = pageTransitionLayer?.isAnimating ?? false;
   const actionsDisabled = disableControls || loading || isSwitching;
-  const [sortOption, setSortOption] = useState<SortOption>('priority');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // 模型筛选状态
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [dropdownLayout, setDropdownLayout] = useState({ openAbove: false, maxHeight: 300 });
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [modelDropdownLayout, setModelDropdownLayout] = useState({ openAbove: false, maxHeight: 300 });
+
+  // 提供商筛选状态
+  const [selectedProviders, setSelectedProviders] = useState<Set<string>>(new Set());
+  const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
+  const [providerSearchQuery, setProviderSearchQuery] = useState('');
+  const [providerDropdownLayout, setProviderDropdownLayout] = useState({ openAbove: false, maxHeight: 300 });
+
   const [floatingToolbarStyle, setFloatingToolbarStyle] = useState<FloatingToolbarStyle>({
     left: 0,
     top: 0,
     width: 0,
     visible: false,
   });
+  const [isFloatingToolbarExpanded, setIsFloatingToolbarExpanded] = useState(false);
+
   const sectionRef = useRef<HTMLDivElement>(null);
   const topToolbarAnchorRef = useRef<HTMLDivElement>(null);
-  const topDropdownRef = useRef<HTMLDivElement>(null);
-  const floatingDropdownRef = useRef<HTMLDivElement>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const providerDropdownRef = useRef<HTMLDivElement>(null);
 
   const shouldRenderFloatingToolbar = !isTransitionAnimating && floatingToolbarStyle.visible;
 
@@ -142,6 +148,11 @@ export function OpenAISection({
           return prev;
         }
 
+        // 当隐藏时自动收起
+        if (!shouldShow) {
+          setIsFloatingToolbarExpanded(false);
+        }
+
         return next;
       });
     };
@@ -154,42 +165,54 @@ export function OpenAISection({
       window.removeEventListener('resize', updateFloatingToolbar);
       window.removeEventListener('scroll', updateFloatingToolbar, true);
     };
-  }, [
-    configs.length,
-    isDropdownOpen,
-    isTransitionAnimating,
-    selectedModels,
-    sortDirection,
-    sortOption,
-  ]);
+  }, [isTransitionAnimating]);
 
+  // 模型下拉菜单点击外部关闭
   useEffect(() => {
-    if (!isDropdownOpen) {
+    if (!isModelDropdownOpen) {
       return;
     }
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      const clickedTop = topDropdownRef.current?.contains(target);
-      const clickedFloating = floatingDropdownRef.current?.contains(target);
+      const clickedModel = modelDropdownRef.current?.contains(target);
 
-      if (!clickedTop && !clickedFloating) {
-        setIsDropdownOpen(false);
+      if (!clickedModel) {
+        setIsModelDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isDropdownOpen]);
+  }, [isModelDropdownOpen]);
 
+  // 提供商下拉菜单点击外部关闭
   useEffect(() => {
-    if (!isDropdownOpen) {
+    if (!isProviderDropdownOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const clickedProvider = providerDropdownRef.current?.contains(target);
+
+      if (!clickedProvider) {
+        setIsProviderDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProviderDropdownOpen]);
+
+  // 模型下拉菜单位置更新
+  useEffect(() => {
+    if (!isModelDropdownOpen) {
       return;
     }
 
     const updateDropdownLayout = () => {
       const wrapper = floatingToolbarStyle.visible
-        ? floatingDropdownRef.current
-        : topDropdownRef.current;
+        ? modelDropdownRef.current
+        : modelDropdownRef.current;
 
       if (!wrapper) {
         return;
@@ -209,11 +232,10 @@ export function OpenAISection({
       const availableSpace = openAbove ? availableAbove : availableBelow;
       const maxHeight = Math.max(minimumMaxHeight, Math.min(preferredMaxHeight, availableSpace));
 
-      setDropdownLayout((prev) => {
+      setModelDropdownLayout((prev) => {
         if (prev.openAbove === openAbove && prev.maxHeight === maxHeight) {
           return prev;
         }
-
         return { openAbove, maxHeight };
       });
     };
@@ -226,8 +248,56 @@ export function OpenAISection({
       window.removeEventListener('resize', updateDropdownLayout);
       window.removeEventListener('scroll', updateDropdownLayout, true);
     };
-  }, [floatingToolbarStyle.visible, isDropdownOpen]);
+  }, [floatingToolbarStyle.visible, isModelDropdownOpen]);
 
+  // 提供商下拉菜单位置更新
+  useEffect(() => {
+    if (!isProviderDropdownOpen) {
+      return;
+    }
+
+    const updateDropdownLayout = () => {
+      const wrapper = floatingToolbarStyle.visible
+        ? providerDropdownRef.current
+        : providerDropdownRef.current;
+
+      if (!wrapper) {
+        return;
+      }
+
+      const rect = wrapper.getBoundingClientRect();
+      const viewportPadding = 12;
+      const dropdownGap = 4;
+      const preferredMaxHeight = 300;
+      const minimumMaxHeight = 120;
+      const availableBelow = Math.max(
+        0,
+        window.innerHeight - rect.bottom - viewportPadding - dropdownGap
+      );
+      const availableAbove = Math.max(0, rect.top - viewportPadding - dropdownGap);
+      const openAbove = availableBelow < preferredMaxHeight && availableAbove > availableBelow;
+      const availableSpace = openAbove ? availableAbove : availableBelow;
+      const maxHeight = Math.max(minimumMaxHeight, Math.min(preferredMaxHeight, availableSpace));
+
+      setProviderDropdownLayout((prev) => {
+        if (prev.openAbove === openAbove && prev.maxHeight === maxHeight) {
+          return prev;
+        }
+        return { openAbove, maxHeight };
+      });
+    };
+
+    updateDropdownLayout();
+    window.addEventListener('resize', updateDropdownLayout);
+    window.addEventListener('scroll', updateDropdownLayout, true);
+
+    return () => {
+      window.removeEventListener('resize', updateDropdownLayout);
+      window.removeEventListener('scroll', updateDropdownLayout, true);
+    };
+  }, [floatingToolbarStyle.visible, isProviderDropdownOpen]);
+
+  // 获取所有模型名称
   const allModelNames = useMemo(() => {
     const modelSet = new Set<string>();
     configs.forEach((provider) => {
@@ -239,6 +309,31 @@ export function OpenAISection({
     });
     return Array.from(modelSet).sort();
   }, [configs]);
+
+  // 过滤后的模型名称
+  const filteredModelNames = useMemo(() => {
+    if (!modelSearchQuery.trim()) {
+      return allModelNames;
+    }
+    const query = modelSearchQuery.toLowerCase();
+    return allModelNames.filter((name) => name.toLowerCase().includes(query));
+  }, [allModelNames, modelSearchQuery]);
+
+  // 获取所有提供商名称
+  const allProviderNames = useMemo(() => {
+    return configs.map((config) => config.name).sort();
+  }, [configs]);
+
+  // 过滤后的提供商名称
+  const filteredProviderNames = useMemo(() => {
+    if (!providerSearchQuery.trim()) {
+      return allProviderNames;
+    }
+    const query = providerSearchQuery.toLowerCase();
+    return allProviderNames.filter((name) => name.toLowerCase().includes(query));
+  }, [allProviderNames, providerSearchQuery]);
+
+  // 模型筛选相关
   const selectedModelNames = useMemo(() => Array.from(selectedModels).sort(), [selectedModels]);
   const modelFilterActive = selectedModelNames.length > 0;
   const modelFilterLabel = modelFilterActive
@@ -247,6 +342,16 @@ export function OpenAISection({
   const modelFilterTitle = modelFilterActive
     ? selectedModelNames.join(', ')
     : t('ai_providers.model_search_placeholder');
+
+  // 提供商筛选相关
+  const selectedProviderNames = useMemo(() => Array.from(selectedProviders).sort(), [selectedProviders]);
+  const providerFilterActive = selectedProviderNames.length > 0;
+  const providerFilterLabel = providerFilterActive
+    ? t('ai_providers.provider_selected_count', { count: selectedProviderNames.length })
+    : t('ai_providers.provider_search_placeholder');
+  const providerFilterTitle = providerFilterActive
+    ? selectedProviderNames.join(', ')
+    : t('ai_providers.provider_search_placeholder');
 
   const statusBarCache = useMemo(() => {
     const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
@@ -264,66 +369,24 @@ export function OpenAISection({
     return cache;
   }, [configs, usageDetailsByAuthIndex, usageDetailsBySource]);
 
-  const sortOptions = useMemo(
-    () => [
-      { value: 'priority', label: t('ai_providers.sort_by_priority') },
-      { value: 'name', label: t('ai_providers.sort_by_name') },
-      { value: 'recent-success', label: t('ai_providers.sort_by_recent_success') },
-    ],
-    [t]
-  );
+  // 过滤后的配置列表
+  const filteredConfigs = useMemo<IndexedOpenAIProvider[]>(() => {
+    return configs
+      .map((config, originalIndex) => ({ config, originalIndex }))
+      .filter(({ config }) => {
+        // 按提供商筛选
+        if (selectedProviders.size > 0 && !selectedProviders.has(config.name)) {
+          return false;
+        }
+        // 按模型筛选
+        if (selectedModels.size > 0) {
+          return config.models?.some((model) => selectedModels.has(model.name));
+        }
+        return true;
+      });
+  }, [configs, selectedModels, selectedProviders]);
 
-  const sortedConfigs = useMemo<IndexedOpenAIProvider[]>(() => {
-    const indexed = configs.map((config, originalIndex) => ({ config, originalIndex }));
-    const filtered = indexed.filter(({ config }) => {
-      if (selectedModels.size === 0) return true;
-      return config.models?.some((model) => selectedModels.has(model.name));
-    });
-
-    const sorted = [...filtered];
-    const direction = sortDirection === 'desc' ? -1 : 1;
-    const providerStats =
-      sortOption === 'recent-success'
-        ? new Map(sorted.map(({ config }) => [config, getOpenAIProviderStats(config, keyStats)]))
-        : null;
-
-    switch (sortOption) {
-      case 'name':
-        sorted.sort((a, b) => direction * a.config.name.localeCompare(b.config.name));
-        break;
-      case 'priority':
-        sorted.sort((a, b) => {
-          const priorityA = a.config.priority ?? Number.MAX_SAFE_INTEGER;
-          const priorityB = b.config.priority ?? Number.MAX_SAFE_INTEGER;
-          const priorityDiff = priorityA - priorityB;
-
-          if (priorityDiff !== 0) {
-            return direction * priorityDiff;
-          }
-
-          return direction * a.config.name.localeCompare(b.config.name);
-        });
-        break;
-      case 'recent-success':
-        sorted.sort((a, b) => {
-          const successDiff =
-            (providerStats?.get(a.config)?.success ?? 0) -
-            (providerStats?.get(b.config)?.success ?? 0);
-
-          if (successDiff !== 0) {
-            return direction * successDiff;
-          }
-
-          return direction * a.config.name.localeCompare(b.config.name);
-        });
-        break;
-      default:
-        break;
-    }
-
-    return sorted;
-  }, [configs, sortOption, sortDirection, keyStats, selectedModels]);
-
+  // 模型选择操作
   const toggleModelSelection = (modelName: string) => {
     setSelectedModels((prev) => {
       const next = new Set(prev);
@@ -340,166 +403,284 @@ export function OpenAISection({
     setSelectedModels(new Set());
   };
 
-  const handleSortOptionChange = (value: SortOption) => {
-    setSortOption(value);
+  // 提供商选择操作
+  const toggleProviderSelection = (providerName: string) => {
+    setSelectedProviders((prev) => {
+      const next = new Set(prev);
+      if (next.has(providerName)) {
+        next.delete(providerName);
+      } else {
+        next.add(providerName);
+      }
+      return next;
+    });
   };
 
-  const toggleSortDirection = () => {
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  const clearAllProviders = () => {
+    setSelectedProviders(new Set());
   };
 
-  const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
-
-  const renderSortControls = () => (
-    <div className={styles.sortControls}>
-      <Select
-        value={sortOption}
-        options={sortOptions}
-        onChange={(value) => handleSortOptionChange(value as SortOption)}
-        className={styles.sortSelect}
-        disabled={actionsDisabled}
-        ariaLabel={t('ai_providers.sort_by_priority')}
-        fullWidth={false}
-      />
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={toggleSortDirection}
-        className={styles.sortDirectionButton}
-        disabled={actionsDisabled}
-        title={
-          sortDirection === 'asc'
-            ? t('ai_providers.sort_ascending')
-            : t('ai_providers.sort_descending')
-        }
-        aria-label={
-          sortDirection === 'asc'
-            ? t('ai_providers.sort_ascending')
-            : t('ai_providers.sort_descending')
-        }
-      >
-        <span className={styles.sortDirectionIcon}>
-          {sortDirection === 'asc' ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-        </span>
-        <span>
-          {sortDirection === 'asc'
-            ? t('ai_providers.sort_asc_short')
-            : t('ai_providers.sort_desc_short')}
-        </span>
-      </Button>
-    </div>
-  );
-
-  const renderToolbar = (isFloating = false) => {
+  // 渲染模型筛选器
+  const renderModelFilter = (isFloating = false) => {
     const isActiveToolbar = isFloating === shouldRenderFloatingToolbar;
-    const dropdownClassName = dropdownLayout.openAbove
+    const dropdownClassName = modelDropdownLayout.openAbove
       ? `${styles.modelDropdownList} ${styles.modelDropdownListAbove}`
       : styles.modelDropdownList;
 
     return (
-      <div className={styles.cardHeaderActions}>
+      <div
+        className={styles.modelMultiSelectWrapper}
+        ref={modelDropdownRef}
+      >
         <div
-          className={styles.modelMultiSelectWrapper}
-          ref={isFloating ? floatingDropdownRef : topDropdownRef}
+          className={[
+            styles.modelFilterControl,
+            modelFilterActive ? styles.modelFilterControlActive : '',
+            actionsDisabled ? styles.modelFilterControlDisabled : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
-          <div
-            className={[
-              styles.modelFilterControl,
-              modelFilterActive ? styles.modelFilterControlActive : '',
-              actionsDisabled ? styles.modelFilterControlDisabled : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
+          <button
+            type="button"
+            className={styles.modelFilterTrigger}
+            onClick={() => {
+              setIsModelDropdownOpen(!isModelDropdownOpen);
+              setIsProviderDropdownOpen(false);
+            }}
+            disabled={actionsDisabled}
+            title={modelFilterTitle}
+            aria-label={modelFilterTitle}
+            aria-haspopup="true"
+            aria-expanded={isActiveToolbar && isModelDropdownOpen}
           >
+            <span className={styles.modelFilterIcon} aria-hidden="true">
+              <IconSlidersHorizontal size={14} />
+            </span>
+            <span className={styles.modelFilterText}>{modelFilterLabel}</span>
+            {modelFilterActive && (
+              <span className={styles.modelFilterCount}>{selectedModelNames.length}</span>
+            )}
+            <span className={styles.modelFilterChevron} aria-hidden="true">
+              <IconChevronDown size={14} />
+            </span>
+          </button>
+          {modelFilterActive && (
             <button
               type="button"
-              className={styles.modelFilterTrigger}
-              onClick={toggleDropdown}
+              className={styles.modelFilterInlineClear}
+              onClick={clearAllModels}
               disabled={actionsDisabled}
-              title={modelFilterTitle}
-              aria-label={modelFilterTitle}
-              aria-haspopup="true"
-              aria-expanded={isActiveToolbar && isDropdownOpen}
+              aria-label={t('ai_providers.model_search_clear')}
+              title={t('ai_providers.model_search_clear')}
             >
-              <span className={styles.modelFilterIcon} aria-hidden="true">
-                <IconSlidersHorizontal size={14} />
-              </span>
-              <span className={styles.modelFilterText}>{modelFilterLabel}</span>
-              {modelFilterActive && (
-                <span className={styles.modelFilterCount}>{selectedModelNames.length}</span>
-              )}
-              <span className={styles.modelFilterChevron} aria-hidden="true">
-                <IconChevronDown size={14} />
-              </span>
+              <IconX size={14} />
             </button>
-            {modelFilterActive && (
-              <button
-                type="button"
-                className={styles.modelFilterInlineClear}
-                onClick={clearAllModels}
-                disabled={actionsDisabled}
-                aria-label={t('ai_providers.model_search_clear')}
-                title={t('ai_providers.model_search_clear')}
-              >
-                <IconX size={14} />
-              </button>
-            )}
-          </div>
+          )}
+        </div>
 
-          {isActiveToolbar && isDropdownOpen && (
-            <div
-              className={dropdownClassName}
-              style={{ maxHeight: `${dropdownLayout.maxHeight}px` }}
-            >
-              <div className={styles.modelDropdownHeader}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedModels(new Set(allModelNames))}
-                  className={styles.modelDropdownSelectAll}
-                  disabled={actionsDisabled || allModelNames.length === 0}
-                >
-                  {t('ai_providers.model_select_all')}
-                </Button>
+        {isModelDropdownOpen && (
+          <div
+            className={dropdownClassName}
+            style={{ maxHeight: `${modelDropdownLayout.maxHeight}px` }}
+          >
+            <div className={styles.modelDropdownHeader}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedModels(new Set(filteredModelNames))}
+                className={styles.modelDropdownSelectAll}
+                disabled={filteredModelNames.length === 0}
+              >
+                {t('ai_providers.model_select_all')}
+              </Button>
+              <div className={styles.modelDropdownSearchWrapper}>
+                <Input
+                  type="text"
+                  placeholder={t('ai_providers.model_search_placeholder')}
+                  value={modelSearchQuery}
+                  onChange={(e) => setModelSearchQuery(e.target.value)}
+                  className={styles.modelDropdownSearchInput}
+                />
+              </div>
+              <div className={styles.modelDropdownHeaderRight}>
                 {modelFilterActive && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={clearAllModels}
                     className={styles.modelDropdownClear}
-                    disabled={actionsDisabled}
                   >
                     {t('ai_providers.model_search_clear')}
                   </Button>
                 )}
               </div>
-              <div
-                className={styles.modelDropdownItems}
-                role="group"
-                aria-label={t('ai_providers.model_search_placeholder')}
+            </div>
+            <div
+              className={styles.modelDropdownItems}
+              role="group"
+              aria-label={t('ai_providers.model_search_placeholder')}
+            >
+              {allModelNames.length === 0 ? (
+                <div className={styles.modelDropdownEmpty}>
+                  {t('ai_providers.model_filter_empty')}
+                </div>
+              ) : filteredModelNames.length === 0 ? (
+                <div className={styles.modelDropdownEmpty}>
+                  {t('ai_providers.model_search_no_results')}
+                </div>
+              ) : (
+                filteredModelNames.map((name) => (
+                  <SelectionCheckbox
+                    key={`model-option-${name}`}
+                    checked={selectedModels.has(name)}
+                    onChange={() => toggleModelSelection(name)}
+                    className={styles.modelDropdownItem}
+                    labelClassName={styles.modelDropdownItemLabel}
+                    label={<span title={name}>{name}</span>}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 渲染提供商筛选器
+  const renderProviderFilter = (isFloating = false) => {
+    const isActiveToolbar = isFloating === shouldRenderFloatingToolbar;
+    const dropdownClassName = providerDropdownLayout.openAbove
+      ? `${styles.providerDropdownList} ${styles.providerDropdownListAbove}`
+      : styles.providerDropdownList;
+
+    return (
+      <div
+        className={styles.modelMultiSelectWrapper}
+        ref={providerDropdownRef}
+      >
+        <div
+          className={[
+            styles.providerFilterControl,
+            providerFilterActive ? styles.providerFilterControlActive : '',
+            actionsDisabled ? styles.providerFilterControlDisabled : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <button
+            type="button"
+            className={styles.modelFilterTrigger}
+            onClick={() => {
+              setIsProviderDropdownOpen(!isProviderDropdownOpen);
+              setIsModelDropdownOpen(false);
+            }}
+            disabled={actionsDisabled}
+            title={providerFilterTitle}
+            aria-label={providerFilterTitle}
+            aria-haspopup="true"
+            aria-expanded={isActiveToolbar && isProviderDropdownOpen}
+          >
+            <span className={styles.providerFilterIcon} aria-hidden="true">
+              <IconSlidersHorizontal size={14} />
+            </span>
+            <span className={styles.providerFilterText}>{providerFilterLabel}</span>
+            {providerFilterActive && (
+              <span className={styles.providerFilterCount}>{selectedProviderNames.length}</span>
+            )}
+            <span className={styles.providerFilterChevron} aria-hidden="true">
+              <IconChevronDown size={14} />
+            </span>
+          </button>
+          {providerFilterActive && (
+            <button
+              type="button"
+              className={styles.providerFilterInlineClear}
+              onClick={clearAllProviders}
+              disabled={actionsDisabled}
+              aria-label={t('ai_providers.provider_search_clear')}
+              title={t('ai_providers.provider_search_clear')}
+            >
+              <IconX size={14} />
+            </button>
+          )}
+        </div>
+
+        {isProviderDropdownOpen && (
+          <div
+            className={dropdownClassName}
+            style={{ maxHeight: `${providerDropdownLayout.maxHeight}px` }}
+          >
+            <div className={styles.modelDropdownHeader}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedProviders(new Set(filteredProviderNames))}
+                className={styles.modelDropdownSelectAll}
+                disabled={filteredProviderNames.length === 0}
               >
-                {allModelNames.length === 0 ? (
-                  <div className={styles.modelDropdownEmpty}>
-                    {t('ai_providers.model_filter_empty')}
-                  </div>
-                ) : (
-                  allModelNames.map((name) => (
-                    <SelectionCheckbox
-                      key={`top-option-${name}`}
-                      checked={selectedModels.has(name)}
-                      onChange={() => toggleModelSelection(name)}
-                      disabled={actionsDisabled}
-                      className={styles.modelDropdownItem}
-                      labelClassName={styles.modelDropdownItemLabel}
-                      label={<span title={name}>{name}</span>}
-                    />
-                  ))
+                {t('ai_providers.provider_select_all')}
+              </Button>
+              <div className={styles.modelDropdownSearchWrapper}>
+                <Input
+                  type="text"
+                  placeholder={t('ai_providers.provider_search_placeholder')}
+                  value={providerSearchQuery}
+                  onChange={(e) => setProviderSearchQuery(e.target.value)}
+                  className={styles.modelDropdownSearchInput}
+                />
+              </div>
+              <div className={styles.modelDropdownHeaderRight}>
+                {providerFilterActive && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllProviders}
+                    className={styles.modelDropdownClear}
+                  >
+                    {t('ai_providers.provider_search_clear')}
+                  </Button>
                 )}
               </div>
             </div>
-          )}
-        </div>
-        {renderSortControls()}
+            <div
+              className={styles.modelDropdownItems}
+              role="group"
+              aria-label={t('ai_providers.provider_search_placeholder')}
+            >
+              {allProviderNames.length === 0 ? (
+                <div className={styles.modelDropdownEmpty}>
+                  {t('ai_providers.provider_filter_empty')}
+                </div>
+              ) : filteredProviderNames.length === 0 ? (
+                <div className={styles.modelDropdownEmpty}>
+                  {t('ai_providers.provider_search_no_results')}
+                </div>
+              ) : (
+                filteredProviderNames.map((name) => (
+                  <SelectionCheckbox
+                    key={`provider-option-${name}`}
+                    checked={selectedProviders.has(name)}
+                    onChange={() => toggleProviderSelection(name)}
+                    className={styles.modelDropdownItem}
+                    labelClassName={styles.modelDropdownItemLabel}
+                    label={<span title={name}>{name}</span>}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderToolbar = (isFloating = false) => {
+    return (
+      <div className={styles.cardHeaderActions}>
+        {renderModelFilter(isFloating)}
+        {renderProviderFilter(isFloating)}
         <Button
           size="sm"
           onClick={onAdd}
@@ -670,9 +851,9 @@ export function OpenAISection({
             </div>
           }
         >
-          {loading && sortedConfigs.length === 0 ? (
+          {loading && filteredConfigs.length === 0 ? (
             <div className="hint">{t('common.loading')}</div>
-          ) : configs.length > 0 && sortedConfigs.length === 0 ? (
+          ) : configs.length > 0 && filteredConfigs.length === 0 ? (
             <EmptyState
               title={t('ai_providers.openai_filtered_empty_title')}
               description={t('ai_providers.openai_filtered_empty_desc')}
@@ -680,40 +861,73 @@ export function OpenAISection({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={clearAllModels}
+                  onClick={() => {
+                    clearAllModels();
+                    clearAllProviders();
+                  }}
                   disabled={actionsDisabled}
                 >
                   {t('ai_providers.model_search_clear')}
                 </Button>
               }
             />
-          ) : sortedConfigs.length === 0 ? (
+          ) : filteredConfigs.length === 0 ? (
             <EmptyState
               title={t('ai_providers.openai_empty_title')}
               description={t('ai_providers.openai_empty_desc')}
             />
           ) : (
-            <div className={styles.openaiProviderList}>{sortedConfigs.map(renderProviderCard)}</div>
+            <div className={styles.openaiProviderList}>{filteredConfigs.map(renderProviderCard)}</div>
           )}
         </Card>
       </div>
       {typeof document !== 'undefined' && shouldRenderFloatingToolbar
         ? createPortal(
-            <div
-              className={`card ${styles.openaiFloatingToolbar}`}
-              style={{
-                left: `${floatingToolbarStyle.left}px`,
-                top: `${floatingToolbarStyle.top}px`,
-                width: `${floatingToolbarStyle.width}px`,
-              }}
-            >
+          <div
+            className={`card ${styles.openaiFloatingToolbar} ${isFloatingToolbarExpanded ? styles.openaiFloatingToolbarExpanded : ''
+              }`}
+            style={{
+              left: `${floatingToolbarStyle.left}px`,
+              top: `${floatingToolbarStyle.top}px`,
+              width: `${floatingToolbarStyle.width}px`,
+              backgroundColor: 'var(--bg-secondary)',
+            }}
+          >
+            {!isFloatingToolbarExpanded ? (
+              <div className="card-header" style={{ padding: '8px' }}>
+                <Button
+                  size="sm"
+                  onClick={() => setIsFloatingToolbarExpanded(true)}
+                  className={styles.openaiFloatingToggleButton}
+                >
+                  <img
+                    src={resolvedTheme === 'dark' ? iconOpenaiDark : iconOpenaiLight}
+                    alt=""
+                    style={{ width: 16, height: 16, marginRight: 6 }}
+                  />
+                  {t('ai_providers.openai_title')}
+                  <IconChevronDown size={12} style={{ marginLeft: 6 }} />
+                </Button>
+              </div>
+            ) : (
               <div className="card-header">
-                <div className="title">{renderStaticTitle()}</div>
+                <div className="title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsFloatingToolbarExpanded(false)}
+                    className={styles.openaiFloatingCloseButton}
+                  >
+                    <IconX size={14} />
+                  </Button>
+                  {renderStaticTitle()}
+                </div>
                 {renderToolbar(true)}
               </div>
-            </div>,
-            document.body
-          )
+            )}
+          </div>,
+          document.body
+        )
         : null}
     </>
   );

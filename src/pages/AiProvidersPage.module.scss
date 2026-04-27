@@ -29,9 +29,7 @@ $openai-toolbar-control-height: 36px;
   display: flex;
   flex-direction: column;
   gap: $spacing-xl;
-  padding-bottom: calc(
-    var(--provider-nav-height, 60px) + 12px + env(safe-area-inset-bottom) + #{$spacing-md}
-  );
+  padding-bottom: calc(var(--provider-nav-height, 60px) + 12px + env(safe-area-inset-bottom) + #{$spacing-md});
 }
 
 .section {
@@ -57,15 +55,7 @@ $openai-toolbar-control-height: 36px;
 .openaiProviderList {
   display: grid;
   gap: $spacing-md;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-
-  @media (min-width: 1400px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @include mobile {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: 1fr;
 }
 
 .openaiProviderCard {
@@ -112,7 +102,7 @@ $openai-toolbar-control-height: 36px;
   flex: 0 0 148px;
   width: 148px;
 
-  > button {
+  >button {
     height: $openai-toolbar-control-height;
     padding: 0 12px;
     border-color: var(--border-primary);
@@ -140,7 +130,7 @@ $openai-toolbar-control-height: 36px;
     background: var(--bg-tertiary);
   }
 
-  > span {
+  >span {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -181,10 +171,24 @@ $openai-toolbar-control-height: 36px;
 .openaiFloatingToolbar {
   position: fixed;
   z-index: 20;
-  background: var(--bg-primary);
-  box-shadow: none;
+  // background: var(--bg-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: visible;
   padding: 0;
+  transition: all 0.2s ease;
+}
+
+.openaiFloatingToolbar:not(.openaiFloatingToolbarExpanded) {
+  width: auto !important;
+  left: auto !important;
+  right: 16px;
+  box-shadow: none;
+  border-radius: 8px;
+  border: none;
+}
+
+.openaiFloatingToolbarExpanded {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .openaiFloatingToolbar :global(.card-header) {
@@ -193,15 +197,59 @@ $openai-toolbar-control-height: 36px;
   border-radius: 0;
 }
 
+.openaiFloatingToolbar:not(.openaiFloatingToolbarExpanded) :global(.card-header) {
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.openaiFloatingToggleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: none;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+}
+
+.openaiFloatingCloseButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+}
+
 // 模型多选下拉框
 .modelMultiSelectWrapper {
   position: relative;
 }
 
-.modelFilterControl {
+.modelFilterControl,
+.providerFilterControl {
   display: flex;
   align-items: center;
-  width: 164px;
+  min-width: 140px;
+  max-width: 220px;
   height: $openai-toolbar-control-height;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
@@ -218,12 +266,14 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-.modelFilterControlActive {
+.modelFilterControlActive,
+.providerFilterControlActive {
   border-color: color-mix(in srgb, var(--primary-color) 46%, var(--border-primary));
   background: color-mix(in srgb, var(--primary-color) 7%, var(--bg-secondary));
 }
 
-.modelFilterControlDisabled {
+.modelFilterControlDisabled,
+.providerFilterControlDisabled {
   opacity: 0.6;
   cursor: not-allowed;
 
@@ -233,7 +283,8 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-.modelFilterTrigger {
+.modelFilterTrigger,
+.providerFilterTrigger {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -252,7 +303,8 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-.modelFilterIcon {
+.modelFilterIcon,
+.providerFilterIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -260,7 +312,8 @@ $openai-toolbar-control-height: 36px;
   flex-shrink: 0;
 }
 
-.modelFilterText {
+.modelFilterText,
+.providerFilterText {
   font-size: 13px;
   font-weight: 500;
   flex: 1;
@@ -270,7 +323,8 @@ $openai-toolbar-control-height: 36px;
   white-space: nowrap;
 }
 
-.modelFilterCount {
+.modelFilterCount,
+.providerFilterCount {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -286,7 +340,8 @@ $openai-toolbar-control-height: 36px;
   flex-shrink: 0;
 }
 
-.modelFilterChevron {
+.modelFilterChevron,
+.providerFilterChevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -294,7 +349,8 @@ $openai-toolbar-control-height: 36px;
   flex-shrink: 0;
 }
 
-.modelFilterInlineClear {
+.modelFilterInlineClear,
+.providerFilterInlineClear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,28 +371,36 @@ $openai-toolbar-control-height: 36px;
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
-
-  &:disabled {
-    cursor: not-allowed;
-    color: var(--text-tertiary);
-  }
 }
 
 .modelDropdownList {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  top: calc(100% + 8px);
+  right: 0;
   width: 320px;
-  max-width: min(320px, calc(100vw - 32px));
-  max-height: 300px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: 350px;
   overflow: hidden;
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
-  border-radius: $radius-md;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   z-index: 1000;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modelDropdownListAbove {
@@ -344,25 +408,77 @@ $openai-toolbar-control-height: 36px;
   bottom: calc(100% + 4px);
 }
 
+.providerDropdownList {
+  composes: modelDropdownList;
+}
+
+.providerDropdownListAbove {
+  composes: modelDropdownListAbove;
+}
+
+.modelDropdownSearchInput:global(.form-control) {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+  border: 1px solid var(--border-primary);
+  border-radius: $radius-sm;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  &:not(:disabled) {
+    cursor: text;
+  }
+}
+
 .modelDropdownHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: $spacing-xs;
-  padding: 6px;
+  gap: $spacing-sm;
+  padding: 10px;
   border-bottom: 1px solid var(--border-primary);
   background: var(--bg-tertiary);
 }
 
+.modelDropdownSearchWrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.modelDropdownHeaderRight {
+  flex-shrink: 0;
+}
+
 .modelDropdownSelectAll:global(.btn.btn-ghost),
 .modelDropdownClear:global(.btn.btn-ghost) {
-  height: 28px;
-  padding: 0 8px;
+  height: 30px;
+  padding: 0 12px;
   color: var(--primary-color);
   font-size: 12px;
+  font-weight: 500;
+  border-radius: $radius-sm;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
 
   &:hover {
     background: var(--bg-secondary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
@@ -382,13 +498,17 @@ $openai-toolbar-control-height: 36px;
   align-items: center;
   gap: $spacing-sm;
   width: 100%;
-  padding: 8px;
-  border-radius: 6px;
+  padding: 7px 10px;
+  border-radius: $radius-sm;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background-color 0.15s ease;
 
   &:hover {
     background: var(--bg-secondary);
+  }
+
+  &:active {
+    background: var(--bg-tertiary);
   }
 }
 
@@ -1321,6 +1441,7 @@ $openai-toolbar-control-height: 36px;
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

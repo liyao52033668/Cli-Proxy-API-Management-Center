@@ -196,6 +196,33 @@
   }
 }
 
+.modelsSearchWrapper {
+  margin-bottom: $spacing-md;
+}
+
+.modelsSearchInput:global(.form-control) {
+  width: 100%;
+  max-width: 400px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
+}
+
 .modelTags {
   display: flex;
   flex-wrap: wrap;
