@@ -9,18 +9,55 @@ export type OAuthProvider =
   | 'anthropic'
   | 'antigravity'
   | 'gemini-cli'
-  | 'kimi';
+  | 'kimi'
+  | 'gitlab'
+  | 'kilo'
+  | 'iflow'
+  | 'kiro'
+  | 'cursor'
+  | 'github'
+  | 'qoder'
+  | 'codebuddy'
+  | 'codebuddy-ai'
+  | 'codearts'
+  | 'bt';
 
 export interface OAuthStartResponse {
+  status?: 'ok' | 'wait' | 'error' | 'device_code';
   url: string;
   state?: string;
+  user_code?: string;
+  verification_url?: string;
+  verification_uri?: string;
 }
 
 export interface OAuthCallbackResponse {
   status: 'ok';
 }
 
-const WEBUI_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli'];
+export interface BTAuthResponse {
+  status: 'ok' | 'error';
+  error?: string;
+}
+
+const WEBUI_SUPPORTED: OAuthProvider[] = [
+  'codex',
+  'anthropic',
+  'antigravity',
+  'gemini-cli',
+  'kimi',
+  'gitlab',
+  'kilo',
+  'iflow',
+  'kiro',
+  'cursor',
+  'github',
+  'qoder',
+  'codebuddy',
+  'codebuddy-ai',
+  'codearts',
+  'bt'
+];
 const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'
 };
@@ -49,6 +86,13 @@ export const oauthApi = {
     return apiClient.post<OAuthCallbackResponse>('/oauth-callback', {
       provider: callbackProvider,
       redirect_url: redirectUrl
+    });
+  },
+
+  btAuth: (phone: string, password: string) => {
+    return apiClient.post<BTAuthResponse>('/bt-auth-url', {
+      phone,
+      password
     });
   }
 };

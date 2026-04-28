@@ -136,6 +136,27 @@
   max-width: 100%;
 }
 
+.authUrlDeviceCode {
+  padding: 10px 12px;
+  border-radius: $radius-md;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.authUrlDeviceCodeLabel {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.authUrlDeviceCodeValue {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
 .authUrlActions {
   display: flex;
   flex-wrap: wrap;
@@ -156,6 +177,25 @@
     margin-top: 0;
     margin-bottom: 0;
     gap: $spacing-sm;
+  }
+
+  :global(.input:disabled) {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+  }
+}
+
+.btAuthFields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+
+  :global(.form-group) {
+    margin-top: 0;
+    margin-bottom: 0;
+    gap: $spacing-xs;
   }
 
   :global(.input:disabled) {

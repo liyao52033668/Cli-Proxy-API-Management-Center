@@ -154,12 +154,16 @@ $openai-toolbar-control-height: 36px;
 .cardHeaderActions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  // flex-wrap: wrap;
   gap: $spacing-sm;
   min-height: $openai-toolbar-control-height;
 
   :global(.btn) {
     white-space: nowrap;
+  }
+
+  @media screen and (max-width: 768px) {
+    flex-wrap: wrap;
   }
 }
 
