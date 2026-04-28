@@ -889,8 +889,7 @@ export function OpenAISection({
             style={{
               left: `${floatingToolbarStyle.left}px`,
               top: `${floatingToolbarStyle.top}px`,
-              width: `${floatingToolbarStyle.width}px`,
-              backgroundColor: 'var(--bg-secondary)',
+              width: `${floatingToolbarStyle.width}px`
             }}
           >
             {!isFloatingToolbarExpanded ? (
