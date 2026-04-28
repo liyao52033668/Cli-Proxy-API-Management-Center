@@ -40,6 +40,17 @@ export interface BTAuthResponse {
   error?: string;
 }
 
+export interface GitLabPATResponse {
+  status: 'ok' | 'error';
+  error?: string;
+  saved_path?: string;
+  username?: string;
+  email?: string;
+  token_label?: string;
+  model_provider?: string;
+  model_name?: string;
+}
+
 const WEBUI_SUPPORTED: OAuthProvider[] = [
   'codex',
   'anthropic',
@@ -93,6 +104,13 @@ export const oauthApi = {
     return apiClient.post<BTAuthResponse>('/bt-auth-url', {
       phone,
       password
+    });
+  },
+
+  gitlabPATAuth: (personalAccessToken: string, baseUrl?: string) => {
+    return apiClient.post<GitLabPATResponse>('/gitlab-auth-url', {
+      personal_access_token: personalAccessToken,
+      base_url: baseUrl
     });
   }
 };

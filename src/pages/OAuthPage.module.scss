@@ -187,7 +187,8 @@
   }
 }
 
-.btAuthFields {
+.btAuthFields,
+.gitlabAuthFields {
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;

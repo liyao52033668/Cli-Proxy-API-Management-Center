@@ -42,6 +42,8 @@ interface ProviderState {
   callbackError?: string;
   phone?: string;
   password?: string;
+  gitlabPersonalAccessToken?: string;
+  gitlabBaseUrl?: string;
 }
 
 interface VertexImportResult {
@@ -93,7 +95,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
 ];
 
-const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli'];
+const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'qoder'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>
@@ -265,6 +267,45 @@ export function OAuthPage() {
         const message = getErrorMessage(err);
         updateProviderState(provider, { status: 'error', error: message, polling: false });
         showNotification(`${t('auth_login.bt_auth_error', { defaultValue: 'BT 登录失败' })}${message ? ` ${message}` : ''}`, 'error');
+      }
+      return;
+    }
+
+    if (provider === 'gitlab') {
+      const gitlabState = states[provider];
+      const personalAccessToken = (gitlabState?.gitlabPersonalAccessToken || '').trim();
+      const baseUrl = (gitlabState?.gitlabBaseUrl || '').trim();
+
+      if (!personalAccessToken) {
+        showNotification(t('auth_login.gitlab_pat_required', { defaultValue: '请输入 Personal Access Token' }), 'warning');
+        return;
+      }
+
+      updateProviderState(provider, {
+        url: undefined,
+        state: undefined,
+        status: 'waiting',
+        polling: true,
+        error: undefined,
+        deviceCode: undefined,
+        callbackStatus: undefined,
+        callbackError: undefined,
+        callbackUrl: ''
+      });
+
+      try {
+        const res = await oauthApi.gitlabPATAuth(personalAccessToken, baseUrl || undefined);
+        if (res.status === 'ok') {
+          completeProviderAuth(provider);
+          showNotification(t('auth_login.gitlab_auth_success', { defaultValue: 'GitLab 登录成功' }), 'success');
+        } else if (res.status === 'error') {
+          updateProviderState(provider, { status: 'error', error: res.error, polling: false });
+          showNotification(res.error || t('auth_login.gitlab_auth_error', { defaultValue: 'GitLab 登录失败' }), 'error');
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        updateProviderState(provider, { status: 'error', error: message, polling: false });
+        showNotification(`${t('auth_login.gitlab_auth_error', { defaultValue: 'GitLab 登录失败' })}${message ? ` ${message}` : ''}`, 'error');
       }
       return;
     }
@@ -515,6 +556,31 @@ export function OAuthPage() {
                           updateProviderState(provider.id, { password: e.target.value })
                         }
                         placeholder={t('auth_login.bt_password_placeholder', { defaultValue: '请输入密码' })}
+                      />
+                    </div>
+                  )}
+                  {provider.id === 'gitlab' && (
+                    <div className={styles.gitlabAuthFields}>
+                      <Input
+                        type="password"
+                        label={t('auth_login.gitlab_pat_label', { defaultValue: 'Personal Access Token' })}
+                        hint={t('auth_login.gitlab_pat_hint', { defaultValue: '请输入您的 GitLab 个人访问令牌' })}
+                        value={state.gitlabPersonalAccessToken || ''}
+                        disabled={Boolean(state.polling)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, { gitlabPersonalAccessToken: e.target.value })
+                        }
+                        placeholder={t('auth_login.gitlab_pat_placeholder', { defaultValue: '请输入 Personal Access Token' })}
+                      />
+                      <Input
+                        label={t('auth_login.gitlab_base_url_label', { defaultValue: 'GitLab 地址 (可选)' })}
+                        hint={t('auth_login.gitlab_base_url_hint', { defaultValue: '自定义 GitLab 地址，留空默认使用 https://gitlab.com' })}
+                        value={state.gitlabBaseUrl || ''}
+                        disabled={Boolean(state.polling)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, { gitlabBaseUrl: e.target.value })
+                        }
+                        placeholder={t('auth_login.gitlab_base_url_placeholder', { defaultValue: 'https://gitlab.com' })}
                       />
                     </div>
                   )}
