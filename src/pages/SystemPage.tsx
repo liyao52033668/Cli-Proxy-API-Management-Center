@@ -410,7 +410,7 @@ export function SystemPage() {
 
             <div className={styles.infoTile}>
               <div className={styles.tileLabel}>{t('footer.build_date')}</div>
-              <div className={styles.tileValue}>{buildTime}</div>
+              <div className={styles.tileValue} style={{ paddingTop: '1rem' }}>{buildTime}</div>
             </div>
 
             <div className={styles.infoTile}>
