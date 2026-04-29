@@ -37,6 +37,30 @@ function getTimeOfDay(): TimeOfDay {
   return 'night';
 }
 
+function parseBuildDate(dateStr?: string | null): Date | null {
+  if (!dateStr || dateStr.toLowerCase() === 'unknown') return null;
+
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) return date;
+
+  const formatPatterns = [
+    /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+    /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+    /^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/,
+  ];
+
+  for (const pattern of formatPatterns) {
+    const match = dateStr.match(pattern);
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match.map(Number);
+      return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+    }
+  }
+
+  return null;
+}
+
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
@@ -197,9 +221,9 @@ export function DashboardPage() {
     providerStats.openai !== null;
   const totalProviderKeys = providerStatsReady
     ? (providerStats.gemini ?? 0) +
-      (providerStats.codex ?? 0) +
-      (providerStats.claude ?? 0) +
-      (providerStats.openai ?? 0)
+    (providerStats.codex ?? 0) +
+    (providerStats.claude ?? 0) +
+    (providerStats.openai ?? 0)
     : 0;
 
   const quickStats: QuickStat[] = [
@@ -219,11 +243,11 @@ export function DashboardPage() {
       loading: loading,
       sublabel: hasProviderStats
         ? t('dashboard.provider_keys_detail', {
-            gemini: providerStats.gemini ?? '-',
-            codex: providerStats.codex ?? '-',
-            claude: providerStats.claude ?? '-',
-            openai: providerStats.openai ?? '-'
-          })
+          gemini: providerStats.gemini ?? '-',
+          codex: providerStats.codex ?? '-',
+          claude: providerStats.claude ?? '-',
+          openai: providerStats.openai ?? '-'
+        })
         : undefined
     },
     {
@@ -301,31 +325,33 @@ export function DashboardPage() {
           </div>
           <div className={styles.connectionPill}>
             <span
-              className={`${styles.statusDot} ${
-                connectionStatus === 'connected'
+              className={`${styles.statusDot} ${connectionStatus === 'connected'
                   ? styles.connected
                   : connectionStatus === 'connecting'
                     ? styles.connecting
                     : styles.disconnected
-              }`}
+                }`}
             />
             <span className={styles.pillText}>
               {serverVersion
                 ? `v${serverVersion.trim().replace(/^[vV]+/, '')}`
                 : t(
-                    connectionStatus === 'connected'
-                      ? 'common.connected'
-                      : connectionStatus === 'connecting'
-                        ? 'common.connecting'
-                        : 'common.disconnected'
-                  )}
+                  connectionStatus === 'connected'
+                    ? 'common.connected'
+                    : connectionStatus === 'connecting'
+                      ? 'common.connecting'
+                      : 'common.disconnected'
+                )}
             </span>
           </div>
-          {serverBuildDate && (
-            <span className={styles.buildDate}>
-              {new Date(serverBuildDate).toLocaleDateString(i18n.language)}
-            </span>
-          )}
+          {(() => {
+            const buildDate = parseBuildDate(serverBuildDate);
+            return buildDate ? (
+              <span className={styles.buildDate}>
+                {buildDate.toLocaleDateString(i18n.language)}
+              </span>
+            ) : null;
+          })()}
         </div>
       </section>
 

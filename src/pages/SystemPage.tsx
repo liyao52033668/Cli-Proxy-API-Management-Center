@@ -110,8 +110,34 @@ export function SystemPage() {
 
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
-  const buildTime = auth.serverBuildDate
-    ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
+
+  const parseBuildDate = (dateStr?: string | null): Date | null => {
+    if (!dateStr || dateStr.toLowerCase() === 'unknown') return null;
+
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) return date;
+
+    const formatPatterns = [
+      /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+      /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+      /^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})$/,
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/,
+    ];
+
+    for (const pattern of formatPatterns) {
+      const match = dateStr.match(pattern);
+      if (match) {
+        const [, year, month, day, hour, minute, second] = match.map(Number);
+        return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      }
+    }
+
+    return null;
+  };
+
+  const buildDate = parseBuildDate(auth.serverBuildDate);
+  const buildTime = buildDate
+    ? buildDate.toLocaleString(i18n.language)
     : t('system_info.version_unknown');
 
   const getIconForCategory = (categoryId: string): string | null => {
