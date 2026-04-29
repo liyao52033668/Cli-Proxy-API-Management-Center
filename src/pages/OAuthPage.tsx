@@ -207,6 +207,23 @@ export function OAuthPage() {
         if (res.status === 'ok') {
           completeProviderAuth(provider);
           showNotification(t(getAuthKey(provider, 'oauth_status_success')), 'success');
+        } else if (res.status === 'device_code') {
+          // Handle device code flow (AWS Builder ID)
+          const resolvedURL = res.verification_url || res.url;
+          const resolvedDeviceCode = res.user_code;
+          updateProviderState(provider, {
+            url: resolvedURL,
+            deviceCode: resolvedDeviceCode,
+            status: 'waiting',
+            polling: true
+          });
+        } else if (res.status === 'auth_url') {
+          // Handle auth URL flow (social auth)
+          updateProviderState(provider, {
+            url: res.url,
+            status: 'waiting',
+            polling: true
+          });
         } else if (res.status === 'error') {
           updateProviderState(provider, { status: 'error', error: res.error, polling: false });
           showNotification(
@@ -627,7 +644,8 @@ export function OAuthPage() {
                     <div className={styles.callbackSection}>
                       <Input
                         label={t('auth_login.oauth_callback_label')}
-                        hint={t('auth_login.oauth_callback_hint')}
+                        hint={t(provider.id === 'qoder' ? 'auth_login.oauth_callback_qoder_hint' : 'auth_login.oauth_callback_hint')}
+                        placeholder={t(provider.id === 'qoder' ? 'auth_login.oauth_callback_qoder_placeholder' : 'auth_login.oauth_callback_placeholder')}
                         value={state.callbackUrl || ''}
                         onChange={(e) =>
                           updateProviderState(provider.id, {
@@ -636,7 +654,6 @@ export function OAuthPage() {
                             callbackError: undefined
                           })
                         }
-                        placeholder={t('auth_login.oauth_callback_placeholder')}
                       />
                       <div className={styles.callbackActions}>
                         <Button

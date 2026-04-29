@@ -88,7 +88,13 @@ export const oauthApi = {
   },
 
   getAuthStatus: (state: string) =>
-    apiClient.get<{ status: 'ok' | 'wait' | 'error'; error?: string }>(`/get-auth-status`, {
+    apiClient.get<{
+      status: 'ok' | 'wait' | 'error' | 'device_code'| 'auth_url';
+      error?: string;
+      verification_url?: string;
+      user_code?: string;
+      url?: string;
+    }>(`/get-auth-status`, {
       params: { state }
     }),
 
