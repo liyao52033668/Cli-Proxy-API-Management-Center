@@ -1,58 +1,128 @@
-name: Build and Release
+name: Auto Tag, Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
-  build-and-release:
+  tag-build-release:
     runs-on: ubuntu-latest
-
     permissions:
-      contents: write
+      contents: write  # 用于 push tag 和创建 release
 
     steps:
-      - name: Checkout code
+      # Checkout 完整历史和 tag
+      - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          fetch-tags: true
 
+      # 设置 Git 用户信息
+      - name: Setup Git
+        run: |
+          git config user.name "${{ secrets.USERNAME }}"
+          git config user.email "${{ secrets.EMAIL }}"
+
+      # 获取最新 tag
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+          if [ -z "$latest_tag" ]; then
+            latest_tag="v0.0.0"
+          fi
+          echo "latest_tag=$latest_tag"
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      # 计算新的 tag
+      - name: Determine version bump
+        id: bump
+        run: |
+          tag="${{ steps.get_tag.outputs.latest_tag }}"
+          tag="${tag#v}"
+          IFS='.' read -r major minor patch <<< "$tag"
+
+          commits=$(git log "${{ steps.get_tag.outputs.latest_tag }}"..HEAD --pretty=%B)
+          bump_type="patch"
+
+          if echo "$commits" | grep -q "BREAKING CHANGE"; then
+            bump_type="major"
+          elif echo "$commits" | grep -q "^feat"; then
+            bump_type="minor"
+          elif echo "$commits" | grep -q "^fix"; then
+            bump_type="patch"
+          else
+            echo "No version bump required."
+            exit 0
+          fi
+
+          case $bump_type in
+            major)
+              major=$((major+1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor+1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch+1))
+              ;;
+          esac
+
+          new_tag="v$major.$minor.$patch"
+          echo "new_tag=$new_tag"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+
+      # 创建并 push tag
+      - name: Create and push tag
+        run: |
+          git tag "${{ steps.bump.outputs.new_tag }}"
+          git push origin "${{ steps.bump.outputs.new_tag }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 安装 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
+      # 安装依赖
       - name: Install dependencies
         run: npm ci
 
+      # 构建 HTML
       - name: Build all-in-one HTML
         run: npm run build
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ steps.bump.outputs.new_tag }}
 
+      # 准备 release 文件
       - name: Prepare release assets
         run: |
           cd dist
           mv index.html management.html
           ls -lh management.html
 
+      # 生成 release notes
       - name: Generate release notes
         run: |
           set -euo pipefail
-          current_tag="${GITHUB_REF_NAME}"
+          current_tag="${{ steps.bump.outputs.new_tag }}"
           previous_tag="$(git tag --list 'v*' --sort=-v:refname | grep -v "^${current_tag}$" | head -n 1 || true)"
           if [ -n "${previous_tag}" ]; then
             range="${previous_tag}..${current_tag}"
           else
             range="${current_tag}"
           fi
-
           : > release-notes.md
           git log --pretty=format:"- %h %s" "${range}" >> release-notes.md
 
+      # 创建 release 并上传文件
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
