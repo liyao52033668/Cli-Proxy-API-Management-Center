@@ -15,8 +15,8 @@ jobs:
 
       - name: Setup Git
         run: |
-          git config user.name ${{ secrets.USERNAME }}
-          git config user.email ${{ secrets.EMAIL }}
+          git config user.name "${{ secrets.USERNAME }}"
+          git config user.email "${{ secrets.EMAIL }}"
 
       - name: Get latest tag
         id: get_tag
@@ -28,11 +28,16 @@ jobs:
       - name: Determine version bump
         id: bump
         run: |
-          # 获取最新 tag 并拆分
-          IFS='.' read -r major minor patch <<<"${{ steps.get_tag.outputs.latest_tag#v }}"
-          
+          # 获取 latest_tag 输出
+          tag="${{ steps.get_tag.outputs.latest_tag }}"
+          # 去掉前缀 v
+          tag="${tag#v}"
+
+          # 拆分 major minor patch
+          IFS='.' read -r major minor patch <<< "$tag"
+
           # 获取上一次 tag 之后的 commit
-          commits=$(git log ${{ steps.get_tag.outputs.latest_tag }}..HEAD --pretty=%B)
+          commits=$(git log "${{ steps.get_tag.outputs.latest_tag }}"..HEAD --pretty=%B)
 
           # 初始化 bump
           bump_type="patch"
@@ -70,5 +75,5 @@ jobs:
 
       - name: Create and push tag
         run: |
-          git tag ${{ steps.bump.outputs.new_tag }}
-          git push origin ${{ steps.bump.outputs.new_tag }}
+          git tag "${{ steps.bump.outputs.new_tag }}"
+          git push origin "${{ steps.bump.outputs.new_tag }}"

@@ -43,6 +43,9 @@ const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: strin
   minimax: iconMinimax,
 };
 
+type ModelCategory = keyof typeof MODEL_CATEGORY_ICONS;
+type HandlerType = ModelCategory | 'other' | '';
+
 const parseVersionSegments = (version?: string | null) => {
   if (!version) return null;
   const cleaned = version.trim().replace(/^v/i, '');
@@ -97,7 +100,7 @@ export function SystemPage() {
   const [disabledAutoModels, setDisabledAutoModels] = useState<string[]>([]);
   const [modelSelectionCounts, setModelSelectionCounts] = useState<Record<string, number>>({});
   const [modelFilterTab, setModelFilterTab] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [handlerTypeFilter, setHandlerTypeFilter] = useState<string>('');
+  const [handlerTypeFilter, setHandlerTypeFilter] = useState<HandlerType>('');
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
@@ -613,7 +616,7 @@ export function SystemPage() {
                   <select
                     className={styles.handlerTypeSelect}
                     value={handlerTypeFilter}
-                    onChange={(e) => setHandlerTypeFilter(e.target.value)}
+                    onChange={(e) => setHandlerTypeFilter(e.target.value as HandlerType)}
                   >
                     <option value="">{t('system_info.filter_all_handler')}</option>
                     <option value="gpt">GPT</option>
