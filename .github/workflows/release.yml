@@ -86,9 +86,15 @@ jobs:
           git tag "${{ steps.bump.outputs.new_tag }}"
           git push origin "${{ steps.bump.outputs.new_tag }}"
 
+      
+      # 刷新本地 tag 列表
+      - name: Fetch tags after push
+        if: steps.bump.outputs.new_tag != ''
+        run: git fetch --tags
+
       # 安装 Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
@@ -127,10 +133,11 @@ jobs:
           : > release-notes.md
           git log --pretty=format:"- %h %s" "${range}" >> release-notes.md
 
+
       # 创建 release 并上传文件
       - name: Create Release
         if: steps.bump.outputs.new_tag != ''
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/management.html
           body_path: release-notes.md
