@@ -8,17 +8,16 @@ on:
 jobs:
   tag-build-release:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
     steps:
-      # Checkout 完整历史和 tag
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      # 设置 Git 用户信息
       - name: Setup Git
         run: |
           git config user.name "${{ secrets.USERNAME }}"
@@ -28,14 +27,11 @@ jobs:
       - name: Get latest tag
         id: get_tag
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
-          if [ -z "$latest_tag" ]; then
-            latest_tag="v0.0.0"
-          fi
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "latest_tag=$latest_tag"
           echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
 
-      # 计算新的 tag
+      # 计算版本
       - name: Determine version bump
         id: bump
         run: |
@@ -46,6 +42,7 @@ jobs:
           commits=$(git log "${{ steps.get_tag.outputs.latest_tag }}"..HEAD --pretty=%B)
 
           bump_type=""
+
           if echo "$commits" | grep -q "BREAKING CHANGE"; then
             bump_type="major"
           elif echo "$commits" | grep -q "^feat"; then
@@ -55,8 +52,8 @@ jobs:
           fi
 
           if [ -z "$bump_type" ]; then
-            echo "No version bump required."
             echo "new_tag=" >> $GITHUB_OUTPUT
+            echo "No version bump"
             exit 0
           fi
 
@@ -79,21 +76,16 @@ jobs:
           echo "new_tag=$new_tag"
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
 
-      # 创建并 push tag（只有有新 tag 才执行）
+      # 创建 tag
       - name: Create and push tag
         if: steps.bump.outputs.new_tag != ''
         run: |
           git tag "${{ steps.bump.outputs.new_tag }}"
           git push origin "${{ steps.bump.outputs.new_tag }}"
 
-      
-      # 刷新本地 tag 列表
-      - name: Fetch tags after push
-        if: steps.bump.outputs.new_tag != ''
-        run: git fetch --tags
-
-      # 安装 Node.js
+      # 安装 Node
       - name: Setup Node.js
+        if: steps.bump.outputs.new_tag != ''
         uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -101,47 +93,48 @@ jobs:
 
       # 安装依赖
       - name: Install dependencies
+        if: steps.bump.outputs.new_tag != ''
         run: npm ci
 
-      # 构建 HTML
-      - name: Build all-in-one HTML
+      # 构建
+      - name: Build
         if: steps.bump.outputs.new_tag != ''
         run: npm run build
         env:
           VERSION: ${{ steps.bump.outputs.new_tag }}
 
-      # 准备 release 文件
+      # 处理产物
       - name: Prepare release assets
         if: steps.bump.outputs.new_tag != ''
         run: |
           cd dist
           mv index.html management.html
-          ls -lh management.html
 
       # 生成 release notes
       - name: Generate release notes
         if: steps.bump.outputs.new_tag != ''
         run: |
-          set -euo pipefail
           current_tag="${{ steps.bump.outputs.new_tag }}"
           previous_tag="$(git tag --list 'v*' --sort=-v:refname | grep -v "^${current_tag}$" | head -n 1 || true)"
-          if [ -n "${previous_tag}" ]; then
-            range="${previous_tag}..${current_tag}"
-          else
-            range="${current_tag}"
-          fi
-          : > release-notes.md
-          git log --pretty=format:"- %h %s" "${range}" >> release-notes.md
 
+          if [ -n "$previous_tag" ]; then
+            range="$previous_tag..$current_tag"
+          else
+            range="$current_tag"
+          fi
+
+          git log --pretty=format:"- %h %s" "$range" > release-notes.md
 
       # 创建 release 并上传文件
       - name: Create Release
         if: steps.bump.outputs.new_tag != ''
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}   
           files: dist/management.html
           body_path: release-notes.md
           draft: false
           prerelease: false
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
