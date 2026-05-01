@@ -1539,7 +1539,12 @@
     "clear_login_title": "本地登录信息",
     "clear_login_desc": "清理本地保存的登录信息并退出登录，不会影响使用统计中的价格设置。",
     "clear_login_button": "清理登录信息",
-    "clear_login_confirm": "确认清理本地登录信息并退出登录？"
+    "clear_login_confirm": "确认清理本地登录信息并退出登录？",
+    "filter_all": "全部",
+    "filter_enabled": "可用",
+    "filter_disabled": "不可用",
+    "filter_all_handler": "全部 Handler",
+    "filter_other": "其他"
   },
   "notification": {
     "debug_updated": "调试设置已更新",

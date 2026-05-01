@@ -1,34 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Card } from '@/components/ui/Card';
+import iconClaude from '@/assets/icons/claude.svg';
+import iconDeepseek from '@/assets/icons/deepseek.svg';
+import iconGemini from '@/assets/icons/gemini.svg';
+import iconGlm from '@/assets/icons/glm.svg';
+import iconGrok from '@/assets/icons/grok.svg';
+import iconKimiDark from '@/assets/icons/kimi-dark.svg';
+import iconKimiLight from '@/assets/icons/kimi-light.svg';
+import iconMinimax from '@/assets/icons/minimax.svg';
+import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
+import iconOpenaiLight from '@/assets/icons/openai-light.svg';
+import iconQwen from '@/assets/icons/qwen.svg';
+import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { Input } from '@/components/ui/Input';
-import { IconGithub, IconBookOpen, IconExternalLink, IconCode } from '@/components/ui/icons';
+import { IconBookOpen, IconCode, IconExternalLink, IconGithub } from '@/components/ui/icons';
+import { configApi, versionApi } from '@/services/api';
+import { apiKeysApi } from '@/services/api/apiKeys';
 import {
   useAuthStore,
   useConfigStore,
-  useNotificationStore,
   useModelsStore,
+  useNotificationStore,
   useThemeStore,
 } from '@/stores';
-import { configApi, versionApi } from '@/services/api';
-import { apiKeysApi } from '@/services/api/apiKeys';
-import { classifyModels } from '@/utils/models';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
-import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
-import iconGemini from '@/assets/icons/gemini.svg';
-import iconClaude from '@/assets/icons/claude.svg';
-import iconOpenaiLight from '@/assets/icons/openai-light.svg';
-import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
-import iconQwen from '@/assets/icons/qwen.svg';
-import iconKimiLight from '@/assets/icons/kimi-light.svg';
-import iconKimiDark from '@/assets/icons/kimi-dark.svg';
-import iconGlm from '@/assets/icons/glm.svg';
-import iconGrok from '@/assets/icons/grok.svg';
-import iconDeepseek from '@/assets/icons/deepseek.svg';
-import iconMinimax from '@/assets/icons/minimax.svg';
+import { classifyModels } from '@/utils/models';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './SystemPage.module.scss';
 
 const MODEL_CATEGORY_ICONS: Record<string, string | { light: string; dark: string }> = {
@@ -94,6 +94,10 @@ export function SystemPage() {
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
   const [checkingVersion, setCheckingVersion] = useState(false);
+  const [disabledAutoModels, setDisabledAutoModels] = useState<string[]>([]);
+  const [modelSelectionCounts, setModelSelectionCounts] = useState<Record<string, number>>({});
+  const [modelFilterTab, setModelFilterTab] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [handlerTypeFilter, setHandlerTypeFilter] = useState<string>('');
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
@@ -104,6 +108,62 @@ export function SystemPage() {
     [i18n.language]
   );
   const groupedModels = useMemo(() => classifyModels(models, { otherLabel }), [models, otherLabel]);
+
+  const isModelDisabled = useCallback(
+    (modelName: string): boolean => {
+      return disabledAutoModels.some((key) => key.startsWith(`${modelName}:`) || key === modelName);
+    },
+    [disabledAutoModels]
+  );
+
+  const getModelSelectionCount = useCallback(
+    (modelName: string): number => {
+      return modelSelectionCounts[modelName] ?? 0;
+    },
+    [modelSelectionCounts]
+  );
+
+  const filteredGroupedModels = useMemo(() => {
+    let groups = groupedModels;
+    if (handlerTypeFilter) {
+      groups = groups.filter((g) => g.id === handlerTypeFilter || g.id === 'other');
+    }
+    if (modelFilterTab === 'enabled') {
+      groups = groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((m) => !isModelDisabled(m.name)),
+        }))
+        .filter((g) => g.items.length > 0);
+    } else if (modelFilterTab === 'disabled') {
+      groups = groups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((m) => isModelDisabled(m.name)),
+        }))
+        .filter((g) => g.items.length > 0);
+    }
+    return groups
+      .map((g) => ({
+        ...g,
+        items: [...g.items].sort((a, b) => {
+          const countA = getModelSelectionCount(a.name);
+          const countB = getModelSelectionCount(b.name);
+          return countB - countA;
+        }),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [groupedModels, handlerTypeFilter, modelFilterTab, isModelDisabled, getModelSelectionCount]);
+
+  const availableCount = useMemo(
+    () => models.filter((m) => !isModelDisabled(m.name)).length,
+    [models, isModelDisabled]
+  );
+  const disabledCount = useMemo(
+    () => models.filter((m) => isModelDisabled(m.name)).length,
+    [models, isModelDisabled]
+  );
+
   const requestLogEnabled = config?.requestLog ?? false;
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
@@ -196,7 +256,7 @@ export function SystemPage() {
     }
   }, [config?.apiKeys]);
 
-  const fetchModels = async ({ forceRefresh = false }: { forceRefresh?: boolean } = {}) => {
+  const fetchModelsAndStats = async ({ forceRefresh = false }: { forceRefresh?: boolean } = {}) => {
     if (auth.connectionStatus !== 'connected') {
       setModelStatus({
         type: 'warning',
@@ -226,6 +286,18 @@ export function SystemPage() {
           ? t('system_info.models_count', { count: list.length })
           : t('system_info.models_empty'),
       });
+      if (auth.connectionStatus === 'connected') {
+        try {
+          const [disabled, counts] = await Promise.all([
+            configApi.getDisabledAutoModels(),
+            configApi.getModelSelectionCounts(),
+          ]);
+          setDisabledAutoModels(disabled);
+          setModelSelectionCounts(counts);
+        } catch {
+          // ignore stats errors
+        }
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
       const suffix = message ? `: ${message}` : '';
@@ -363,7 +435,7 @@ export function SystemPage() {
   }, []);
 
   useEffect(() => {
-    fetchModels();
+    fetchModelsAndStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.connectionStatus, auth.apiBase]);
 
@@ -486,7 +558,7 @@ export function SystemPage() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => fetchModels({ forceRefresh: true })}
+              onClick={() => void fetchModelsAndStats({ forceRefresh: true })}
               loading={modelsLoading}
             >
               {t('common.refresh')}
@@ -504,17 +576,61 @@ export function SystemPage() {
             <div className="hint">{t('system_info.models_empty')}</div>
           ) : (
             <>
-              <div className={styles.modelsSearchWrapper}>
-                <Input
-                  type="text"
-                  placeholder={t('system_info.models_search_placeholder', { defaultValue: 'Search models...' })}
-                  value={modelSearchQuery}
-                  onChange={(e) => setModelSearchQuery(e.target.value)}
-                  className={styles.modelsSearchInput}
-                />
+              <div className={styles.modelsFilters}>
+                <div className={styles.modelsSearchWrapper}>
+                  <Input
+                    type="text"
+                    placeholder={t('system_info.models_search_placeholder', { defaultValue: 'Search models...' })}
+                    value={modelSearchQuery}
+                    onChange={(e) => setModelSearchQuery(e.target.value)}
+                    className={styles.modelsSearchInput}
+                  />
+                </div>
+                <div className={styles.modelsFilterRow}>
+                  <div className={styles.modelTabs}>
+                    <button
+                      type="button"
+                      className={`${styles.modelTab} ${modelFilterTab === 'all' ? styles.modelTabActive : ''}`}
+                      onClick={() => setModelFilterTab('all')}
+                    >
+                      {t('system_info.filter_all')} ({models.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.modelTab} ${modelFilterTab === 'enabled' ? styles.modelTabActive : ''}`}
+                      onClick={() => setModelFilterTab('enabled')}
+                    >
+                      {t('system_info.filter_enabled')} ({availableCount})
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.modelTab} ${modelFilterTab === 'disabled' ? styles.modelTabActive : ''}`}
+                      onClick={() => setModelFilterTab('disabled')}
+                    >
+                      {t('system_info.filter_disabled')} ({disabledCount})
+                    </button>
+                  </div>
+                  <select
+                    className={styles.handlerTypeSelect}
+                    value={handlerTypeFilter}
+                    onChange={(e) => setHandlerTypeFilter(e.target.value)}
+                  >
+                    <option value="">{t('system_info.filter_all_handler')}</option>
+                    <option value="gpt">GPT</option>
+                    <option value="claude">Claude</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="qwen">Qwen</option>
+                    <option value="glm">GLM</option>
+                    <option value="grok">Grok</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="minimax">MiniMax</option>
+                    <option value="other">{t('system_info.filter_other')}</option>
+                  </select>
+                </div>
               </div>
               <div className="item-list">
-                {groupedModels
+                {filteredGroupedModels
                   .map((group) => {
                     const filteredItems = group.items.filter((model) => {
                       if (!modelSearchQuery) return true;
@@ -539,16 +655,26 @@ export function SystemPage() {
                           </div>
                         </div>
                         <div className={styles.modelTags}>
-                          {filteredItems.map((model) => (
-                            <span
-                              key={`${model.name}-${model.alias ?? 'default'}`}
-                              className={styles.modelTag}
-                              title={model.description || ''}
-                            >
-                              <span className={styles.modelName}>{model.name}</span>
-                              {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
-                            </span>
-                          ))}
+                          {filteredItems.map((model) => {
+                            const disabled = isModelDisabled(model.name);
+                            const count = getModelSelectionCount(model.name);
+                            return (
+                              <span
+                                key={`${model.name}-${model.alias ?? 'default'}`}
+                                className={`${styles.modelTag} ${disabled ? styles.modelTagDisabled : ''}`}
+                                title={model.description || ''}
+                              >
+                                <span className={styles.modelName}>{model.name}</span>
+                                {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
+                                {count > 0 && (
+                                  <span className={styles.modelCount}>{count}</span>
+                                )}
+                                {disabled && (
+                                  <span className={styles.modelDisabledBadge}>{t('system_info.models_excluded_badge')}</span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     );

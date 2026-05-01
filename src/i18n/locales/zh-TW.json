@@ -1565,7 +1565,12 @@
     "clear_login_title": "本地登入資訊",
     "clear_login_desc": "清理本地儲存的登入資訊並登出，不會影響使用統計中的定價設定。",
     "clear_login_button": "清理登入資訊",
-    "clear_login_confirm": "確認清理本地登入資訊並登出？"
+    "clear_login_confirm": "確認清理本地登入資訊並登出？",
+    "filter_all": "全部",
+    "filter_enabled": "可用",
+    "filter_disabled": "不可用",
+    "filter_all_handler": "全部 Handler",
+    "filter_other": "其他"
   },
   "notification": {
     "debug_updated": "除錯設定已更新",

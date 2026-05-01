@@ -115,4 +115,33 @@ export const configApi = {
    * 更新路由策略
    */
   updateRoutingStrategy: (strategy: string) => apiClient.put('/routing/strategy', { value: strategy }),
+
+  /**
+   * 获取禁用的自动模型列表
+   * @returns 禁用的模型key数组，格式为 "modelID:authID"
+   */
+  async getDisabledAutoModels(): Promise<string[]> {
+    const data = await apiClient.get<Record<string, unknown>>('/auto-model-disabled');
+    const models = data?.['disabled-auto-models'];
+    return Array.isArray(models) ? models.map((m) => String(m)) : [];
+  },
+
+  /**
+   * 获取模型选中次数统计
+   * @param handlerType 可选，按handler类型筛选（如 "openai", "claude", "gemini"）
+   * @returns 模型选中次数映射，key为模型名，value为选中次数
+   */
+  async getModelSelectionCounts(handlerType?: string): Promise<Record<string, number>> {
+    const url = handlerType ? `/model-selection-counts?handler_type=${encodeURIComponent(handlerType)}` : '/model-selection-counts';
+    const data = await apiClient.get<Record<string, unknown>>(url);
+    const counts = data?.counts;
+    if (counts && typeof counts === 'object') {
+      const result: Record<string, number> = {};
+      Object.entries(counts).forEach(([key, value]) => {
+        result[key] = typeof value === 'number' ? value : 0;
+      });
+      return result;
+    }
+    return {};
+  },
 };

@@ -1539,7 +1539,12 @@
     "clear_login_title": "Local Login Data",
     "clear_login_desc": "Clear locally saved login data and sign out. Usage stats pricing settings will remain untouched.",
     "clear_login_button": "Clear login data",
-    "clear_login_confirm": "Clear local login data and sign out now?"
+    "clear_login_confirm": "Clear local login data and sign out now?",
+    "filter_all": "All",
+    "filter_enabled": "Available",
+    "filter_disabled": "Unavailable",
+    "filter_all_handler": "All Handlers",
+    "filter_other": "Other"
   },
   "notification": {
     "debug_updated": "Debug settings updated",
