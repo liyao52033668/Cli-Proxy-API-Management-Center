@@ -9,7 +9,7 @@ jobs:
   tag-build-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 用于 push tag 和创建 release
+      contents: write
 
     steps:
       # Checkout 完整历史和 tag
@@ -44,16 +44,19 @@ jobs:
           IFS='.' read -r major minor patch <<< "$tag"
 
           commits=$(git log "${{ steps.get_tag.outputs.latest_tag }}"..HEAD --pretty=%B)
-          bump_type="patch"
 
+          bump_type=""
           if echo "$commits" | grep -q "BREAKING CHANGE"; then
             bump_type="major"
           elif echo "$commits" | grep -q "^feat"; then
             bump_type="minor"
           elif echo "$commits" | grep -q "^fix"; then
             bump_type="patch"
-          else
+          fi
+
+          if [ -z "$bump_type" ]; then
             echo "No version bump required."
+            echo "new_tag=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -76,13 +79,12 @@ jobs:
           echo "new_tag=$new_tag"
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
 
-      # 创建并 push tag
+      # 创建并 push tag（只有有新 tag 才执行）
       - name: Create and push tag
+        if: steps.bump.outputs.new_tag != ''
         run: |
           git tag "${{ steps.bump.outputs.new_tag }}"
           git push origin "${{ steps.bump.outputs.new_tag }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 安装 Node.js
       - name: Setup Node.js
@@ -97,12 +99,14 @@ jobs:
 
       # 构建 HTML
       - name: Build all-in-one HTML
+        if: steps.bump.outputs.new_tag != ''
         run: npm run build
         env:
           VERSION: ${{ steps.bump.outputs.new_tag }}
 
       # 准备 release 文件
       - name: Prepare release assets
+        if: steps.bump.outputs.new_tag != ''
         run: |
           cd dist
           mv index.html management.html
@@ -110,6 +114,7 @@ jobs:
 
       # 生成 release notes
       - name: Generate release notes
+        if: steps.bump.outputs.new_tag != ''
         run: |
           set -euo pipefail
           current_tag="${{ steps.bump.outputs.new_tag }}"
@@ -124,6 +129,7 @@ jobs:
 
       # 创建 release 并上传文件
       - name: Create Release
+        if: steps.bump.outputs.new_tag != ''
         uses: softprops/action-gh-release@v1
         with:
           files: dist/management.html
