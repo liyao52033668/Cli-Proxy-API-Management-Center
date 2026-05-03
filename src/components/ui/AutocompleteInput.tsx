@@ -15,6 +15,7 @@ interface AutocompleteInputProps {
   wrapperStyle?: React.CSSProperties;
   id?: string;
   rightElement?: ReactNode;
+  dropdownDirection?: 'auto' | 'up' | 'down';
 }
 
 export function AutocompleteInput({
@@ -30,13 +31,15 @@ export function AutocompleteInput({
   wrapperClassName = '',
   wrapperStyle,
   id,
-  rightElement
+  rightElement,
+  dropdownDirection = 'auto'
 }: AutocompleteInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [shouldShowAbove, setShouldShowAbove] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  const normalizedOptions = options.map(opt => 
+
+  const normalizedOptions = options.map(opt =>
     typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }
   );
 
@@ -55,6 +58,24 @@ export function AutocompleteInput({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen || dropdownDirection !== 'auto' || !containerRef.current) {
+      setShouldShowAbove(false);
+      return;
+    }
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeight = 200 + 20;
+
+    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+      setShouldShowAbove(true);
+    } else {
+      setShouldShowAbove(false);
+    }
+  }, [isOpen, dropdownDirection]);
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setIsOpen(true);
@@ -72,10 +93,10 @@ export function AutocompleteInput({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (!isOpen) {
-          setIsOpen(true);
-          return;
+        setIsOpen(true);
+        return;
       }
-      setHighlightedIndex(prev => 
+      setHighlightedIndex(prev =>
         prev < filteredOptions.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -86,8 +107,8 @@ export function AutocompleteInput({
         e.preventDefault();
         handleSelect(filteredOptions[highlightedIndex].value);
       } else if (isOpen) {
-          e.preventDefault();
-          setIsOpen(false);
+        e.preventDefault();
+        setIsOpen(false);
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
@@ -100,72 +121,77 @@ export function AutocompleteInput({
     <div className={`form-group ${wrapperClassName}`} ref={containerRef} style={wrapperStyle}>
       {label && <label htmlFor={id}>{label}</label>}
       <div style={{ position: 'relative' }}>
-        <input 
-            id={id}
-            className={`input ${className}`.trim()} 
-            value={value}
-            onChange={handleInputChange}
-            onFocus={() => setIsOpen(true)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            autoComplete="off"
-            style={{ paddingRight: 32 }}
+        <input
+          id={id}
+          className={`input ${className}`.trim()}
+          value={value}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete="off"
+          style={{ paddingRight: 32 }}
         />
-        <div 
-            style={{ 
-                position: 'absolute', 
-                right: 8, 
-                top: '50%', 
-                transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                pointerEvents: disabled ? 'none' : 'auto',
-                cursor: 'pointer',
-                height: '100%'
-            }}
-            onClick={() => !disabled && setIsOpen(!isOpen)}
+        <div
+          style={{
+            position: 'absolute',
+            right: 8,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            pointerEvents: disabled ? 'none' : 'auto',
+            cursor: 'pointer',
+            height: '100%'
+          }}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
         >
-            {rightElement}
-            <IconChevronDown size={16} style={{ opacity: 0.5, marginLeft: 4 }} />
+          {rightElement}
+          <IconChevronDown size={16} style={{ opacity: 0.5, marginLeft: 4 }} />
         </div>
 
         {isOpen && filteredOptions.length > 0 && !disabled && (
-            <div className="autocomplete-dropdown" style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-                backgroundColor: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                maxHeight: 200,
-                overflowY: 'auto',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-            }}>
-                {filteredOptions.map((opt, index) => (
-                    <div
-                        key={`${opt.value}-${index}`}
-                        onClick={() => handleSelect(opt.value)}
-                        style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            backgroundColor: index === highlightedIndex ? 'var(--bg-tertiary)' : 'transparent',
-                            color: 'var(--text-primary)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            fontSize: '0.9rem'
-                        }}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                    >
-                        <span style={{ fontWeight: 500 }}>{opt.value}</span>
-                        {opt.label && opt.label !== opt.value && (
-                            <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>{opt.label}</span>
-                        )}
-                    </div>
-                ))}
-            </div>
+          <div className="autocomplete-dropdown" style={{
+            position: 'absolute',
+            top: (dropdownDirection === 'up' || (dropdownDirection === 'auto' && shouldShowAbove))
+              ? 'auto'
+              : 'calc(100% + 4px)',
+            bottom: (dropdownDirection === 'up' || (dropdownDirection === 'auto' && shouldShowAbove))
+              ? 'calc(100% + 4px)'
+              : 'auto',
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            maxHeight: 200,
+            overflowY: 'auto',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}>
+            {filteredOptions.map((opt, index) => (
+              <div
+                key={`${opt.value}-${index}`}
+                onClick={() => handleSelect(opt.value)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: index === highlightedIndex ? 'var(--bg-tertiary)' : 'transparent',
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  fontSize: '0.9rem'
+                }}
+                onMouseEnter={() => setHighlightedIndex(index)}
+              >
+                <span style={{ fontWeight: 500 }}>{opt.value}</span>
+                {opt.label && opt.label !== opt.value && (
+                  <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>{opt.label}</span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
       {hint && <div className="hint">{hint}</div>}

@@ -281,7 +281,10 @@ export const formatModified = (item: AuthFileItem): string => {
     Number.isFinite(asNumber) && !Number.isNaN(asNumber)
       ? new Date(asNumber < 1e12 ? asNumber * 1000 : asNumber)
       : parseTimestamp(raw) ?? new Date(String(raw));
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+  if (Number.isNaN(date.getTime())) return '-';
+
+  const padTime = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${padTime(date.getHours())}:${padTime(date.getMinutes())}:${padTime(date.getSeconds())}`;
 };
 
 // 检查模型是否被 OAuth 排除

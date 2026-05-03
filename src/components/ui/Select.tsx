@@ -29,6 +29,7 @@ interface SelectProps {
   ariaDescribedBy?: string;
   fullWidth?: boolean;
   id?: string;
+  dropdownDirection?: 'auto' | 'up' | 'down';
 }
 
 const VIEWPORT_MARGIN = 8;
@@ -38,7 +39,7 @@ const DROPDOWN_Z_INDEX = 2010;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const resolveDropdownStyle = (element: HTMLElement): CSSProperties => {
+const resolveDropdownStyle = (element: HTMLElement, dropdownDirection: 'auto' | 'up' | 'down' = 'auto'): CSSProperties => {
   const rect = element.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
@@ -50,8 +51,14 @@ const resolveDropdownStyle = (element: HTMLElement): CSSProperties => {
   );
   const spaceBelow = viewportHeight - rect.bottom - VIEWPORT_MARGIN - DROPDOWN_OFFSET;
   const spaceAbove = rect.top - VIEWPORT_MARGIN - DROPDOWN_OFFSET;
-  const direction =
-    spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove ? 'down' : 'up';
+
+  let direction: 'up' | 'down';
+  if (dropdownDirection === 'auto') {
+    direction = spaceBelow >= DROPDOWN_MAX_HEIGHT || spaceBelow >= spaceAbove ? 'down' : 'up';
+  } else {
+    direction = dropdownDirection;
+  }
+
   const maxHeight = Math.max(
     0,
     Math.min(DROPDOWN_MAX_HEIGHT, direction === 'down' ? spaceBelow : spaceAbove)
@@ -59,21 +66,21 @@ const resolveDropdownStyle = (element: HTMLElement): CSSProperties => {
 
   return direction === 'down'
     ? {
-        position: 'fixed',
-        top: rect.bottom + DROPDOWN_OFFSET,
-        left,
-        width,
-        maxHeight,
-        zIndex: DROPDOWN_Z_INDEX
-      }
+      position: 'fixed',
+      top: rect.bottom + DROPDOWN_OFFSET,
+      left,
+      width,
+      maxHeight,
+      zIndex: DROPDOWN_Z_INDEX
+    }
     : {
-        position: 'fixed',
-        bottom: viewportHeight - rect.top + DROPDOWN_OFFSET,
-        left,
-        width,
-        maxHeight,
-        zIndex: DROPDOWN_Z_INDEX
-      };
+      position: 'fixed',
+      bottom: viewportHeight - rect.top + DROPDOWN_OFFSET,
+      left,
+      width,
+      maxHeight,
+      zIndex: DROPDOWN_Z_INDEX
+    };
 };
 
 export function Select({
@@ -88,6 +95,7 @@ export function Select({
   ariaDescribedBy,
   fullWidth = true,
   id,
+  dropdownDirection = 'auto',
 }: SelectProps) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
@@ -113,8 +121,8 @@ export function Select({
 
   const updateDropdownStyle = useCallback(() => {
     if (!wrapRef.current) return;
-    setDropdownStyle(resolveDropdownStyle(wrapRef.current));
-  }, []);
+    setDropdownStyle(resolveDropdownStyle(wrapRef.current, dropdownDirection));
+  }, [dropdownDirection]);
 
   const scheduleDropdownStyleUpdate = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -145,8 +153,8 @@ export function Select({
     const resizeObserver =
       typeof ResizeObserver !== 'undefined' && wrapRef.current
         ? new ResizeObserver(() => {
-            scheduleDropdownStyleUpdate();
-          })
+          scheduleDropdownStyleUpdate();
+        })
         : null;
 
     if (resizeObserver && wrapRef.current) {
@@ -261,35 +269,35 @@ export function Select({
   const dropdown =
     isOpen && dropdownStyle
       ? (
-          <div
-            ref={dropdownRef}
-            className={styles.dropdown}
-            id={listboxId}
-            role="listbox"
-            aria-label={ariaLabel}
-            style={dropdownStyle}
-          >
-            {options.map((opt, index) => {
-              const active = opt.value === value;
-              const highlighted = index === resolvedHighlightedIndex;
-              return (
-                <button
-                  key={opt.value}
-                  id={`${selectId}-option-${index}`}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  className={`${styles.option} ${active ? styles.optionActive : ''} ${highlighted ? styles.optionHighlighted : ''}`.trim()}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  onKeyDown={handleKeyDown}
-                  onClick={() => commitSelection(index)}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        )
+        <div
+          ref={dropdownRef}
+          className={styles.dropdown}
+          id={listboxId}
+          role="listbox"
+          aria-label={ariaLabel}
+          style={dropdownStyle}
+        >
+          {options.map((opt, index) => {
+            const active = opt.value === value;
+            const highlighted = index === resolvedHighlightedIndex;
+            return (
+              <button
+                key={opt.value}
+                id={`${selectId}-option-${index}`}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className={`${styles.option} ${active ? styles.optionActive : ''} ${highlighted ? styles.optionHighlighted : ''}`.trim()}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onKeyDown={handleKeyDown}
+                onClick={() => commitSelection(index)}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )
       : null;
 
   return (

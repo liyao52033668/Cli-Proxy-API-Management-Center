@@ -11,6 +11,7 @@ import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useAuthStore, useNotificationStore } from '@/stores';
 import { authFilesApi } from '@/services/api';
+import { clearCacheForAuth } from '@/features/authFiles/hooks/useAuthFilesModels';
 import type { AuthFileItem, OAuthModelAliasEntry } from '@/types';
 import { generateId } from '@/utils/helpers';
 import styles from './AuthFilesOAuthModelAliasEditPage.module.scss';
@@ -28,12 +29,20 @@ const OAUTH_PROVIDER_PRESETS = [
   'antigravity',
   'claude',
   'codex',
-  'qwen',
   'kimi',
-  'iflow',
+  'bt',
+  'codearts',
+  'codebuddy',
+  'codebuddy-ai',
+  'cursor',
+  'github-copilot',
+  'gitlab',
+  'kilo',
+  'kiro',
+  'qoder'
 ];
 
-const OAUTH_PROVIDER_EXCLUDES = new Set(['all', 'unknown', 'empty']);
+const OAUTH_PROVIDER_EXCLUDES = new Set(['all', 'unknown', 'empty', 'oauth-excluded-models']);
 
 const normalizeProviderKey = (value: string) => value.trim().toLowerCase();
 
@@ -41,7 +50,7 @@ const buildEmptyMappingEntry = (): OAuthModelMappingFormEntry => ({
   id: generateId(),
   name: '',
   alias: '',
-  fork: true,
+  fork: false,
 });
 
 const normalizeMappingEntries = (
@@ -329,6 +338,7 @@ export function AuthFilesOAuthModelAliasEditPage() {
       } else {
         await authFilesApi.deleteOauthModelAlias(channel);
       }
+      clearCacheForAuth();
       showNotification(t('oauth_model_alias.save_success'), 'success');
       handleBack();
     } catch (err: unknown) {
@@ -415,6 +425,7 @@ export function AuthFilesOAuthModelAliasEditPage() {
             </div>
           </Card>
 
+         
           <Card className={styles.settingsCard}>
             <div className={styles.mappingsHeader}>
               <div className={styles.mappingsTitle}>{t('oauth_model_alias.alias_label')}</div>

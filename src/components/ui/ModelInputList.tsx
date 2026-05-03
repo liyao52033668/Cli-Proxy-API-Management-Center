@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Button } from './Button';
 import { IconX } from './icons';
 import type { ModelEntry } from './modelInputListUtils';
@@ -18,6 +18,7 @@ interface ModelInputListProps {
   removeButtonClassName?: string;
   removeButtonTitle?: string;
   removeButtonAriaLabel?: string;
+  renderTrailing?: (entry: ModelEntry, index: number) => ReactNode;
 }
 
 export function ModelInputList({
@@ -35,11 +36,12 @@ export function ModelInputList({
   removeButtonClassName = '',
   removeButtonTitle = 'Remove',
   removeButtonAriaLabel = 'Remove',
+  renderTrailing,
 }: ModelInputListProps) {
   const currentEntries = entries.length ? entries : [{ name: '', alias: '' }];
   const containerClassName = ['header-input-list', className].filter(Boolean).join(' ');
   const inputClassNames = ['input', inputClassName].filter(Boolean).join(' ');
-  const rowClassNames = ['header-input-row', rowClassName].filter(Boolean).join(' ');
+  const rowClassNames = rowClassName || 'header-input-row';
 
   const updateEntry = (index: number, field: 'name' | 'alias', value: string) => {
     const next = currentEntries.map((entry, idx) => (idx === index ? { ...entry, [field]: value } : entry));
@@ -90,6 +92,7 @@ export function ModelInputList({
             >
               <IconX size={14} />
             </Button>
+            {renderTrailing?.(entry, index)}
           </div>
         </Fragment>
       ))}

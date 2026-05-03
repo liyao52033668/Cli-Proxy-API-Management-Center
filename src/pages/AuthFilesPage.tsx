@@ -39,6 +39,8 @@ import {
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
+import type { AuthFileItem } from '@/types/authFile';
+import { parseTimestampMs } from '@/utils/timestamp';
 import { AuthFileCard } from '@/features/authFiles/components/AuthFileCard';
 import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileModelsModal';
 import { AuthFilesPrefixProxyEditorModal } from '@/features/authFiles/components/AuthFilesPrefixProxyEditorModal';
@@ -75,6 +77,24 @@ const buildWildcardSearch = (value: string): RegExp | null => {
   if (!value.includes('*')) return null;
   const pattern = value.split('*').map(escapeWildcardSearchSegment).join('.*');
   return new RegExp(pattern, 'i');
+};
+
+const readAuthFileTimestamp = (file: AuthFileItem): number => {
+  const candidates = [file.modified, file.lastRefresh, file['modtime'], file['updated_at'], file['last_refresh']];
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value < 1e12 ? value * 1000 : value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      const parsed = parseTimestampMs(trimmed);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return 0;
 };
 
 export function AuthFilesPage() {
@@ -234,7 +254,7 @@ export function AuthFilesPage() {
         compact: compactPageSize,
       });
       if (isAuthFilesSortMode(persisted.sortMode)) {
-        setSortMode(persisted.sortMode);
+        setSortMode(persisted.sortMode === 'time' ? 'default' : persisted.sortMode);
       }
     }
 
@@ -324,7 +344,7 @@ export function AuthFilesPage() {
       if (!isAuthFilesSortMode(value) || value === sortMode) return;
       setSortMode(value);
       setPage(1);
-      void loadFiles().catch(() => {});
+      void loadFiles().catch(() => { });
     },
     [loadFiles, sortMode]
   );
@@ -338,14 +358,14 @@ export function AuthFilesPage() {
   useEffect(() => {
     if (!isCurrentLayer) return;
     loadFiles();
-    void loadKeyStats().catch(() => {});
+    void loadKeyStats().catch(() => { });
     loadExcluded();
     loadModelAlias();
   }, [isCurrentLayer, loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
 
   useInterval(
     () => {
-      void refreshKeyStats().catch(() => {});
+      void refreshKeyStats().catch(() => { });
     },
     isCurrentLayer ? 240_000 : null
   );
@@ -373,6 +393,7 @@ export function AuthFilesPage() {
   const sortOptions = useMemo(
     () => [
       { value: 'default', label: t('auth_files.sort_default') },
+      // { value: 'time', label: t('auth_files.sort_time') },
       { value: 'az', label: t('auth_files.sort_az') },
       { value: 'priority', label: t('auth_files.sort_priority') },
     ],
@@ -410,8 +431,11 @@ export function AuthFilesPage() {
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
-    if (sortMode === 'default') {
+    if (sortMode === 'default' || sortMode === 'time') {
       copy.sort((a, b) => {
+        const dateA = readAuthFileTimestamp(a);
+        const dateB = readAuthFileTimestamp(b);
+        if (dateA !== dateB) return dateB - dateA;
         const providerA = normalizeProviderKey(String(a.provider ?? a.type ?? 'unknown'));
         const providerB = normalizeProviderKey(String(b.provider ?? b.type ?? 'unknown'));
         const providerCompare = providerA.localeCompare(providerB);
@@ -925,77 +949,77 @@ export function AuthFilesPage() {
 
       {batchActionBarVisible && typeof document !== 'undefined'
         ? createPortal(
-            <div className={styles.batchActionContainer} ref={floatingBatchActionsRef}>
-              <div className={styles.batchActionBar}>
-                <div className={styles.batchActionLeft}>
-                  <span className={styles.batchSelectionText}>
-                    {t('auth_files.batch_selected', { count: selectionCount })}
-                  </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => selectAllVisible(pageItems)}
-                    disabled={selectablePageItems.length === 0}
-                  >
-                    {t('auth_files.batch_select_page')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => selectAllVisible(sorted)}
-                    disabled={selectableFilteredItems.length === 0}
-                  >
-                    {t('auth_files.batch_select_filtered')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => invertVisibleSelection(pageItems)}
-                    disabled={selectablePageItems.length === 0}
-                  >
-                    {t('auth_files.batch_invert_page')}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={deselectAll}>
-                    {t('auth_files.batch_deselect')}
-                  </Button>
-                </div>
-                <div className={styles.batchActionRight}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void batchDownload(selectedNames)}
-                    disabled={disableControls || selectedNames.length === 0}
-                  >
-                    {t('auth_files.batch_download')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => batchSetStatus(selectedNames, true)}
-                    disabled={batchStatusButtonsDisabled}
-                  >
-                    {t('auth_files.batch_enable')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => batchSetStatus(selectedNames, false)}
-                    disabled={batchStatusButtonsDisabled}
-                  >
-                    {t('auth_files.batch_disable')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => batchDelete(selectedNames)}
-                    disabled={disableControls || selectedNames.length === 0}
-                  >
-                    {t('common.delete')}
-                  </Button>
-                </div>
+          <div className={styles.batchActionContainer} ref={floatingBatchActionsRef}>
+            <div className={styles.batchActionBar}>
+              <div className={styles.batchActionLeft}>
+                <span className={styles.batchSelectionText}>
+                  {t('auth_files.batch_selected', { count: selectionCount })}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => selectAllVisible(pageItems)}
+                  disabled={selectablePageItems.length === 0}
+                >
+                  {t('auth_files.batch_select_page')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => selectAllVisible(sorted)}
+                  disabled={selectableFilteredItems.length === 0}
+                >
+                  {t('auth_files.batch_select_filtered')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => invertVisibleSelection(pageItems)}
+                  disabled={selectablePageItems.length === 0}
+                >
+                  {t('auth_files.batch_invert_page')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={deselectAll}>
+                  {t('auth_files.batch_deselect')}
+                </Button>
               </div>
-            </div>,
-            document.body
-          )
+              <div className={styles.batchActionRight}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void batchDownload(selectedNames)}
+                  disabled={disableControls || selectedNames.length === 0}
+                >
+                  {t('auth_files.batch_download')}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => batchSetStatus(selectedNames, true)}
+                  disabled={batchStatusButtonsDisabled}
+                >
+                  {t('auth_files.batch_enable')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => batchSetStatus(selectedNames, false)}
+                  disabled={batchStatusButtonsDisabled}
+                >
+                  {t('auth_files.batch_disable')}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => batchDelete(selectedNames)}
+                  disabled={disableControls || selectedNames.length === 0}
+                >
+                  {t('common.delete')}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
         : null}
     </div>
   );

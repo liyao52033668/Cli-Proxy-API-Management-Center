@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { useNotificationStore } from '@/stores';
@@ -6,6 +6,16 @@ import type { AuthFileItem } from '@/types';
 import type { AuthFileModelItem } from '@/features/authFiles/constants';
 
 type ModelsError = 'unsupported' | null;
+
+const modelsCache = new Map<string, AuthFileModelItem[]>();
+
+export const clearCacheForAuth = (authFileName?: string) => {
+  if (authFileName) {
+    modelsCache.delete(authFileName);
+  } else {
+    modelsCache.clear();
+  }
+};
 
 export type UseAuthFilesModelsResult = {
   modelsModalOpen: boolean;
@@ -16,6 +26,7 @@ export type UseAuthFilesModelsResult = {
   modelsError: ModelsError;
   showModels: (item: AuthFileItem) => Promise<void>;
   closeModelsModal: () => void;
+  clearCacheForAuth: (authFileName?: string) => void;
 };
 
 export function useAuthFilesModels(): UseAuthFilesModelsResult {
@@ -28,7 +39,6 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
   const [modelsFileName, setModelsFileName] = useState('');
   const [modelsFileType, setModelsFileType] = useState('');
   const [modelsError, setModelsError] = useState<ModelsError>(null);
-  const modelsCacheRef = useRef<Map<string, AuthFileModelItem[]>>(new Map());
 
   const closeModelsModal = useCallback(() => {
     setModelsModalOpen(false);
@@ -42,7 +52,7 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
       setModelsError(null);
       setModelsModalOpen(true);
 
-      const cached = modelsCacheRef.current.get(item.name);
+      const cached = modelsCache.get(item.name);
       if (cached) {
         setModelsList(cached);
         setModelsLoading(false);
@@ -52,7 +62,7 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
       setModelsLoading(true);
       try {
         const models = await authFilesApi.getModelsForAuthFile(item.name);
-        modelsCacheRef.current.set(item.name, models);
+        modelsCache.set(item.name, models);
         setModelsList(models);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '';
@@ -72,6 +82,10 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
     [showNotification, t]
   );
 
+  const handleClearCacheForAuth = useCallback((authFileName?: string) => {
+    clearCacheForAuth(authFileName);
+  }, []);
+
   return {
     modelsModalOpen,
     modelsLoading,
@@ -80,7 +94,7 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
     modelsFileType,
     modelsError,
     showModels,
-    closeModelsModal
+    closeModelsModal,
+    clearCacheForAuth: handleClearCacheForAuth,
   };
 }
-
