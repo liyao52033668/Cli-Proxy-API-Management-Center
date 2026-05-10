@@ -1,31 +1,31 @@
+import iconAntigravity from '@/assets/icons/antigravity.svg';
+import iconBt from '@/assets/icons/bt.svg';
+import iconClaude from '@/assets/icons/claude.svg';
+import iconCodearts from '@/assets/icons/codearts.svg';
+import iconCodebuddyAI from '@/assets/icons/codebuddy-ai.svg';
+import iconCodebuddy from '@/assets/icons/codebuddy.svg';
+import iconCodex from '@/assets/icons/codex.svg';
+import iconCursor from '@/assets/icons/cursor.svg';
+import iconGemini from '@/assets/icons/gemini.svg';
+import iconGitHub from '@/assets/icons/github.svg';
+import iconGitLab from '@/assets/icons/gitlab.svg';
+import iconKilo from '@/assets/icons/kilo.svg';
+import iconKimiDark from '@/assets/icons/kimi-dark.svg';
+import iconKimiLight from '@/assets/icons/kimi-light.svg';
+import iconKiro from '@/assets/icons/kiro.svg';
+import iconQoder from '@/assets/icons/qoder.svg';
+import iconVertex from '@/assets/icons/vertex.svg';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
+import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
+import { useNotificationStore, useThemeStore } from '@/stores';
+import { copyToClipboard } from '@/utils/clipboard';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { useNotificationStore, useThemeStore } from '@/stores';
-import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
-import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
-import { copyToClipboard } from '@/utils/clipboard';
 import styles from './OAuthPage.module.scss';
-import iconCodex from '@/assets/icons/codex.svg';
-import iconClaude from '@/assets/icons/claude.svg';
-import iconAntigravity from '@/assets/icons/antigravity.svg';
-import iconGemini from '@/assets/icons/gemini.svg';
-import iconKimiLight from '@/assets/icons/kimi-light.svg';
-import iconKimiDark from '@/assets/icons/kimi-dark.svg';
-import iconVertex from '@/assets/icons/vertex.svg';
-import iconGitLab from '@/assets/icons/gitlab.svg';
-import iconGitHub from '@/assets/icons/github.svg';
-import iconCursor from '@/assets/icons/cursor.svg';
-import iconKiro from '@/assets/icons/kiro.svg';
-import iconKilo from '@/assets/icons/kilo.svg';
-import iconQoder from '@/assets/icons/qoder.svg';
-import iconCodebuddy from '@/assets/icons/codebuddy.svg';
-import iconCodebuddyAI from '@/assets/icons/codebuddy-ai.svg';
-import iconCodearts from '@/assets/icons/codearts.svg';
-import iconBt from '@/assets/icons/bt.svg';
 
 interface ProviderState {
   url?: string;
@@ -92,7 +92,9 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codebuddy', titleKey: 'auth_login.codebuddy_oauth_title', hintKey: 'auth_login.codebuddy_oauth_hint', urlLabelKey: 'auth_login.codebuddy_oauth_url_label', icon: iconCodebuddy },
   { id: 'codebuddy-ai', titleKey: 'auth_login.codebuddy_ai_oauth_title', hintKey: 'auth_login.codebuddy_ai_oauth_hint', urlLabelKey: 'auth_login.codebuddy_ai_oauth_url_label', icon: iconCodebuddyAI },
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
-  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
+  { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconKiro },
+  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt },
+ 
 ];
 
 const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'qoder'];

@@ -43,6 +43,15 @@ export function isKimiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'kimi';
 }
 
+export function isCopilotFile(file: AuthFileItem): boolean {
+  const provider = resolveAuthProvider(file);
+  return provider === 'github' || provider === 'github-copilot';
+}
+
+export function isKiroFile(file: AuthFileItem): boolean {
+  return resolveAuthProvider(file) === 'kiro';
+}
+
 export function isRuntimeOnlyAuthFile(file: AuthFileItem): boolean {
   const raw = file['runtime_only'] ?? file.runtimeOnly;
   if (typeof raw === 'boolean') return raw;

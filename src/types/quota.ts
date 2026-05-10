@@ -306,3 +306,100 @@ export interface KimiQuotaState {
   error?: string;
   errorStatus?: number;
 }
+
+// Copilot API payload types
+export interface CopilotQuotaDetail {
+  used?: number;
+  limit?: number;
+  remaining?: number;
+}
+
+export interface CopilotQuotaSnapshots {
+  chat?: CopilotQuotaDetail;
+  completions?: CopilotQuotaDetail;
+  premium_interactions?: CopilotQuotaDetail;
+}
+
+export interface CopilotUsageResponse {
+  access_type_sku?: string;
+  analytics_tracking_id?: string;
+  assigned_date?: string;
+  can_signup_for_limited?: boolean;
+  chat_enabled?: boolean;
+  copilot_plan?: string;
+  quota_reset_date?: string;
+  quota_snapshots?: CopilotQuotaSnapshots;
+}
+
+export interface CopilotQuotaRow {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  used?: number;
+  limit?: number;
+  remaining?: number;
+  remainingPercent?: number;
+}
+
+export interface CopilotQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  rows: CopilotQuotaRow[];
+  planType?: string | null;
+  error?: string;
+  errorStatus?: number;
+}
+
+// Kiro (AWS CodeWhisperer) API payload types
+export interface KiroQuotaDetail {
+  used?: number;
+  limit?: number;
+  remaining?: number;
+  unit?: string;
+}
+
+export interface KiroSubscriptionInfo {
+  subscription_type?: string;
+  subscription_status?: string;
+}
+
+export interface KiroUsageQuotaResponse {
+  code_scan_units?: KiroQuotaDetail;
+  code_generation_units?: KiroQuotaDetail;
+  next_date_reset?: number;
+  subscription_info?: KiroSubscriptionInfo;
+}
+
+export interface KiroQuotaStatus {
+  exhausted?: boolean;
+  remaining?: number;
+  usage_percentage?: number;
+  next_reset?: string;
+  subscription?: KiroSubscriptionInfo;
+}
+
+export interface KiroQuotaResponse {
+  usage?: KiroUsageQuotaResponse;
+  quota_status?: KiroQuotaStatus;
+  auth_index?: string;
+  auth_name?: string;
+}
+
+export interface KiroQuotaRow {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  used?: number;
+  limit?: number;
+  remaining?: number;
+  remainingPercent?: number;
+  unit?: string;
+}
+
+export interface KiroQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  rows: KiroQuotaRow[];
+  planType?: string | null;
+  nextReset?: string;
+  error?: string;
+  errorStatus?: number;
+}

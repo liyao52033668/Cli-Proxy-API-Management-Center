@@ -729,6 +729,21 @@
     "credit_label": "Google One AI 點數",
     "credit_amount": "{{count}} 點數"
   },
+  "copilot_quota": {
+    "title": "Copilot 配額",
+    "empty_title": "暫無 Copilot 驗證",
+    "empty_desc": "上傳 Copilot 驗證檔案後即可查看配額。",
+    "idle": "點擊此處重新整理配額",
+    "loading": "正在載入配額...",
+    "load_failed": "配額取得失敗：{{message}}",
+    "missing_auth_index": "驗證檔案缺少 auth_index",
+    "empty": "暫無配額資料",
+    "refresh_button": "重新整理配額",
+    "fetch_all": "取得全部",
+    "chat_label": "聊天",
+    "completions_label": "補全",
+    "premium_interactions_label": "高階互動"
+  },
   "kimi_quota": {
     "title": "Kimi 配額",
     "empty_title": "暫無 Kimi 驗證",
@@ -744,6 +759,20 @@
     "limit_window": "{{duration}} 限額",
     "limit_index": "限額 #{{index}}",
     "reset_hint": "{{hint}} 後重置"
+  },
+  "kiro_quota": {
+    "title": "JoyCode 配額",
+    "empty_title": "暫無 JoyCode 驗證",
+    "empty_desc": "上傳 JoyCode 驗證檔案後即可查看配額。",
+    "idle": "點擊此處重新整理配額",
+    "loading": "正在載入配額...",
+    "load_failed": "配額取得失敗：{{message}}",
+    "missing_auth_index": "驗證檔案缺少 auth_index",
+    "empty": "暫無配額資料",
+    "refresh_button": "重新整理配額",
+    "fetch_all": "取得全部",
+    "code_scan_label": "程式碼掃描單位",
+    "code_generation_label": "程式碼生成單位"
   },
   "vertex_import": {
     "title": "Vertex JSON 登入",
@@ -1096,6 +1125,17 @@
     "bt_oauth_status_error": "驗證失敗:",
     "bt_oauth_start_error": "啟動 BT OAuth 失敗:",
     "bt_oauth_polling_error": "檢查驗證狀態失敗:",
+    "joycode_oauth_title": "JoyCode OAuth",
+    "joycode_oauth_button": "開始 JoyCode 登入",
+    "joycode_oauth_hint": "透過 OAuth 流程登入 JoyCode 服務，自動取得並儲存驗證檔案。",
+    "joycode_oauth_url_label": "授權連結:",
+    "joycode_open_link": "開啟連結",
+    "joycode_copy_link": "複製連結",
+    "joycode_oauth_status_waiting": "等待驗證中...",
+    "joycode_oauth_status_success": "驗證成功！",
+    "joycode_oauth_status_error": "驗證失敗:",
+    "joycode_oauth_start_error": "啟動 JoyCode OAuth 失敗:",
+    "joycode_oauth_polling_error": "檢查驗證狀態失敗:",
     "remote_access_disabled": "遠端存取不支援此登入方式，請從本地（localhost）存取"
   },
   "usage_stats": {

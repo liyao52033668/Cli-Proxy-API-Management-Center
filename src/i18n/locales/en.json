@@ -729,6 +729,21 @@
     "credit_label": "Google One AI Credits",
     "credit_amount": "{{count}} credits"
   },
+  "copilot_quota": {
+    "title": "Copilot Quota",
+    "empty_title": "No Copilot Auth Files",
+    "empty_desc": "Upload a Copilot credential to view remaining quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "chat_label": "Chat",
+    "completions_label": "Completions",
+    "premium_interactions_label": "Premium Interactions"
+  },
   "kimi_quota": {
     "title": "Kimi Quota",
     "empty_title": "No Kimi Auth Files",
@@ -744,6 +759,20 @@
     "limit_window": "{{duration}} limit",
     "limit_index": "Limit #{{index}}",
     "reset_hint": "resets in {{hint}}"
+  },
+  "kiro_quota": {
+    "title": "JoyCode Quota",
+    "empty_title": "No JoyCode Auth Files",
+    "empty_desc": "Upload a JoyCode credential to view remaining quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "code_scan_label": "Code Scan Units",
+    "code_generation_label": "Code Generation Units"
   },
   "vertex_import": {
     "title": "Vertex JSON Login",
@@ -1070,6 +1099,17 @@
     "bt_oauth_status_error": "Authentication failed:",
     "bt_oauth_start_error": "Failed to start BT OAuth:",
     "bt_oauth_polling_error": "Failed to check authentication status:",
+    "joycode_oauth_title": "JoyCode OAuth",
+    "joycode_oauth_button": "Start JoyCode Login",
+    "joycode_oauth_hint": "Login to JoyCode service through OAuth flow, automatically obtain and save authentication files.",
+    "joycode_oauth_url_label": "Authorization URL:",
+    "joycode_open_link": "Open Link",
+    "joycode_copy_link": "Copy Link",
+    "joycode_oauth_status_waiting": "Waiting for authentication...",
+    "joycode_oauth_status_success": "Authentication successful!",
+    "joycode_oauth_status_error": "Authentication failed:",
+    "joycode_oauth_start_error": "Failed to start JoyCode OAuth:",
+    "joycode_oauth_polling_error": "Failed to check authentication status:",
     "remote_access_disabled": "This login method is not available for remote access. Please access from localhost."
   },
   "usage_stats": {

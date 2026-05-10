@@ -20,7 +20,8 @@ export type OAuthProvider =
   | 'codebuddy'
   | 'codebuddy-ai'
   | 'codearts'
-  | 'bt';
+  | 'bt'
+  | 'joycode';
 
 export interface OAuthStartResponse {
   status?: 'ok' | 'wait' | 'error' | 'device_code';
@@ -67,7 +68,8 @@ const WEBUI_SUPPORTED: OAuthProvider[] = [
   'codebuddy',
   'codebuddy-ai',
   'codearts',
-  'bt'
+  'bt',
+  'joycode'
 ];
 const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'
@@ -89,7 +91,7 @@ export const oauthApi = {
 
   getAuthStatus: (state: string) =>
     apiClient.get<{
-      status: 'ok' | 'wait' | 'error' | 'device_code'| 'auth_url';
+      status: 'ok' | 'wait' | 'error' | 'device_code' | 'auth_url';
       error?: string;
       verification_url?: string;
       user_code?: string;

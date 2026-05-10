@@ -2,20 +2,22 @@
  * Quota management page - coordinates the three quota sections.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
-import { useAuthStore } from '@/stores';
-import { authFilesApi, configFileApi } from '@/services/api';
 import {
-  QuotaSection,
   ANTIGRAVITY_CONFIG,
   CLAUDE_CONFIG,
   CODEX_CONFIG,
+  COPILOT_CONFIG,
   GEMINI_CLI_CONFIG,
-  KIMI_CONFIG
+  KIMI_CONFIG,
+  KIRO_CONFIG,
+  QuotaSection
 } from '@/components/quota';
+import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
+import { authFilesApi, configFileApi } from '@/services/api';
+import { useAuthStore } from '@/stores';
 import type { AuthFileItem } from '@/types';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './QuotaPage.module.scss';
 
 export function QuotaPage() {
@@ -97,6 +99,18 @@ export function QuotaPage() {
       />
       <QuotaSection
         config={KIMI_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={COPILOT_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={KIRO_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}

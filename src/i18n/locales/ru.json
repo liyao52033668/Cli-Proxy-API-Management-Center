@@ -726,6 +726,21 @@
     "credit_label": "Google One AI кредиты",
     "credit_amount": "{{count}} кредитов"
   },
+  "copilot_quota": {
+    "title": "Квота Copilot",
+    "empty_title": "Файлы авторизации Copilot отсутствуют",
+    "empty_desc": "Загрузите учётные данные Copilot, чтобы увидеть оставшуюся квоту.",
+    "idle": "Нажмите здесь, чтобы обновить квоту",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все",
+    "chat_label": "Чат",
+    "completions_label": "Завершения",
+    "premium_interactions_label": "Премиум-интеракции"
+  },
   "kimi_quota": {
     "title": "Квота Kimi",
     "empty_title": "Файлы авторизации Kimi отсутствуют",
@@ -741,6 +756,20 @@
     "limit_window": "Лимит {{duration}}",
     "limit_index": "Лимит #{{index}}",
     "reset_hint": "сброс через {{hint}}"
+  },
+  "kiro_quota": {
+    "title": "Квота JoyCode",
+    "empty_title": "Файлы авторизации JoyCode отсутствуют",
+    "empty_desc": "Загрузите учётные данные JoyCode, чтобы увидеть оставшуюся квоту.",
+    "idle": "Не загружено. Нажмите \"Обновить квоту\".",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все",
+    "code_scan_label": "Единицы сканирования кода",
+    "code_generation_label": "Единицы генерации кода"
   },
   "vertex_import": {
     "title": "Вход с Vertex JSON",
@@ -1067,6 +1096,17 @@
     "bt_oauth_status_error": "Ошибка аутентификации:",
     "bt_oauth_start_error": "Не удалось запустить BT OAuth:",
     "bt_oauth_polling_error": "Не удалось проверить статус аутентификации:",
+    "joycode_oauth_title": "JoyCode OAuth",
+    "joycode_oauth_button": "Начать вход JoyCode",
+    "joycode_oauth_hint": "Выполните вход в сервис JoyCode через OAuth и автоматически получите/сохраните файлы авторизации.",
+    "joycode_oauth_url_label": "URL авторизации:",
+    "joycode_open_link": "Открыть ссылку",
+    "joycode_copy_link": "Скопировать ссылку",
+    "joycode_oauth_status_waiting": "Ожидание аутентификации...",
+    "joycode_oauth_status_success": "Аутентификация успешна!",
+    "joycode_oauth_status_error": "Ошибка аутентификации:",
+    "joycode_oauth_start_error": "Не удалось запустить JoyCode OAuth:",
+    "joycode_oauth_polling_error": "Не удалось проверить статус аутентификации:",
     "remote_access_disabled": "Этот способ входа недоступен при удалённом доступе. Подключитесь с localhost."
   },
   "usage_stats": {

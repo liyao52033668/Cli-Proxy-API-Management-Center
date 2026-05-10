@@ -729,6 +729,21 @@
     "credit_label": "Google One AI 积分",
     "credit_amount": "{{count}} 积分"
   },
+  "copilot_quota": {
+    "title": "Github Copilot 额度",
+    "empty_title": "暂无 Copilot 认证",
+    "empty_desc": "上传 Copilot 认证文件后即可查看额度。",
+    "idle": "点击此处刷新额度",
+    "loading": "正在加载额度...",
+    "load_failed": "额度获取失败：{{message}}",
+    "missing_auth_index": "认证文件缺少 auth_index",
+    "empty": "暂无额度数据",
+    "refresh_button": "刷新额度",
+    "fetch_all": "获取全部",
+    "chat_label": "聊天",
+    "completions_label": "补全",
+    "premium_interactions_label": "高级交互"
+  },
   "kimi_quota": {
     "title": "Kimi 额度",
     "empty_title": "暂无 Kimi 认证",
@@ -744,6 +759,20 @@
     "limit_window": "{{duration}} 限额",
     "limit_index": "限额 #{{index}}",
     "reset_hint": "{{hint}} 后重置"
+  },
+  "kiro_quota": {
+    "title": "Kiro 额度",
+    "empty_title": "暂无 Kiro 认证",
+    "empty_desc": "上传 Kiro 认证文件后即可查看额度。",
+    "idle": "点击此处刷新额度",
+    "loading": "正在加载额度...",
+    "load_failed": "额度获取失败：{{message}}",
+    "missing_auth_index": "认证文件缺少 auth_index",
+    "empty": "暂无额度数据",
+    "refresh_button": "刷新额度",
+    "fetch_all": "获取全部",
+    "code_scan_label": "代码扫描单元",
+    "code_generation_label": "代码生成单元"
   },
   "vertex_import": {
     "title": "Vertex JSON 登录",
@@ -1070,6 +1099,17 @@
     "bt_oauth_status_error": "认证失败:",
     "bt_oauth_start_error": "启动 BT OAuth 失败:",
     "bt_oauth_polling_error": "检查认证状态失败:",
+    "joycode_oauth_title": "JoyCode OAuth",
+    "joycode_oauth_button": "开始 JoyCode 登录",
+    "joycode_oauth_hint": "通过 OAuth 流程登录 JoyCode 服务，自动获取并保存认证文件。",
+    "joycode_oauth_url_label": "授权链接:",
+    "joycode_open_link": "打开链接",
+    "joycode_copy_link": "复制链接",
+    "joycode_oauth_status_waiting": "等待认证中...",
+    "joycode_oauth_status_success": "认证成功！",
+    "joycode_oauth_status_error": "认证失败:",
+    "joycode_oauth_start_error": "启动 JoyCode OAuth 失败:",
+    "joycode_oauth_polling_error": "检查认证状态失败:",
     "remote_access_disabled": "远程访问不支持此登录方式，请从本地 (localhost) 访问"
   },
   "usage_stats": {
