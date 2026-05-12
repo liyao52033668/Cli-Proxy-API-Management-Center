@@ -13,11 +13,11 @@ const buildChartUsageFromOverview = (usage: UsageOverviewPayload, source?: Usage
     tokens_by_hour: source.tokens,
     requests_by_day: source.requests,
     tokens_by_day: source.tokens,
-    model_series: Object.fromEntries(Object.entries(source.models ?? {}).map(([model, series]) => [model, {
-      requests_by_hour: series.requests,
-      tokens_by_hour: series.tokens,
-      requests_by_day: series.requests,
-      tokens_by_day: series.tokens,
+    models: Object.fromEntries(Object.entries(source.models ?? {}).map(([model, series]) => [model, {
+      Requests: series.requests,
+      Tokens: series.tokens,
+      requests: series.requests,
+      tokens: series.tokens,
     }])),
   };
 };

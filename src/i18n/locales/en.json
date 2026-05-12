@@ -1590,7 +1590,8 @@
     "filter_enabled": "Available",
     "filter_disabled": "Unavailable",
     "filter_all_handler": "All Handlers",
-    "filter_other": "Other"
+    "filter_other": "Other",
+    "models_excluded_badge": "Disabled"
   },
   "notification": {
     "debug_updated": "Debug settings updated",

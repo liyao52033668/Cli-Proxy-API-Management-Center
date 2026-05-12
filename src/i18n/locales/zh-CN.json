@@ -1594,7 +1594,8 @@
     "filter_enabled": "可用",
     "filter_disabled": "不可用",
     "filter_all_handler": "全部 Handler",
-    "filter_other": "其他"
+    "filter_other": "其他",
+    "models_excluded_badge": "已禁用"
   },
   "notification": {
     "debug_updated": "调试设置已更新",

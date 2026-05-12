@@ -23,7 +23,8 @@ const CATEGORIES: TokenCategory[] = ['input', 'output', 'cached', 'reasoning'];
 
 export interface TokenBreakdownChartProps {
   usage: UsagePayload | null;
-  series?: UsageOverviewPayload['series'];
+  hourlySeries?: UsageOverviewPayload['hourly_series'];
+  dailySeries?: UsageOverviewPayload['daily_series'];
   loading: boolean;
   isDark: boolean;
   isMobile: boolean;
@@ -32,7 +33,8 @@ export interface TokenBreakdownChartProps {
 
 export function TokenBreakdownChart({
   usage,
-  series,
+  hourlySeries,
+  dailySeries,
   loading,
   isDark,
   isMobile,
@@ -42,7 +44,9 @@ export function TokenBreakdownChart({
   const [period, setPeriod] = useState<'hour' | 'day'>('hour');
 
   const { chartData, chartOptions } = useMemo(() => {
-    const dataWithSeries = usage ? { ...usage, series } : null;
+    const dataWithSeries = usage
+      ? { ...usage, series: period === 'hour' ? hourlySeries : dailySeries }
+      : null;
     const tokenBreakdown =
       period === 'hour'
         ? buildHourlyTokenBreakdown(dataWithSeries, hourWindowHours)
@@ -85,7 +89,7 @@ export function TokenBreakdownChart({
     };
 
     return { chartData: data, chartOptions: options };
-  }, [usage, period, isDark, isMobile, hourWindowHours, t]);
+  }, [usage, hourlySeries, dailySeries, period, isDark, isMobile, hourWindowHours, t]);
 
   return (
     <Card

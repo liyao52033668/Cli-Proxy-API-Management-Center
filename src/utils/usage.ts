@@ -185,28 +185,31 @@ export function filterUsageByTimeRange<T>(
   const windowStart = nowMs - rangeMs;
   const totalSummary = createUsageSummary();
 
+  const usesDetailWindow = range === '4h' || range === '8h' || range === '12h' || range === '24h' || range === 'today';
   const requestsByDay = usageRecord.requests_by_day as Record<string, number> ?? {};
   const tokensByDay = usageRecord.tokens_by_day as Record<string, number> ?? {};
 
   let hasAggregatedData = false;
 
-  Object.entries(requestsByDay).forEach(([dateStr, count]) => {
-    const timestamp = parseTimestampMs(dateStr);
-    if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
-      return;
-    }
-    totalSummary.totalRequests += count;
-    hasAggregatedData = true;
-  });
+  if (!usesDetailWindow) {
+    Object.entries(requestsByDay).forEach(([dateStr, count]) => {
+      const timestamp = parseTimestampMs(dateStr);
+      if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
+        return;
+      }
+      totalSummary.totalRequests += count;
+      hasAggregatedData = true;
+    });
 
-  Object.entries(tokensByDay).forEach(([dateStr, count]) => {
-    const timestamp = parseTimestampMs(dateStr);
-    if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
-      return;
-    }
-    totalSummary.totalTokens += count;
-    hasAggregatedData = true;
-  });
+    Object.entries(tokensByDay).forEach(([dateStr, count]) => {
+      const timestamp = parseTimestampMs(dateStr);
+      if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
+        return;
+      }
+      totalSummary.totalTokens += count;
+      hasAggregatedData = true;
+    });
+  }
 
   const apis = getApisRecord(usageData);
   if (apis) {
@@ -228,37 +231,68 @@ export function filterUsageByTimeRange<T>(
             return;
           }
 
-          const modelKeyRequests = 'Requests';
-          const modelKeyTokens = 'Tokens';
-          const modelTimeRequests = modelEntry[modelKeyRequests] as Record<string, number> ?? {};
-          const modelTimeTokens = modelEntry[modelKeyTokens] as Record<string, number> ?? {};
-
           let modelTotalRequests = 0;
+          let modelSuccessCount = 0;
+          let modelFailureCount = 0;
           let modelTotalTokens = 0;
+          let filteredDetails: unknown[] | undefined;
 
-          Object.entries(modelTimeRequests).forEach(([dateStr, count]) => {
-            const timestamp = parseTimestampMs(dateStr);
-            if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
-              return;
-            }
-            modelTotalRequests += count;
-          });
+          if (usesDetailWindow) {
+            const details = Array.isArray(modelEntry.details) ? modelEntry.details : [];
+            filteredDetails = details.filter((detail) => {
+              if (!isRecord(detail)) return false;
+              const timestamp = parseTimestampMs(detail.timestamp);
+              return Number.isFinite(timestamp) && timestamp >= windowStart && timestamp <= nowMs;
+            });
 
-          Object.entries(modelTimeTokens).forEach(([dateStr, count]) => {
-            const timestamp = parseTimestampMs(dateStr);
-            if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
-              return;
-            }
-            modelTotalTokens += count;
-          });
+            filteredDetails.forEach((detail) => {
+              if (!isRecord(detail)) return;
+              modelTotalRequests += 1;
+              if (detail.failed === true) {
+                modelFailureCount += 1;
+              } else {
+                modelSuccessCount += 1;
+              }
+              const tokens = isRecord(detail.tokens) ? detail.tokens : {};
+              modelTotalTokens += Number(tokens.total_tokens) || 0;
+            });
+          } else {
+            const modelKeyRequests = 'Requests';
+            const modelKeyTokens = 'Tokens';
+            const modelTimeRequests = modelEntry[modelKeyRequests] as Record<string, number> ?? {};
+            const modelTimeTokens = modelEntry[modelKeyTokens] as Record<string, number> ?? {};
+
+            Object.entries(modelTimeRequests).forEach(([dateStr, count]) => {
+              const timestamp = parseTimestampMs(dateStr);
+              if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
+                return;
+              }
+              modelTotalRequests += count;
+            });
+
+            Object.entries(modelTimeTokens).forEach(([dateStr, count]) => {
+              const timestamp = parseTimestampMs(dateStr);
+              if (Number.isNaN(timestamp) || timestamp < windowStart || timestamp > nowMs) {
+                return;
+              }
+              modelTotalTokens += count;
+            });
+            modelSuccessCount = Number(modelEntry.success_count) || 0;
+            modelFailureCount = Number(modelEntry.failure_count) || 0;
+          }
 
           filteredModels[modelName] = {
             ...modelEntry,
             total_requests: modelTotalRequests,
+            success_count: modelSuccessCount,
+            failure_count: modelFailureCount,
             total_tokens: modelTotalTokens,
+            ...(filteredDetails ? { details: filteredDetails } : {}),
           };
 
           apiSummary.totalRequests += modelTotalRequests;
+          apiSummary.successCount += modelSuccessCount;
+          apiSummary.failureCount += modelFailureCount;
           apiSummary.totalTokens += modelTotalTokens;
         });
 
@@ -1500,6 +1534,11 @@ export function buildChartData(
 
   // Build "All" series as sum of all models
   const getAllSeries = (): number[] => {
+    const explicitAllSeries = dataByModel.get('all');
+    if (explicitAllSeries) {
+      return explicitAllSeries;
+    }
+
     const summed = new Array(labels.length).fill(0);
     dataByModel.forEach((values) => {
       values.forEach((value, idx) => {
@@ -1953,34 +1992,6 @@ export function buildHourlyTokenBreakdown(
         return { labels, dataByCategory, hasData: true };
       }
 
-      if (allKeys.size > 0) {
-        allKeys.forEach((dateStr) => {
-          const dailyInput = inputTokens[dateStr] || 0;
-          const dailyOutput = outputTokens[dateStr] || 0;
-          const dailyCached = cachedTokens[dateStr] || 0;
-          const dailyReasoning = reasoningTokens[dateStr] || 0;
-
-          const date = new Date(dateStr);
-          if (isNaN(date.getTime())) return;
-
-          const dateOnly = date.toISOString().split('T')[0];
-
-          labels.forEach((label, index) => {
-            const labelDate = label.split(' ')[0];
-            if (labelDate === dateOnly) {
-              dataByCategory.input[index] += Math.round(dailyInput / 24);
-              dataByCategory.output[index] += Math.round(dailyOutput / 24);
-              dataByCategory.cached[index] += Math.round(dailyCached / 24);
-              dataByCategory.reasoning[index] += Math.round(dailyReasoning / 24);
-              hasData = true;
-            }
-          });
-        });
-
-        if (hasData) {
-          return { labels, dataByCategory, hasData };
-        }
-      }
     }
   }
 

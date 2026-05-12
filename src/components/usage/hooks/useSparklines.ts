@@ -23,6 +23,7 @@ export interface SparklineBundle {
 export interface UseSparklinesOptions {
   usage: UsageOverviewPayload | null;
   loading: boolean;
+  preferredPeriod?: 'hour' | 'day';
 }
 
 export interface UseSparklinesReturn {
@@ -42,30 +43,33 @@ export interface UsageSparklineSeries {
   cost: number[];
 }
 
-export function buildUsageSparklineSeries({ usage }: Omit<UseSparklinesOptions, 'loading'>): UsageSparklineSeries {
-  if (!usage?.series) {
+export function buildUsageSparklineSeries({ usage, preferredPeriod = 'hour' }: Omit<UseSparklinesOptions, 'loading'>): UsageSparklineSeries {
+  const source = preferredPeriod === 'hour'
+    ? (usage?.hourly_series ?? usage?.series)
+    : (usage?.daily_series ?? usage?.series);
+  if (!source) {
     return { labels: [], requests: [], tokens: [], rpm: [], tpm: [], cost: [] };
   }
 
-  const labels = Object.keys(usage.series.requests ?? {}).sort((a, b) => a.localeCompare(b));
+  const labels = Object.keys(source.requests ?? {}).sort((a, b) => a.localeCompare(b));
   if (!labels.length) {
     return { labels: [], requests: [], tokens: [], rpm: [], tpm: [], cost: [] };
   }
 
   return {
     labels,
-    requests: labels.map((label) => Number(usage.series?.requests?.[label] ?? 0)),
-    tokens: labels.map((label) => Number(usage.series?.tokens?.[label] ?? 0)),
-    rpm: labels.map((label) => Number(usage.series?.rpm?.[label] ?? 0)),
-    tpm: labels.map((label) => Number(usage.series?.tpm?.[label] ?? 0)),
-    cost: labels.map((label) => Number(usage.series?.cost?.[label] ?? 0)),
+    requests: labels.map((label) => Number(source.requests?.[label] ?? 0)),
+    tokens: labels.map((label) => Number(source.tokens?.[label] ?? 0)),
+    rpm: labels.map((label) => Number(source.rpm?.[label] ?? 0)),
+    tpm: labels.map((label) => Number(source.tpm?.[label] ?? 0)),
+    cost: labels.map((label) => Number(source.cost?.[label] ?? 0)),
   };
 }
 
-export function useSparklines({ usage, loading }: UseSparklinesOptions): UseSparklinesReturn {
+export function useSparklines({ usage, loading, preferredPeriod = 'hour' }: UseSparklinesOptions): UseSparklinesReturn {
   const series = useMemo(
-    () => buildUsageSparklineSeries({ usage }),
-    [usage]
+    () => buildUsageSparklineSeries({ usage, preferredPeriod }),
+    [usage, preferredPeriod]
   );
 
   const buildSparkline = useCallback(

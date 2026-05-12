@@ -1589,7 +1589,8 @@
     "filter_enabled": "Доступные",
     "filter_disabled": "Недоступные",
     "filter_all_handler": "Все обработчики",
-    "filter_other": "Другие"
+    "filter_other": "Другие",
+    "models_excluded_badge": "Отключена"
   },
   "notification": {
     "debug_updated": "Настройки отладки обновлены",

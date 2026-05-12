@@ -49,6 +49,16 @@ const toCustomDateParam = (value: string | undefined): string | undefined => {
 
 const normalizeSeriesKeys = (series: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
   if (!series) return undefined;
+  const rawModels = series['Models'] ?? series['models'];
+  const models = rawModels && typeof rawModels === 'object' && !Array.isArray(rawModels)
+    ? Object.fromEntries(
+      Object.entries(rawModels as Record<string, unknown>).map(([model, modelSeries]) => [
+        model,
+        normalizeSeriesKeys(modelSeries as Record<string, unknown>) ?? {}
+      ])
+    )
+    : undefined;
+
   return {
     requests: series['Requests'] ?? series['requests'],
     tokens: series['Tokens'] ?? series['tokens'],
@@ -59,7 +69,7 @@ const normalizeSeriesKeys = (series: Record<string, unknown> | undefined): Recor
     output_tokens: series['OutputTokens'] ?? series['output_tokens'],
     cached_tokens: series['CachedTokens'] ?? series['cached_tokens'],
     reasoning_tokens: series['ReasoningTokens'] ?? series['reasoning_tokens'],
-    models: series['Models'] ?? series['models'],
+    models,
   };
 };
 

@@ -250,7 +250,7 @@ export function UsagePage() {
     rpmSparkline,
     tpmSparkline,
     costSparkline
-  } = useSparklines({ usage: filteredUsage, loading });
+  } = useSparklines({ usage: filteredUsage, loading, preferredPeriod });
 
   // Chart data hook - updated to use new API response structure
   const {
@@ -397,7 +397,8 @@ export function UsagePage() {
       {/* Token Breakdown Chart */}
       <TokenBreakdownChart
         usage={filteredUsageSnapshot}
-        series={usage?.series}
+        hourlySeries={usage?.hourly_series}
+        dailySeries={usage?.daily_series}
         loading={loading}
         isDark={isDark}
         isMobile={isMobile}
