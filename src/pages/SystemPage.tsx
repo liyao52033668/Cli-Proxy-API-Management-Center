@@ -569,9 +569,9 @@ export function SystemPage() {
           }
         >
           <p className={styles.sectionDescription}>{t('system_info.models_desc')}</p>
-          {/* {modelStatus && (
+          {modelStatus && (
             <div className={`status-badge ${modelStatus.type}`}>{modelStatus.message}</div>
-          )} */}
+          )}
           {modelsError && <div className="error-box">{modelsError}</div>}
           {modelsLoading ? (
             <div className="hint">{t('common.loading')}</div>
