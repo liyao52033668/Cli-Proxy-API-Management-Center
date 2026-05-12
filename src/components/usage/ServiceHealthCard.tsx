@@ -1,14 +1,15 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
+import styles from '@/pages/UsagePage.module.scss';
+import { parseTimestampMs } from '@/utils/timestamp';
 import {
-  collectUsageDetails,
   calculateServiceHealthData,
+  collectUsageDetails,
   type ServiceHealthData,
   type StatusBlockDetail,
 } from '@/utils/usage';
-import type { UsagePayload } from './hooks/useUsageData';
-import styles from '@/pages/UsagePage.module.scss';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import type { UsageOverviewPayload, UsagePayload } from './hooks/useUsageData';
 
 const COLOR_STOPS = [
   { r: 239, g: 68, b: 68 }, // #ef4444
@@ -56,18 +57,48 @@ function formatDateTime(timestamp: number): string {
 
 export interface ServiceHealthCardProps {
   usage: UsagePayload | null;
+  serviceHealth?: UsageOverviewPayload['service_health'];
   loading: boolean;
 }
 
-export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
+export function ServiceHealthCard({ usage, serviceHealth, loading }: ServiceHealthCardProps) {
   const { t } = useTranslation();
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltipState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const healthData: ServiceHealthData = useMemo(() => {
+    if (serviceHealth && serviceHealth.block_details && serviceHealth.block_details.length > 0) {
+      const rows = serviceHealth.rows ?? 7;
+      const cols = serviceHealth.columns ?? 96;
+      const blockDetails: StatusBlockDetail[] = serviceHealth.block_details.map((block) => {
+        const b = block as unknown as Record<string, unknown>;
+        return {
+          success: b.success as number ?? 0,
+          failure: b.failure as number ?? 0,
+          rate: b.rate as number ?? -1,
+          startTime: parseTimestampMs(b.start_time as string ?? ''),
+          endTime: parseTimestampMs(b.end_time as string ?? ''),
+        };
+      });
+      return {
+        blocks: blockDetails.map((detail) => {
+          const total = detail.success + detail.failure;
+          if (total === 0) return 'idle';
+          if (detail.failure === 0) return 'success';
+          if (detail.success === 0) return 'failure';
+          return 'mixed';
+        }),
+        blockDetails,
+        successRate: (serviceHealth.success_rate as number) ?? 0,
+        totalSuccess: (serviceHealth.total_success as number) ?? 0,
+        totalFailure: (serviceHealth.total_failure as number) ?? 0,
+        rows,
+        cols,
+      };
+    }
     const details = usage ? collectUsageDetails(usage) : [];
     return calculateServiceHealthData(details);
-  }, [usage]);
+  }, [usage, serviceHealth]);
 
   const hasData = healthData.totalSuccess + healthData.totalFailure > 0;
 

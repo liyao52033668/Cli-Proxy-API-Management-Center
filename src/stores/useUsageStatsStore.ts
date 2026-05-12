@@ -1,34 +1,41 @@
-import { create } from 'zustand';
-import { usageApi } from '@/services/api';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { collectUsageDetails, computeKeyStatsFromDetails, type KeyStats, type UsageDetail } from '@/utils/usage';
 import i18n from '@/i18n';
+import { usageApi, type UsageOverviewResponse } from '@/services/api/usage';
+import { collectUsageDetails, computeKeyStatsFromDetails, type KeyStats, type UsageDetail } from '@/utils/usage';
+import { create } from 'zustand';
 
-export const USAGE_STATS_STALE_TIME_MS = 240_000;
+export const USAGE_STATS_STALE_TIME_MS = 60_000;
 
-export type LoadUsageStatsOptions = {
+export type UsageTimeRange = 'all' | '4h' | '8h' | '12h' | '24h' | 'today' | '7d' | '30d' | 'custom';
+
+export interface LoadUsageStatsOptions {
   force?: boolean;
   staleTimeMs?: number;
-};
+  range?: UsageTimeRange;
+  start?: string;
+  end?: string;
+}
 
-type UsageStatsSnapshot = Record<string, unknown>;
-
-type UsageStatsState = {
-  usage: UsageStatsSnapshot | null;
+interface UsageStatsState {
+  usage: UsageOverviewResponse | null;
   keyStats: KeyStats;
   usageDetails: UsageDetail[];
   loading: boolean;
   error: string | null;
   lastRefreshedAt: number | null;
+  lastQueryKey: string | null;
   scopeKey: string;
   loadUsageStats: (options?: LoadUsageStatsOptions) => Promise<void>;
   clearUsageStats: () => void;
-};
+}
 
 const createEmptyKeyStats = (): KeyStats => ({ bySource: {}, byAuthIndex: {} });
 
-let usageRequestToken = 0;
-let inFlightUsageRequest: { id: number; scopeKey: string; promise: Promise<void> } | null = null;
+let activeRequest: Promise<void> | null = null;
+let activeRequestKey: string | null = null;
+let activeRequestController: AbortController | null = null;
+
+const buildQueryKey = (range: UsageTimeRange, start?: string, end?: string): string =>
+  `${range}:${start ?? ''}:${end ?? ''}`;
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error
@@ -44,93 +51,86 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
   loading: false,
   error: null,
   lastRefreshedAt: null,
+  lastQueryKey: null,
   scopeKey: '',
 
   loadUsageStats: async (options = {}) => {
-    const force = options.force === true;
-    const staleTimeMs = options.staleTimeMs ?? USAGE_STATS_STALE_TIME_MS;
-    const { apiBase = '', managementKey = '' } = useAuthStore.getState();
-    const scopeKey = `${apiBase}::${managementKey}`;
-    const state = get();
-    const scopeChanged = state.scopeKey !== scopeKey;
+    const {
+      force = false,
+      staleTimeMs = USAGE_STATS_STALE_TIME_MS,
+      range = 'all',
+      start,
+      end,
+    } = options;
 
-    // 先复用同源 in-flight 请求，避免多个页面同时发起重复 /usage。
-    if (inFlightUsageRequest && inFlightUsageRequest.scopeKey === scopeKey) {
-      await inFlightUsageRequest.promise;
+    const { lastRefreshedAt, loading, usage, lastQueryKey } = get();
+    const now = Date.now();
+    const queryKey = buildQueryKey(range, start, end);
+
+    if (!force && usage && lastRefreshedAt && lastQueryKey === queryKey && now - lastRefreshedAt < staleTimeMs) {
       return;
     }
 
-    // 连接目标变化时，旧请求结果必须失效。
-    if (inFlightUsageRequest && inFlightUsageRequest.scopeKey !== scopeKey) {
-      usageRequestToken += 1;
-      inFlightUsageRequest = null;
+    if (loading && activeRequest) {
+      if (activeRequestKey === queryKey) {
+        return activeRequest;
+      }
+      activeRequestController?.abort();
     }
 
-    const fresh =
-      !scopeChanged &&
-      state.lastRefreshedAt !== null &&
-      Date.now() - state.lastRefreshedAt < staleTimeMs;
+    const controller = new AbortController();
+    activeRequestController = controller;
+    activeRequestKey = queryKey;
+    set({ loading: true, error: null });
 
-    if (!force && fresh) {
-      return;
-    }
-
-    if (scopeChanged) {
-      set({
-        usage: null,
-        keyStats: createEmptyKeyStats(),
-        usageDetails: [],
-        error: null,
-        lastRefreshedAt: null,
-        scopeKey
-      });
-    }
-
-    const requestId = (usageRequestToken += 1);
-    set({ loading: true, error: null, scopeKey });
-
-    const requestPromise = (async () => {
+    activeRequest = (async () => {
       try {
-        const usageResponse = await usageApi.getUsage();
-        const rawUsage = usageResponse?.usage ?? usageResponse;
-        const usage =
-          rawUsage && typeof rawUsage === 'object' ? (rawUsage as UsageStatsSnapshot) : null;
+        const response = await usageApi.getUsageOverview(range, start, end);
+        if (activeRequestController !== controller) {
+          return;
+        }
 
-        if (requestId !== usageRequestToken) return;
+        const rawUsage = response?.usage ?? ((response as unknown as Record<string, unknown>)['Usage']) ?? response;
+        const usageDetails = collectUsageDetails(rawUsage);
 
-        const usageDetails = collectUsageDetails(usage);
         set({
-          usage,
+          usage: response,
           keyStats: computeKeyStatsFromDetails(usageDetails),
           usageDetails,
           loading: false,
           error: null,
           lastRefreshedAt: Date.now(),
-          scopeKey
+          lastQueryKey: queryKey,
         });
       } catch (error: unknown) {
-        if (requestId !== usageRequestToken) return;
+        if (controller.signal.aborted) {
+          return;
+        }
         const message = getErrorMessage(error);
-        set({
-          loading: false,
-          error: message,
-          scopeKey
-        });
+        if (activeRequestController === controller) {
+          set({
+            loading: false,
+            error: message,
+          });
+        }
         throw new Error(message);
       } finally {
-        if (inFlightUsageRequest?.id === requestId) {
-          inFlightUsageRequest = null;
+        if (activeRequestController === controller) {
+          activeRequest = null;
+          activeRequestKey = null;
+          activeRequestController = null;
         }
       }
     })();
 
-    inFlightUsageRequest = { id: requestId, scopeKey, promise: requestPromise };
-    await requestPromise;
+    return activeRequest;
   },
 
   clearUsageStats: () => {
-    usageRequestToken += 1;
-    inFlightUsageRequest = null;
+    activeRequestController?.abort();
+    activeRequest = null;
+    activeRequestKey = null;
+    activeRequestController = null;
     set({
       usage: null,
       keyStats: createEmptyKeyStats(),
@@ -138,7 +138,8 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
       loading: false,
       error: null,
       lastRefreshedAt: null,
-      scopeKey: ''
+      lastQueryKey: null,
+      scopeKey: '',
     });
-  }
+  },
 }));

@@ -1,16 +1,16 @@
-import { useState, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Line } from 'react-chartjs-2';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import styles from '@/pages/UsagePage.module.scss';
 import {
-  buildHourlyTokenBreakdown,
   buildDailyTokenBreakdown,
+  buildHourlyTokenBreakdown,
   type TokenCategory
 } from '@/utils/usage';
 import { buildChartOptions, getHourChartMinWidth } from '@/utils/usage/chartConfig';
-import type { UsagePayload } from './hooks/useUsageData';
-import styles from '@/pages/UsagePage.module.scss';
+import { useMemo, useState } from 'react';
+import { Line } from 'react-chartjs-2';
+import { useTranslation } from 'react-i18next';
+import type { UsageOverviewPayload, UsagePayload } from './hooks/useUsageData';
 
 const TOKEN_COLORS: Record<TokenCategory, { border: string; bg: string }> = {
   input: { border: '#8b8680', bg: 'rgba(139, 134, 128, 0.25)' },
@@ -23,6 +23,7 @@ const CATEGORIES: TokenCategory[] = ['input', 'output', 'cached', 'reasoning'];
 
 export interface TokenBreakdownChartProps {
   usage: UsagePayload | null;
+  series?: UsageOverviewPayload['series'];
   loading: boolean;
   isDark: boolean;
   isMobile: boolean;
@@ -31,6 +32,7 @@ export interface TokenBreakdownChartProps {
 
 export function TokenBreakdownChart({
   usage,
+  series,
   loading,
   isDark,
   isMobile,
@@ -40,10 +42,11 @@ export function TokenBreakdownChart({
   const [period, setPeriod] = useState<'hour' | 'day'>('hour');
 
   const { chartData, chartOptions } = useMemo(() => {
-    const series =
+    const dataWithSeries = usage ? { ...usage, series } : null;
+    const tokenBreakdown =
       period === 'hour'
-        ? buildHourlyTokenBreakdown(usage, hourWindowHours)
-        : buildDailyTokenBreakdown(usage);
+        ? buildHourlyTokenBreakdown(dataWithSeries, hourWindowHours)
+        : buildDailyTokenBreakdown(dataWithSeries);
     const categoryLabels: Record<TokenCategory, string> = {
       input: t('usage_stats.input_tokens'),
       output: t('usage_stats.output_tokens'),
@@ -52,10 +55,10 @@ export function TokenBreakdownChart({
     };
 
     const data = {
-      labels: series.labels,
+      labels: tokenBreakdown.labels,
       datasets: CATEGORIES.map((cat) => ({
         label: categoryLabels[cat],
-        data: series.dataByCategory[cat],
+        data: tokenBreakdown.dataByCategory[cat],
         borderColor: TOKEN_COLORS[cat].border,
         backgroundColor: TOKEN_COLORS[cat].bg,
         pointBackgroundColor: TOKEN_COLORS[cat].border,
@@ -65,7 +68,7 @@ export function TokenBreakdownChart({
       }))
     };
 
-    const baseOptions = buildChartOptions({ period, labels: series.labels, isDark, isMobile });
+    const baseOptions = buildChartOptions({ period, labels: tokenBreakdown.labels, isDark, isMobile });
     const options = {
       ...baseOptions,
       scales: {

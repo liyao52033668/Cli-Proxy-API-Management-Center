@@ -1,15 +1,34 @@
-import { useState, useMemo } from 'react';
-import type { ChartOptions } from 'chart.js';
+import type { UsageOverviewSeries } from '@/services/api/usage';
 import { buildChartData, type ChartData } from '@/utils/usage';
 import { buildChartOptions } from '@/utils/usage/chartConfig';
-import type { UsagePayload } from './useUsageData';
+import type { ChartOptions } from 'chart.js';
+import { useEffect, useMemo, useState } from 'react';
+import type { UsageOverviewPayload } from './useUsageData';
+
+const buildChartUsageFromOverview = (usage: UsageOverviewPayload, source?: UsageOverviewSeries) => {
+  if (!source) return usage.usage;
+  return {
+    ...usage.usage,
+    requests_by_hour: source.requests,
+    tokens_by_hour: source.tokens,
+    requests_by_day: source.requests,
+    tokens_by_day: source.tokens,
+    model_series: Object.fromEntries(Object.entries(source.models ?? {}).map(([model, series]) => [model, {
+      requests_by_hour: series.requests,
+      tokens_by_hour: series.tokens,
+      requests_by_day: series.requests,
+      tokens_by_day: series.tokens,
+    }])),
+  };
+};
 
 export interface UseChartDataOptions {
-  usage: UsagePayload | null;
+  usage: UsageOverviewPayload | null;
   chartLines: string[];
   isDark: boolean;
   isMobile: boolean;
   hourWindowHours?: number;
+  preferredPeriod?: 'hour' | 'day';
 }
 
 export interface UseChartDataReturn {
@@ -28,19 +47,27 @@ export function useChartData({
   chartLines,
   isDark,
   isMobile,
-  hourWindowHours
+  hourWindowHours,
+  preferredPeriod = 'hour'
 }: UseChartDataOptions): UseChartDataReturn {
-  const [requestsPeriod, setRequestsPeriod] = useState<'hour' | 'day'>('day');
-  const [tokensPeriod, setTokensPeriod] = useState<'hour' | 'day'>('day');
+  const [requestsPeriod, setRequestsPeriod] = useState<'hour' | 'day'>(preferredPeriod);
+  const [tokensPeriod, setTokensPeriod] = useState<'hour' | 'day'>(preferredPeriod);
+
+  useEffect(() => {
+    setRequestsPeriod(preferredPeriod);
+    setTokensPeriod(preferredPeriod);
+  }, [preferredPeriod]);
 
   const requestsChartData = useMemo(() => {
     if (!usage) return { labels: [], datasets: [] };
-    return buildChartData(usage, requestsPeriod, 'requests', chartLines, { hourWindowHours });
+    const source = requestsPeriod === 'hour' ? (usage.hourly_series ?? usage.series) : (usage.daily_series ?? usage.series);
+    return buildChartData(buildChartUsageFromOverview(usage, source), requestsPeriod, 'requests', chartLines, { hourWindowHours });
   }, [usage, requestsPeriod, chartLines, hourWindowHours]);
 
   const tokensChartData = useMemo(() => {
     if (!usage) return { labels: [], datasets: [] };
-    return buildChartData(usage, tokensPeriod, 'tokens', chartLines, { hourWindowHours });
+    const source = tokensPeriod === 'hour' ? (usage.hourly_series ?? usage.series) : (usage.daily_series ?? usage.series);
+    return buildChartData(buildChartUsageFromOverview(usage, source), tokensPeriod, 'tokens', chartLines, { hourWindowHours });
   }, [usage, tokensPeriod, chartLines, hourWindowHours]);
 
   const requestsChartOptions = useMemo(

@@ -3,14 +3,30 @@
  * 替代原项目 src/core/api-client.js
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { ApiClientConfig, ApiError } from '@/types';
+import type { ApiClientConfig } from '@/types';
+import { computeApiUrl } from '@/utils/connection';
 import {
   BUILD_DATE_HEADER_KEYS,
   REQUEST_TIMEOUT_MS,
   VERSION_HEADER_KEYS
 } from '@/utils/constants';
-import { computeApiUrl } from '@/utils/connection';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+export class ApiError extends Error {
+  status?: number;
+  code?: string;
+  details?: unknown;
+  data?: unknown;
+
+  constructor(message: string, status?: number, code?: string, details?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+    this.data = details;
+  }
+}
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -146,12 +162,7 @@ class ApiClient {
             : typeof responseRecord?.message === 'string'
               ? responseRecord.message
               : error.message || 'Request failed';
-      const apiError = new Error(message) as ApiError;
-      apiError.name = 'ApiError';
-      apiError.status = error.response?.status;
-      apiError.code = error.code;
-      apiError.details = responseData;
-      apiError.data = responseData;
+      const apiError = new ApiError(message, error.response?.status, error.code, responseData);
 
       // 401 未授权 - 触发登出事件
       if (error.response?.status === 401) {
@@ -163,9 +174,7 @@ class ApiClient {
 
     const fallbackMessage =
       error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error occurred';
-    const fallback = new Error(fallbackMessage) as ApiError;
-    fallback.name = 'ApiError';
-    return fallback;
+    return new ApiError(fallbackMessage);
   }
 
   /**

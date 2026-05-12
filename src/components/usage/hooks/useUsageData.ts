@@ -1,21 +1,19 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { ApiError } from '@/services/api/client';
+import { usageApi, type UsageOverviewResponse, type UsageSnapshot, type UsageTimeRange } from '@/services/api/usage';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
-import { usageApi } from '@/services/api/usage';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-export interface UsagePayload {
-  total_requests?: number;
-  success_count?: number;
-  failure_count?: number;
-  total_tokens?: number;
-  apis?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+export type UsagePayload = Partial<UsageSnapshot>;
+
+export type UsageOverviewPayload = Omit<UsageOverviewResponse, 'usage'> & {
+  usage: UsagePayload;
+};
 
 export interface UseUsageDataReturn {
-  usage: UsagePayload | null;
+  usage: UsageOverviewPayload | null;
   loading: boolean;
   error: string;
   lastRefreshedAt: Date | null;
@@ -30,28 +28,111 @@ export interface UseUsageDataReturn {
   importing: boolean;
 }
 
-export function useUsageData(): UseUsageDataReturn {
+export interface UseUsageDataOptions {
+  onAuthRequired?: () => void;
+  range?: UsageTimeRange;
+  customStart?: string;
+  customEnd?: string;
+  enabled?: boolean;
+}
+
+export const normalizeUsageOverviewRange = (value: string): UsageTimeRange => (
+  value === '4h' || value === '8h' || value === '12h' || value === '24h' || value === 'today' || value === '7d' || value === '30d' || value === 'all' || value === 'custom'
+    ? value
+    : 'all'
+);
+
+const toCustomDateParam = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  return trimmed && /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
+};
+
+const normalizeSeriesKeys = (series: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+  if (!series) return undefined;
+  return {
+    requests: series['Requests'] ?? series['requests'],
+    tokens: series['Tokens'] ?? series['tokens'],
+    rpm: series['RPM'] ?? series['rpm'],
+    tpm: series['TPM'] ?? series['tpm'],
+    cost: series['Cost'] ?? series['cost'],
+    input_tokens: series['InputTokens'] ?? series['input_tokens'],
+    output_tokens: series['OutputTokens'] ?? series['output_tokens'],
+    cached_tokens: series['CachedTokens'] ?? series['cached_tokens'],
+    reasoning_tokens: series['ReasoningTokens'] ?? series['reasoning_tokens'],
+    models: series['Models'] ?? series['models'],
+  };
+};
+
+const normalizeHealthBlocks = (blocks: unknown[] | undefined): unknown[] | undefined => {
+  if (!blocks || !Array.isArray(blocks)) return undefined;
+  return blocks.map((block: unknown) => {
+    if (!block || typeof block !== 'object') return block;
+    const b = block as Record<string, unknown>;
+    return {
+      start_time: b['StartTime'] ?? b['start_time'],
+      end_time: b['EndTime'] ?? b['end_time'],
+      success: b['Success'] ?? b['success'],
+      failure: b['Failure'] ?? b['failure'],
+      rate: b['Rate'] ?? b['rate'],
+    };
+  });
+};
+
+export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataReturn {
   const { t } = useTranslation();
   const { showNotification } = useNotificationStore();
+  const { onAuthRequired, range = 'all', customStart, customEnd, enabled = true } = options;
+
   const usageSnapshot = useUsageStatsStore((state) => state.usage);
   const loading = useUsageStatsStore((state) => state.loading);
   const storeError = useUsageStatsStore((state) => state.error);
   const lastRefreshedAtTs = useUsageStatsStore((state) => state.lastRefreshedAt);
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
 
-  const [modelPrices, setModelPrices] = useState<Record<string, ModelPrice>>({});
+  const [modelPrices, setModelPricesState] = useState<Record<string, ModelPrice>>({});
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
+  const resolvedRange = normalizeUsageOverviewRange(range);
+  const requestStart = resolvedRange === 'custom' ? toCustomDateParam(customStart) : undefined;
+  const requestEnd = resolvedRange === 'custom' ? toCustomDateParam(customEnd) : undefined;
+  const customRangeReady = resolvedRange !== 'custom' || (requestStart !== undefined && requestEnd !== undefined);
+
   const loadUsage = useCallback(async () => {
-    await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS });
-  }, [loadUsageStats]);
+    if (!customRangeReady) return;
+    try {
+      await loadUsageStats({
+        force: true,
+        staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+        range: resolvedRange,
+        start: requestStart,
+        end: requestEnd,
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        onAuthRequired?.();
+      }
+      throw error;
+    }
+  }, [customRangeReady, loadUsageStats, onAuthRequired, requestEnd, requestStart, resolvedRange]);
 
   useEffect(() => {
-    void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
-    setModelPrices(loadModelPrices());
-  }, [loadUsageStats]);
+    if (!enabled || !customRangeReady) {
+      return;
+    }
+    void loadUsageStats({
+      staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+      range: resolvedRange,
+      start: requestStart,
+      end: requestEnd,
+    }).catch((error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        onAuthRequired?.();
+      }
+    });
+    setModelPricesState(loadModelPrices());
+  }, [customRangeReady, enabled, loadUsageStats, onAuthRequired, requestEnd, requestStart, resolvedRange]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -130,11 +211,35 @@ export function useUsageData(): UseUsageDataReturn {
   };
 
   const handleSetModelPrices = useCallback((prices: Record<string, ModelPrice>) => {
-    setModelPrices(prices);
+    setModelPricesState(prices);
     saveModelPrices(prices);
   }, []);
 
-  const usage = usageSnapshot as UsagePayload | null;
+  const usage = usageSnapshot
+    ? ((() => {
+      const snapshot = usageSnapshot as unknown as Record<string, unknown>;
+      const rawSeries = usageSnapshot.series ?? snapshot['Series'];
+      const rawHourlySeries = usageSnapshot.hourly_series ?? snapshot['HourlySeries'];
+      const rawDailySeries = usageSnapshot.daily_series ?? snapshot['DailySeries'];
+      const rawHealth = usageSnapshot.service_health ?? snapshot['ServiceHealth'] ?? snapshot['Health'];
+
+      return {
+        ...usageSnapshot,
+        usage: usageSnapshot.usage ?? snapshot['Usage'] ?? null,
+        summary: usageSnapshot.summary ?? snapshot['Summary'],
+        series: normalizeSeriesKeys(rawSeries as Record<string, unknown>),
+        hourly_series: normalizeSeriesKeys(rawHourlySeries as Record<string, unknown>),
+        daily_series: normalizeSeriesKeys(rawDailySeries as Record<string, unknown>),
+        service_health: rawHealth ? {
+          ...(rawHealth as Record<string, unknown>),
+          total_success: (rawHealth as Record<string, unknown>)['TotalSuccess'] ?? (rawHealth as Record<string, unknown>)['total_success'],
+          total_failure: (rawHealth as Record<string, unknown>)['TotalFailure'] ?? (rawHealth as Record<string, unknown>)['total_failure'],
+          success_rate: (rawHealth as Record<string, unknown>)['SuccessRate'] ?? (rawHealth as Record<string, unknown>)['success_rate'],
+          block_details: normalizeHealthBlocks((rawHealth as Record<string, unknown>)['BlockDetails'] as unknown[] ?? (rawHealth as Record<string, unknown>)['block_details'] as unknown[]),
+        } : undefined,
+      };
+    })() as UsageOverviewPayload)
+    : null;
   const error = storeError || '';
   const lastRefreshedAt = lastRefreshedAtTs ? new Date(lastRefreshedAtTs) : null;
 
