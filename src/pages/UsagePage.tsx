@@ -211,7 +211,7 @@ export function UsagePage() {
     timeRange === 'all' || timeRange === 'today' || timeRange === 'custom' ? undefined : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
 
   const preferredPeriod: 'hour' | 'day' = useMemo(() => {
-    if (timeRange === '4h' || timeRange === '8h' || timeRange === '12h' || timeRange === '24h' || timeRange === 'today') {
+    if (timeRange === '4h' || timeRange === '8h' || timeRange === '12h' || timeRange === '24h' || timeRange === 'today'|| timeRange === 'all') {
       return 'hour';
     }
     return 'day';
