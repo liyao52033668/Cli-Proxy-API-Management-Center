@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
-import type { AuthFileItem } from '@/types';
+import type { AuthFileItem, AuthFilePatchFields } from '@/types';
 import { useNotificationStore } from '@/stores';
-import { formatFileSize } from '@/utils/format';
-import { MAX_AUTH_FILE_SIZE } from '@/utils/constants';
 import {
   applyCodexAuthFileWebsockets,
   normalizeExcludedModels,
@@ -15,6 +13,17 @@ import {
 } from '@/features/authFiles/constants';
 
 type AuthFileHeaders = Record<string, string>;
+type AuthFileEditableJson = Pick<
+  AuthFilePatchFields,
+  | 'prefix'
+  | 'proxy_url'
+  | 'headers'
+  | 'priority'
+  | 'excluded_models'
+  | 'disable_cooling'
+  | 'websockets'
+  | 'note'
+>;
 type AuthFileHeadersErrorKey =
   | 'auth_files.headers_invalid_json'
   | 'auth_files.headers_invalid_object'
@@ -109,47 +118,23 @@ const parseHeadersText = (
   return { value: parsed as AuthFileHeaders, errorKey: null };
 };
 
-const buildPrefixProxyUpdatedText = (
+const buildPrefixProxyUpdatedJson = (
   editor: PrefixProxyEditorState | null,
   resolveHeadersError: (key: AuthFileHeadersErrorKey) => string
-): string => {
-  if (!editor?.json) return editor?.rawText ?? '';
-  const next: Record<string, unknown> = { ...editor.json };
-  if ('prefix' in next || editor.prefix.trim()) {
-    next.prefix = editor.prefix;
-  }
-  if ('proxy_url' in next || editor.proxyUrl.trim()) {
-    next.proxy_url = editor.proxyUrl;
-  }
+): AuthFileEditableJson | null => {
+  if (!editor?.json) return null;
+  const next: AuthFileEditableJson = {};
+  next.prefix = editor.prefix;
+  next.proxy_url = editor.proxyUrl;
 
   const parsedPriority = parsePriorityValue(editor.priority);
-  if (parsedPriority !== undefined) {
-    next.priority = parsedPriority;
-  } else if ('priority' in next) {
-    delete next.priority;
-  }
+  next.priority = parsedPriority ?? 0;
 
-  const excludedModels = parseExcludedModelsText(editor.excludedModelsText);
-  if (excludedModels.length > 0) {
-    next.excluded_models = excludedModels;
-  } else if ('excluded_models' in next) {
-    delete next.excluded_models;
-  }
+  next.excluded_models = parseExcludedModelsText(editor.excludedModelsText);
+  next.disable_cooling = parseDisableCoolingValue(editor.disableCooling) ?? null;
 
-  const parsedDisableCooling = parseDisableCoolingValue(editor.disableCooling);
-  if (parsedDisableCooling !== undefined) {
-    next.disable_cooling = parsedDisableCooling;
-  } else if ('disable_cooling' in next) {
-    delete next.disable_cooling;
-  }
-
-  if (editor.noteTouched) {
-    const noteValue = editor.note.trim();
-    if (noteValue) {
-      next.note = editor.note;
-    } else if ('note' in next) {
-      delete next.note;
-    }
+  if (editor.noteTouched || 'note' in editor.json) {
+    next.note = editor.note;
   }
 
   if (editor.headersTouched) {
@@ -157,12 +142,40 @@ const buildPrefixProxyUpdatedText = (
     if (errorKey) {
       throw new Error(resolveHeadersError(errorKey));
     }
-    if (parsedHeaders) {
-      next.headers = parsedHeaders;
-    } else {
-      delete next.headers;
-    }
+    next.headers = parsedHeaders ?? {};
+  } else if (isRecordObject(editor.json.headers)) {
+    const { value: parsedHeaders } = parseHeadersText(JSON.stringify(editor.json.headers));
+    if (parsedHeaders) next.headers = parsedHeaders;
   }
+
+  if (editor.isCodexFile) {
+    next.websockets = editor.websockets;
+  }
+
+  return next;
+};
+
+const buildPrefixProxyUpdatedText = (
+  editor: PrefixProxyEditorState | null,
+  resolveHeadersError: (key: AuthFileHeadersErrorKey) => string
+): string => {
+  if (!editor?.json) return editor?.rawText ?? '';
+  const next: Record<string, unknown> = {
+    ...editor.json,
+    ...(buildPrefixProxyUpdatedJson(editor, resolveHeadersError) ?? {}),
+  };
+
+  if (!next.prefix) delete next.prefix;
+  if (!next.proxy_url) delete next.proxy_url;
+  if (next.priority === 0 || next.priority === undefined) delete next.priority;
+  if (Array.isArray(next.excluded_models) && next.excluded_models.length === 0) {
+    delete next.excluded_models;
+  }
+  if (next.disable_cooling === null || next.disable_cooling === undefined) {
+    delete next.disable_cooling;
+  }
+  if (next.note === '') delete next.note;
+  if (isRecordObject(next.headers) && Object.keys(next.headers).length === 0) delete next.headers;
 
   return JSON.stringify(
     editor.isCodexFile ? applyCodexAuthFileWebsockets(next, editor.websockets) : next
@@ -356,23 +369,16 @@ export function useAuthFilesPrefixProxyEditor(
     if (!prefixProxyDirty) return;
 
     const name = prefixProxyEditor.fileName;
-    let payload = '';
+    let fields: AuthFilePatchFields | null = null;
     try {
-      payload = buildPrefixProxyUpdatedText(prefixProxyEditor, (key) => t(key));
+      fields = buildPrefixProxyUpdatedJson(prefixProxyEditor, (key) => t(key));
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Invalid format';
       showNotification(errorMessage, 'error');
       return;
     }
 
-    const fileSize = new Blob([payload]).size;
-    if (fileSize > MAX_AUTH_FILE_SIZE) {
-      showNotification(
-        t('auth_files.upload_error_size', { maxSize: formatFileSize(MAX_AUTH_FILE_SIZE) }),
-        'error'
-      );
-      return;
-    }
+    if (!fields) return;
 
     setPrefixProxyEditor((prev) => {
       if (!prev || prev.fileName !== name) return prev;
@@ -380,7 +386,7 @@ export function useAuthFilesPrefixProxyEditor(
     });
 
     try {
-      await authFilesApi.saveText(name, payload);
+      await authFilesApi.patchFields(name, fields);
       showNotification(t('auth_files.prefix_proxy_saved_success', { name }), 'success');
       await loadFiles();
       await loadKeyStats();

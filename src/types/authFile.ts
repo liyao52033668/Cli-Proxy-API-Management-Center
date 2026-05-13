@@ -30,7 +30,26 @@ export interface AuthFileItem {
   statusMessage?: string;
   lastRefresh?: string | number;
   modified?: number;
+  prefix?: string;
+  proxy_url?: string;
+  priority?: number | string;
+  excluded_models?: string[];
+  disable_cooling?: boolean | string | number;
+  websockets?: boolean | string | number;
+  note?: string;
+  headers?: Record<string, string>;
   [key: string]: unknown;
+}
+
+export interface AuthFilePatchFields {
+  prefix?: string;
+  proxy_url?: string;
+  headers?: Record<string, string>;
+  priority?: number;
+  excluded_models?: string[];
+  disable_cooling?: boolean | null;
+  websockets?: boolean | null;
+  note?: string;
 }
 
 export interface AuthFilesResponse {

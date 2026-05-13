@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from './client';
-import type { AuthFilesResponse } from '@/types/authFile';
+import type { AuthFilePatchFields, AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
 
@@ -400,6 +400,9 @@ export const authFilesApi = {
 
   setStatus: (name: string, disabled: boolean) =>
     apiClient.patch<AuthFileStatusResponse>('/auth-files/status', { name, disabled }),
+
+  patchFields: (name: string, fields: AuthFilePatchFields) =>
+    apiClient.patch<{ status: string }>('/auth-files/fields', { name, ...fields }),
 
   uploadFiles: async (files: File[]): Promise<AuthFileBatchUploadResult> => {
     const requestedNames = files.map((file) => file.name);
