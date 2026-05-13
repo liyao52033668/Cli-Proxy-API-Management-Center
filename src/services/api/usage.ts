@@ -367,17 +367,17 @@ export interface FetchUsageIdentitiesPageOptions {
 
 export const usageApi = {
   /**
-   * 获取使用统计原始数据（旧版）
+   * 获取使用统计原始数据（兼容旧接口）
    */
   getUsage: () => apiClient.get<Record<string, unknown>>('/usage', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 导出使用统计快照（旧版）
+   * 导出数据库驱动的使用统计快照
    */
   exportUsage: () => apiClient.get<UsageExportPayload>('/usage/export', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 导入使用统计快照（旧版）
+   * 导入数据库驱动的使用统计快照
    */
   importUsage: (payload: unknown) =>
     apiClient.post<UsageImportResponse>('/usage/import', payload, { timeout: USAGE_TIMEOUT_MS }),
