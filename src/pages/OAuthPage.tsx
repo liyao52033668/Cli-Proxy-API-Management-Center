@@ -9,6 +9,7 @@ import iconCursor from '@/assets/icons/cursor.svg';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconGitHub from '@/assets/icons/github.svg';
 import iconGitLab from '@/assets/icons/gitlab.svg';
+import iconGrok from '@/assets/icons/grok.svg';
 import iconKilo from '@/assets/icons/kilo.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
@@ -37,6 +38,7 @@ interface ProviderState {
   projectId?: string;
   projectIdError?: string;
   callbackUrl?: string;
+  callbackToken?: string;
   callbackSubmitting?: boolean;
   callbackStatus?: 'success' | 'error';
   callbackError?: string;
@@ -87,13 +89,14 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'kilo', titleKey: 'auth_login.kilo_oauth_title', hintKey: 'auth_login.kilo_oauth_hint', urlLabelKey: 'auth_login.kilo_oauth_url_label', icon: iconKilo },
   { id: 'kiro', titleKey: 'auth_login.kiro_oauth_title', hintKey: 'auth_login.kiro_oauth_hint', urlLabelKey: 'auth_login.kiro_oauth_url_label', icon: iconKiro },
   { id: 'cursor', titleKey: 'auth_login.cursor_oauth_title', hintKey: 'auth_login.cursor_oauth_hint', urlLabelKey: 'auth_login.cursor_oauth_url_label', icon: iconCursor },
+  { id: 'xai', titleKey: 'auth_login.xai_oauth_title', hintKey: 'auth_login.xai_oauth_hint', urlLabelKey: 'auth_login.xai_oauth_url_label', icon: iconGrok },
   { id: 'kimi', titleKey: 'auth_login.kimi_oauth_title', hintKey: 'auth_login.kimi_oauth_hint', urlLabelKey: 'auth_login.kimi_oauth_url_label', icon: { light: iconKimiLight, dark: iconKimiDark } },
   { id: 'qoder', titleKey: 'auth_login.qoder_oauth_title', hintKey: 'auth_login.qoder_oauth_hint', urlLabelKey: 'auth_login.qoder_oauth_url_label', icon: iconQoder },
   { id: 'codebuddy', titleKey: 'auth_login.codebuddy_oauth_title', hintKey: 'auth_login.codebuddy_oauth_hint', urlLabelKey: 'auth_login.codebuddy_oauth_url_label', icon: iconCodebuddy },
   { id: 'codebuddy-ai', titleKey: 'auth_login.codebuddy_ai_oauth_title', hintKey: 'auth_login.codebuddy_ai_oauth_hint', urlLabelKey: 'auth_login.codebuddy_ai_oauth_url_label', icon: iconCodebuddyAI },
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconKiro },
-  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt },
+  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
  
 ];
 
@@ -192,6 +195,7 @@ export function OAuthPage() {
       error: undefined,
       polling: false,
       callbackUrl: '',
+      callbackToken: '',
       callbackSubmitting: false,
       callbackStatus: undefined,
       callbackError: undefined
@@ -270,7 +274,8 @@ export function OAuthPage() {
         deviceCode: undefined,
         callbackStatus: undefined,
         callbackError: undefined,
-        callbackUrl: ''
+        callbackUrl: '',
+        callbackToken: ''
       });
 
       try {
@@ -309,7 +314,8 @@ export function OAuthPage() {
         deviceCode: undefined,
         callbackStatus: undefined,
         callbackError: undefined,
-        callbackUrl: ''
+        callbackUrl: '',
+        callbackToken: ''
       });
 
       try {
@@ -436,6 +442,51 @@ export function OAuthPage() {
     }
   };
 
+  const submitXaiCallbackToken = async () => {
+    const provider: OAuthProvider = 'xai';
+    const state = (states[provider]?.state || '').trim();
+    const code = (states[provider]?.callbackToken || '').trim();
+
+    if (!code) {
+      showNotification(t('auth_login.xai_callback_required'), 'warning');
+      return;
+    }
+    if (!state) {
+      showNotification(t('auth_login.missing_state'), 'error');
+      return;
+    }
+
+    updateProviderState(provider, {
+      callbackSubmitting: true,
+      callbackStatus: undefined,
+      callbackError: undefined
+    });
+
+    try {
+      await oauthApi.submitCode(provider, state, code);
+      updateProviderState(provider, { callbackSubmitting: false, callbackStatus: 'success' });
+      showNotification(t('auth_login.xai_callback_success'), 'success');
+    } catch (err: unknown) {
+      const status = getErrorStatus(err);
+      const message = getErrorMessage(err);
+      const errorMessage =
+        status === 404
+          ? t('auth_login.oauth_callback_upgrade_hint', {
+            defaultValue: 'Please update CLI Proxy API or check the connection.'
+          })
+          : message || undefined;
+      updateProviderState(provider, {
+        callbackSubmitting: false,
+        callbackStatus: 'error',
+        callbackError: errorMessage
+      });
+      const notificationMessage = errorMessage
+        ? `${t('auth_login.xai_callback_error')} ${errorMessage}`
+        : t('auth_login.xai_callback_error');
+      showNotification(notificationMessage, 'error');
+    }
+  };
+
   const handleVertexFilePick = () => {
     vertexFileInputRef.current?.click();
   };
@@ -502,6 +553,7 @@ export function OAuthPage() {
         {PROVIDERS.map((provider) => {
           const state = states[provider.id] || {};
           const canSubmitCallback = CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url);
+          const canSubmitXaiCallbackToken = provider.id === 'xai' && Boolean(state.state);
           const loginButtonLabel =
             state.status === 'success'
               ? t('auth_login.login_another_account')
@@ -640,6 +692,43 @@ export function OAuthPage() {
                           {t(getAuthKey(provider.id, 'open_link'))}
                         </Button>
                       </div>
+                    </div>
+                  )}
+                  {canSubmitXaiCallbackToken && (
+                    <div className={styles.callbackSection}>
+                      <Input
+                        label={t('auth_login.xai_callback_label')}
+                        hint={t('auth_login.xai_callback_hint')}
+                        placeholder={t('auth_login.xai_callback_placeholder')}
+                        value={state.callbackToken || ''}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            callbackToken: e.target.value,
+                            callbackStatus: undefined,
+                            callbackError: undefined
+                          })
+                        }
+                      />
+                      <div className={styles.callbackActions}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={submitXaiCallbackToken}
+                          loading={state.callbackSubmitting}
+                        >
+                          {t('auth_login.xai_callback_button')}
+                        </Button>
+                      </div>
+                      {state.callbackStatus === 'success' && state.status === 'waiting' && (
+                        <div className="status-badge success">
+                          {t('auth_login.xai_callback_status_success')}
+                        </div>
+                      )}
+                      {state.callbackStatus === 'error' && (
+                        <div className="status-badge error">
+                          {t('auth_login.xai_callback_status_error')} {state.callbackError || ''}
+                        </div>
+                      )}
                     </div>
                   )}
                   {canSubmitCallback && (
