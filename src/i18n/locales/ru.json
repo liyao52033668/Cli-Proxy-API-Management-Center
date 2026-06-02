@@ -252,6 +252,7 @@
     "priority_hint": "Чем больше значение, тем выше приоритет. Оставьте пустым для значения по умолчанию (0).",
     "config_toggle_label": "Включено",
     "config_disabled_badge": "Отключено",
+    "last_saved_at": "Последнее сохранение: {{time}}",
     "codex_title": "Конфигурация Codex API",
     "codex_add_button": "Добавить конфигурацию",
     "codex_empty_title": "Конфигурации Codex отсутствуют",

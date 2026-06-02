@@ -25,6 +25,7 @@ export type OpenAIEditBaseline = {
   priority: number | null;
   prefix: string;
   baseUrl: string;
+  disabled: boolean;
   headers: Array<{ key: string; value: string }>;
   apiKeyEntries: Array<{
     apiKey: string;
@@ -69,6 +70,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   name: '',
   prefix: '',
   baseUrl: '',
+  disabled: false,
   headers: [],
   apiKeyEntries: [buildApiKeyEntry()],
   modelEntries: [{ name: '', alias: '' }],

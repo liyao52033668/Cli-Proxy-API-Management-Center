@@ -85,6 +85,31 @@ $openai-toolbar-control-height: 36px;
   justify-content: flex-end;
 }
 
+
+.openaiProviderTopRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.providerSavedAt {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  text-align: right;
+
+  @include mobile {
+    text-align: left;
+  }
+}
+
 .openaiProviderTitle {
   font-weight: 700;
   color: var(--text-primary);
@@ -669,8 +694,20 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
+.copyableModelTag {
+  appearance: none;
+//  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
 .modelName {
-  font-weight: 600;
+ // font-weight: 600;
   color: var(--text-primary);
   overflow-wrap: anywhere;
 }

@@ -11,6 +11,7 @@ import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
+import { CopyableModelTag } from '../CopyableModelTag';
 import {
   collectUsageDetailsForIdentity,
   getProviderConfigKey,
@@ -167,12 +168,13 @@ export function GeminiSection({
                       {t('ai_providers.gemini_models_count')}: {item.models.length}
                     </span>
                     {item.models.map((model) => (
-                      <span key={model.name} className={styles.modelTag}>
-                        <span className={styles.modelName}>{model.name}</span>
-                        {model.alias && model.alias !== model.name && (
-                          <span className={styles.modelAlias}>{model.alias}</span>
-                        )}
-                      </span>
+                      <CopyableModelTag
+                        key={model.name}
+                        model={model}
+                        className={`${styles.modelTag} ${styles.copyableModelTag}`}
+                        nameClassName={styles.modelName}
+                        aliasClassName={styles.modelAlias}
+                      />
                     ))}
                   </div>
                 ) : null}

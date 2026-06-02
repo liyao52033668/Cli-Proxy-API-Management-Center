@@ -26,6 +26,7 @@ import {
   useThemeStore,
 } from '@/stores';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
+import { copyToClipboard } from '@/utils/clipboard';
 import { classifyModels } from '@/utils/models';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -209,6 +210,20 @@ export function SystemPage() {
     if (typeof iconEntry === 'string') return iconEntry;
     return resolvedTheme === 'dark' ? iconEntry.dark : iconEntry.light;
   };
+
+
+  const handleModelIdCopy = useCallback(
+    async (modelId: string) => {
+      const copied = await copyToClipboard(modelId);
+      showNotification(
+        copied
+          ? `${t('notification.link_copied', { defaultValue: 'Copied to clipboard' })}: ${modelId}`
+          : t('notification.copy_failed', { defaultValue: 'Copy failed' }),
+        copied ? 'success' : 'error'
+      );
+    },
+    [showNotification, t]
+  );
 
   const normalizeApiKeyList = (input: unknown): string[] => {
     if (!Array.isArray(input)) return [];
@@ -666,6 +681,16 @@ export function SystemPage() {
                                 key={`${model.name}-${model.alias ?? 'default'}`}
                                 className={`${styles.modelTag} ${disabled ? styles.modelTagDisabled : ''}`}
                                 title={model.description || ''}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${t('common.copy')}: ${model.name}`}
+                                onClick={() => void handleModelIdCopy(model.name)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    void handleModelIdCopy(model.name);
+                                  }
+                                }}
                               >
                                 <span className={styles.modelName}>{model.name}</span>
                                 {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}

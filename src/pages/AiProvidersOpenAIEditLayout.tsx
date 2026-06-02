@@ -46,6 +46,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   priority: undefined,
   prefix: '',
   baseUrl: '',
+  disabled: false,
   headers: [],
   apiKeyEntries: [buildApiKeyEntry()],
   modelEntries: [{ name: '', alias: '' }],
@@ -110,6 +111,7 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
+  disabled: Boolean(form.disabled),
   headers: normalizeHeaderEntries(form.headers),
   apiKeyEntries: normalizeApiKeyEntries(form.apiKeyEntries),
   models: normalizeModelEntries(form.modelEntries),
@@ -300,6 +302,8 @@ export function AiProvidersOpenAIEditLayout() {
         priority: initialData.priority,
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
+        disabled: Boolean(initialData.disabled),
+        updatedAt: initialData.updatedAt,
         headers: headersToEntries(initialData.headers),
         testModel: initialData.testModel,
         modelEntries,
@@ -424,6 +428,7 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
+      baseline.disabled !== Boolean(form.disabled) ||
       baseline.testModel !== normalizedTestModel ||
       isHeadersDirty ||
       isApiKeyEntriesDirty ||
@@ -468,6 +473,7 @@ export function AiProvidersOpenAIEditLayout() {
         name,
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
+        disabled: Boolean(form.disabled),
         headers: buildHeaderObject(form.headers),
         apiKeyEntries: form.apiKeyEntries.map((entry: ApiKeyEntry) => ({
           apiKey: entry.apiKey.trim(),

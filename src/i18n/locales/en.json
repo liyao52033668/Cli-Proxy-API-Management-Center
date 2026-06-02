@@ -252,6 +252,7 @@
     "priority_hint": "Higher values are preferred. Leave empty for default (0).",
     "config_toggle_label": "Enabled",
     "config_disabled_badge": "Disabled",
+    "last_saved_at": "Last saved: {{time}}",
     "codex_title": "Codex API Configuration",
     "codex_add_button": "Add Configuration",
     "codex_empty_title": "No Codex Configuration",

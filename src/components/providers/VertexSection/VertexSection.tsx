@@ -11,6 +11,7 @@ import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
+import { CopyableModelTag } from '../CopyableModelTag';
 import {
   collectUsageDetailsForIdentity,
   getProviderConfigKey,
@@ -161,12 +162,13 @@ export function VertexSection({
                       {t('ai_providers.vertex_models_count')}: {item.models.length}
                     </span>
                     {item.models.map((model) => (
-                      <span key={`${model.name}-${model.alias || 'default'}`} className={styles.modelTag}>
-                        <span className={styles.modelName}>{model.name}</span>
-                        {model.alias && (
-                          <span className={styles.modelAlias}>{model.alias}</span>
-                        )}
-                      </span>
+                      <CopyableModelTag
+                        key={`${model.name}-${model.alias || 'default'}`}
+                        model={model}
+                        className={`${styles.modelTag} ${styles.copyableModelTag}`}
+                        nameClassName={styles.modelName}
+                        aliasClassName={styles.modelAlias}
+                      />
                     ))}
                   </div>
                 ) : null}

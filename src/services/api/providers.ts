@@ -149,6 +149,7 @@ const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
   if (headers) payload.headers = headers;
   const models = serializeModelAliases(provider.models);
   if (models && models.length) payload.models = models;
+  if (provider.disabled !== undefined) payload.disabled = provider.disabled;
   if (provider.priority !== undefined) payload.priority = provider.priority;
   if (provider.testModel) payload['test-model'] = provider.testModel;
   return payload;

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import {
   IconCheck,
   IconChevronDown,
@@ -20,6 +21,7 @@ import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderStatusBar } from '../ProviderStatusBar';
+import { CopyableModelTag } from '../CopyableModelTag';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import {
   collectOpenAIProviderUsageDetails,
@@ -49,6 +51,7 @@ interface OpenAISectionProps {
   onAdd: () => void;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onToggle: (index: number, enabled: boolean) => void;
 }
 
 interface IndexedOpenAIProvider {
@@ -76,6 +79,7 @@ export function OpenAISection({
   onAdd,
   onEdit,
   onDelete,
+  onToggle,
 }: OpenAISectionProps) {
   const { t } = useTranslation();
   const pageTransitionLayer = usePageTransitionLayer();
@@ -708,6 +712,18 @@ export function OpenAISection({
     const stats = getOpenAIProviderStats(provider, keyStats);
     const headerEntries = Object.entries(provider.headers || {});
     const apiKeyEntries = provider.apiKeyEntries || [];
+    const providerDisabled = Boolean(provider.disabled);
+    const savedAtLabel = provider.updatedAt
+      ? new Intl.DateTimeFormat(undefined, {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).format(new Date(provider.updatedAt))
+      : null;
     const statusData =
       statusBarCache.get(getOpenAIProviderKey(provider, originalIndex)) || EMPTY_STATUS_BAR;
 
@@ -718,7 +734,14 @@ export function OpenAISection({
         style={actionsDisabled ? { opacity: 0.6 } : undefined}
       >
         <div className={styles.openaiProviderMeta}>
-          <div className={styles.openaiProviderTitle}>{provider.name}</div>
+          <div className={styles.openaiProviderTopRow}>
+            <div className={styles.openaiProviderTitle}>{provider.name}</div>
+            {savedAtLabel ? (
+              <div className={styles.providerSavedAt} title={savedAtLabel}>
+                {t('ai_providers.last_saved_at', { time: savedAtLabel })}
+              </div>
+            ) : null}
+          </div>
           {provider.priority !== undefined && (
             <div className={styles.fieldRow}>
               <span className={styles.fieldLabel}>{t('common.priority')}:</span>
@@ -742,6 +765,11 @@ export function OpenAISection({
                   <strong>{key}:</strong> {value}
                 </span>
               ))}
+            </div>
+          )}
+          {providerDisabled && (
+            <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
+              {t('ai_providers.config_disabled_badge')}
             </div>
           )}
           {apiKeyEntries.length > 0 && (
@@ -790,12 +818,13 @@ export function OpenAISection({
           {provider.models?.length ? (
             <div className={styles.modelTagList}>
               {provider.models.map((model) => (
-                <span key={model.name} className={styles.modelTag}>
-                  <span className={styles.modelName}>{model.name}</span>
-                  {model.alias && model.alias !== model.name && (
-                    <span className={styles.modelAlias}>{model.alias}</span>
-                  )}
-                </span>
+                <CopyableModelTag
+                  key={model.name}
+                  model={model}
+                  className={`${styles.modelTag} ${styles.copyableModelTag}`}
+                  nameClassName={styles.modelName}
+                  aliasClassName={styles.modelAlias}
+                />
               ))}
             </div>
           ) : null}
@@ -832,6 +861,12 @@ export function OpenAISection({
           >
             {t('common.delete')}
           </Button>
+          <ToggleSwitch
+            label={t('ai_providers.config_toggle_label')}
+            checked={!providerDisabled}
+            disabled={actionsDisabled}
+            onChange={(value) => void onToggle(originalIndex, value)}
+          />
         </div>
       </div>
     );

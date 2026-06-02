@@ -354,6 +354,46 @@ export function AiProvidersPage() {
     });
   };
 
+  const setOpenAIProviderEnabled = async (index: number, enabled: boolean) => {
+    const current = openaiProviders[index];
+    if (!current) return;
+
+    const switchingKey = `openai:${current.name}:${current.baseUrl}`;
+    setConfigSwitchingKey(switchingKey);
+
+    const previousList = openaiProviders;
+    const nextItem: OpenAIProviderConfig = { ...current, disabled: !enabled };
+    const nextList = previousList.map((item, idx) => (idx === index ? nextItem : item));
+
+    setOpenaiProviders(nextList);
+    updateConfigValue('openai-compatibility', nextList);
+    clearCache('openai-compatibility');
+
+    try {
+      await providersApi.saveOpenAIProviders(nextList);
+      let synced = nextList;
+      try {
+        synced = await providersApi.getOpenAIProviders();
+      } catch {
+        // ignore refresh failure, use optimistic list
+      }
+      setOpenaiProviders(synced);
+      updateConfigValue('openai-compatibility', synced);
+      showNotification(
+        enabled ? t('notification.config_enabled') : t('notification.config_disabled'),
+        'success'
+      );
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setOpenaiProviders(previousList);
+      updateConfigValue('openai-compatibility', previousList);
+      clearCache('openai-compatibility');
+      showNotification(`${t('notification.update_failed')}: ${message}`, 'error');
+    } finally {
+      setConfigSwitchingKey(null);
+    }
+  };
+
   const deleteOpenai = async (index: number) => {
     const entry = openaiProviders[index];
     if (!entry) return;
@@ -471,6 +511,7 @@ export function AiProvidersPage() {
             onAdd={() => openEditor('/ai-providers/openai/new')}
             onEdit={(index) => openEditor(`/ai-providers/openai/${index}`)}
             onDelete={deleteOpenai}
+            onToggle={(index, enabled) => void setOpenAIProviderEnabled(index, enabled)}
           />
         </div>
       </div>

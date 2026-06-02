@@ -252,6 +252,7 @@
     "priority_hint": "數值越大優先順序越高；留空表示預設（0）。",
     "config_toggle_label": "啟用",
     "config_disabled_badge": "已停用",
+    "last_saved_at": "上次儲存：{{time}}",
     "codex_title": "Codex API 設定",
     "codex_add_button": "新增設定",
     "codex_empty_title": "暫無 Codex 設定",

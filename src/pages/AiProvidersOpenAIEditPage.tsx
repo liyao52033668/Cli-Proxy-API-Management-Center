@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { Input } from '@/components/ui/Input';
 import { ModelInputList } from '@/components/ui/ModelInputList';
 import { Select } from '@/components/ui/Select';
@@ -147,6 +148,21 @@ export function AiProvidersOpenAIEditPage() {
   }, [handleBack]);
 
   const canSave = !disableControls && !loading && !saving && !invalidIndexParam && !invalidIndex && !isTestingKeys;
+  const providerSavedAtLabel = useMemo(() => {
+    const raw = typeof form.updatedAt === 'string' ? form.updatedAt : '';
+    if (!raw) return '';
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(parsed);
+  }, [form.updatedAt]);
   const hasConfiguredModels = form.modelEntries.some((entry) => entry.name.trim());
   const hasTestableKeys = form.apiKeyEntries.some((entry) => entry.apiKey?.trim());
   const modelSelectOptions = useMemo(() => {
@@ -776,6 +792,21 @@ export function AiProvidersOpenAIEditPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
               disabled={saving || disableControls || isTestingKeys}
             />
+            <div className={styles.modelConfigSection}>
+              <div className={styles.modelConfigHeader}>
+                <label className={styles.modelConfigTitle}>{t('ai_providers.config_toggle_label')}</label>
+                <div className={styles.modelConfigToolbar}>
+                  <ToggleSwitch
+                    checked={!form.disabled}
+                    onChange={(enabled) => setForm((prev) => ({ ...prev, disabled: !enabled }))}
+                    disabled={saving || disableControls || isTestingKeys}
+                  />
+                </div>
+              </div>
+              {providerSavedAtLabel ? (
+                <div className={styles.sectionHint}>{t('ai_providers.last_saved_at', { time: providerSavedAtLabel })}</div>
+              ) : null}
+            </div>
 
             <HeaderInputList
               entries={form.headers}
