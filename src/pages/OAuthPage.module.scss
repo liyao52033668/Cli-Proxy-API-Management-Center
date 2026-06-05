@@ -207,6 +207,12 @@
   }
 }
 
+.githubCopilotPlanField {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
 .formItem {
   display: flex;
   flex-direction: column;

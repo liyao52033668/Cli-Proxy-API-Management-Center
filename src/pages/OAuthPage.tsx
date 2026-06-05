@@ -19,6 +19,7 @@ import iconVertex from '@/assets/icons/vertex.svg';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
 import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
 import { useNotificationStore, useThemeStore } from '@/stores';
@@ -46,6 +47,7 @@ interface ProviderState {
   password?: string;
   gitlabPersonalAccessToken?: string;
   gitlabBaseUrl?: string;
+  githubCopilotPlanType?: string;
 }
 
 interface VertexImportResult {
@@ -102,6 +104,13 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
 
 const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'qoder'];
 const SUCCESS_RESET_DELAY_MS = 5000;
+const DEFAULT_GITHUB_COPILOT_PLAN_TYPE = 'free';
+const GITHUB_COPILOT_PLAN_OPTIONS = [
+  { value: 'free', labelKey: 'auth_login.github_copilot_plan_free', defaultLabel: 'Free' },
+  { value: 'pro', labelKey: 'auth_login.github_copilot_plan_pro', defaultLabel: 'Pro' },
+  { value: 'pro+', labelKey: 'auth_login.github_copilot_plan_business', defaultLabel: 'Pro+' },
+  { value: 'max', labelKey: 'auth_login.github_copilot_plan_enterprise', defaultLabel: 'Max' }
+] as const;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>
   `auth_login.${getProviderI18nPrefix(provider)}_${suffix}`;
@@ -177,6 +186,9 @@ export function OAuthPage() {
       const next: ProviderState = {};
       if (provider === 'gemini-cli' && current.projectId !== undefined) {
         next.projectId = current.projectId;
+      }
+      if (provider === 'github' && current.githubCopilotPlanType !== undefined) {
+        next.githubCopilotPlanType = current.githubCopilotPlanType;
       }
       return {
         ...prev,
@@ -342,6 +354,10 @@ export function OAuthPage() {
         ? 'ALL'
         : rawProjectId
       : undefined;
+    const githubCopilotPlanType =
+      provider === 'github'
+        ? states[provider]?.githubCopilotPlanType || DEFAULT_GITHUB_COPILOT_PLAN_TYPE
+        : undefined;
     // 项目 ID 可选：留空自动选择第一个可用项目；输入 ALL 获取全部项目
     if (provider === 'gemini-cli') {
       updateProviderState(provider, { projectIdError: undefined });
@@ -360,7 +376,11 @@ export function OAuthPage() {
     try {
       const res = await oauthApi.startAuth(
         provider,
-        provider === 'gemini-cli' ? { projectId: projectId || undefined } : undefined
+        provider === 'gemini-cli'
+          ? { projectId: projectId || undefined }
+          : provider === 'github'
+            ? { planType: githubCopilotPlanType }
+            : undefined
       );
       const resolvedURL = res.url || res.verification_url || res.verification_uri;
       const resolvedDeviceCode = res.user_code;
@@ -602,6 +622,35 @@ export function OAuthPage() {
                         }
                         placeholder={t('auth_login.gemini_cli_project_id_placeholder')}
                       />
+                    </div>
+                  )}
+                  {provider.id === 'github' && (
+                    <div className={styles.githubCopilotPlanField}>
+                      <label className={styles.formItemLabel} htmlFor="github-copilot-plan-type">
+                        {t('auth_login.github_copilot_plan_label', {
+                          defaultValue: 'GitHub Copilot 订阅等级'
+                        })}
+                      </label>
+                      <Select
+                        id="github-copilot-plan-type"
+                        value={state.githubCopilotPlanType || DEFAULT_GITHUB_COPILOT_PLAN_TYPE}
+                        options={GITHUB_COPILOT_PLAN_OPTIONS.map((option) => ({
+                          value: option.value,
+                          label: t(option.labelKey, { defaultValue: option.defaultLabel })
+                        }))}
+                        disabled={Boolean(state.polling)}
+                        ariaLabel={t('auth_login.github_copilot_plan_label', {
+                          defaultValue: 'GitHub Copilot 订阅等级'
+                        })}
+                        onChange={(value) =>
+                          updateProviderState(provider.id, { githubCopilotPlanType: value })
+                        }
+                      />
+                      <div className={styles.cardHintSecondary}>
+                        {t('auth_login.github_copilot_plan_hint', {
+                          defaultValue: '请选择当前 GitHub Copilot 账号的订阅等级。'
+                        })}
+                      </div>
                     </div>
                   )}
                   {provider.id === 'bt' && (
