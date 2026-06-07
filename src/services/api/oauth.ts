@@ -37,10 +37,12 @@ export interface OAuthCallbackResponse {
   status: 'ok';
 }
 
-export interface BTAuthResponse {
+interface BasicTokenAuthResponse {
   status: 'ok' | 'error';
   error?: string;
 }
+
+export type BTAuthResponse = BasicTokenAuthResponse;
 
 export interface GitLabPATResponse {
   status: 'ok' | 'error';
@@ -52,6 +54,8 @@ export interface GitLabPATResponse {
   model_provider?: string;
   model_name?: string;
 }
+
+export type QoderTokenAuthResponse = BasicTokenAuthResponse;
 
 const WEBUI_SUPPORTED: OAuthProvider[] = [
   'codex',
@@ -133,6 +137,12 @@ export const oauthApi = {
     return apiClient.post<GitLabPATResponse>('/gitlab-auth-url', {
       personal_access_token: personalAccessToken,
       base_url: baseUrl
+    });
+  },
+
+  qoderTokenAuth: (personalAccessToken: string) => {
+    return apiClient.post<QoderTokenAuthResponse>('/qoder-auth-url', {
+      personal_access_token: personalAccessToken
     });
   }
 };

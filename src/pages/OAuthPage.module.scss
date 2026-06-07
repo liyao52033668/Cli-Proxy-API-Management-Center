@@ -207,10 +207,30 @@
   }
 }
 
-.githubCopilotPlanField {
+.githubCopilotPlanField,
+.qoderModeField {
   display: flex;
   flex-direction: column;
   gap: $spacing-xs;
+}
+
+.qoderTokenField {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+
+  :global(.form-group) {
+    margin-top: 0;
+    margin-bottom: 0;
+    gap: $spacing-xs;
+  }
+
+  :global(.input:disabled) {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+  }
 }
 
 .formItem {

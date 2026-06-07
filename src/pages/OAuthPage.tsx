@@ -45,6 +45,8 @@ interface ProviderState {
   callbackError?: string;
   phone?: string;
   password?: string;
+  authMode?: 'token' | 'oauth';
+  personalAccessToken?: string;
   gitlabPersonalAccessToken?: string;
   gitlabBaseUrl?: string;
   githubCopilotPlanType?: string;
@@ -179,8 +181,68 @@ export function OAuthPage() {
     clearSuccessResetTimer(provider);
   };
 
+  const getQoderAuthMode = (providerState?: ProviderState): 'token' | 'oauth' => {
+    return providerState?.authMode === 'oauth' ? 'oauth' : 'token';
+  };
+
+  const clearQoderTokenInputState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      personalAccessToken: undefined
+    };
+  };
+
+  const clearQoderOAuthFlowState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      url: undefined,
+      state: undefined,
+      callbackUrl: undefined,
+      callbackStatus: undefined,
+      callbackError: undefined,
+      callbackSubmitting: false,
+      deviceCode: undefined,
+      polling: false
+    };
+  };
+
+  const switchQoderAuthMode = (mode: 'token' | 'oauth') => {
+    clearProviderTimers('qoder');
+    setStates((prev) => {
+      const current = prev.qoder ?? {};
+      const currentMode = getQoderAuthMode(current);
+      let next = current;
+
+      if (currentMode === 'token' && mode === 'oauth') {
+        next = clearQoderTokenInputState(next);
+      } else if (currentMode === 'oauth' && mode === 'token') {
+        next = clearQoderOAuthFlowState(next);
+      }
+
+      return {
+        ...prev,
+        qoder: {
+          ...next,
+          authMode: mode,
+          status: undefined,
+          error: undefined
+        }
+      };
+    });
+  };
+
+
   const resetProviderAttempt = (provider: OAuthProvider) => {
     clearProviderTimers(provider);
+    if (provider === 'qoder') {
+      setStates((prev) => ({
+        ...prev,
+        [provider]: {
+          authMode: 'token'
+        }
+      }));
+      return;
+    }
     setStates((prev) => {
       const current = prev[provider] ?? {};
       const next: ProviderState = {};
@@ -262,6 +324,55 @@ export function OAuthPage() {
 
   const startAuth = async (provider: OAuthProvider) => {
     clearProviderTimers(provider);
+
+    if (provider === 'qoder') {
+      const qoderState = states[provider];
+      const qoderAuthMode = getQoderAuthMode(qoderState);
+
+      if (qoderAuthMode === 'token') {
+        const personalAccessToken = (qoderState?.personalAccessToken || '').trim();
+
+        if (!personalAccessToken) {
+          showNotification(t('auth_login.qoder_token_required'), 'warning');
+          return;
+        }
+
+        updateProviderState(provider, {
+          url: undefined,
+          state: undefined,
+          status: 'waiting',
+          polling: true,
+          error: undefined,
+          deviceCode: undefined,
+          callbackStatus: undefined,
+          callbackError: undefined,
+          callbackUrl: '',
+          callbackToken: ''
+        });
+
+        try {
+          const res = await oauthApi.qoderTokenAuth(personalAccessToken);
+          if (res.status === 'ok') {
+            completeProviderAuth(provider);
+            showNotification(t('auth_login.qoder_token_success'), 'success');
+          } else if (res.status === 'error') {
+            updateProviderState(provider, { status: 'error', error: res.error, polling: false });
+            showNotification(
+              `${t('auth_login.qoder_token_error')}${res.error ? ` ${res.error}` : ''}`,
+              'error'
+            );
+          }
+        } catch (err: unknown) {
+          const message = getErrorMessage(err);
+          updateProviderState(provider, { status: 'error', error: message, polling: false });
+          showNotification(
+            `${t('auth_login.qoder_token_error')}${message ? ` ${message}` : ''}`,
+            'error'
+          );
+        }
+        return;
+      }
+    }
 
     if (provider === 'bt') {
       const btState = states[provider];
@@ -572,12 +683,19 @@ export function OAuthPage() {
       <div className={styles.content}>
         {PROVIDERS.map((provider) => {
           const state = states[provider.id] || {};
-          const canSubmitCallback = CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url);
+          const isQoder = provider.id === 'qoder';
+          const qoderAuthMode = isQoder ? getQoderAuthMode(state) : undefined;
+          const isQoderTokenMode = qoderAuthMode === 'token';
+          const isQoderOAuthMode = qoderAuthMode === 'oauth';
+          const canSubmitCallback =
+            CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url) && (!isQoder || isQoderOAuthMode);
           const canSubmitXaiCallbackToken = provider.id === 'xai' && Boolean(state.state);
           const loginButtonLabel =
             state.status === 'success'
               ? t('auth_login.login_another_account')
-              : t(getAuthKey(provider.id, 'oauth_button'));
+              : isQoderTokenMode
+                ? t('auth_login.qoder_token_button', { defaultValue: '使用 Token 登录' })
+                : t(getAuthKey(provider.id, 'oauth_button'));
           const statusBadgeClassName = [
             'status-badge',
             state.status === 'success' ? 'success' : '',
@@ -605,7 +723,67 @@ export function OAuthPage() {
                 }
               >
                 <div className={styles.cardContent}>
-                  <div className={styles.cardHint}>{t(provider.hintKey)}</div>
+                  <div className={styles.cardHint}>
+                    {isQoderTokenMode
+                      ? t('auth_login.qoder_token_hint', {
+                        defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可继续使用原有授权流程。'
+                      })
+                      : t(provider.hintKey)}
+                  </div>
+                  {isQoder && (
+                    <div className={styles.qoderModeField}>
+                      <label className={styles.formItemLabel} htmlFor="qoder-auth-mode">
+                        {t('auth_login.qoder_auth_mode_label', { defaultValue: '认证方式' })}
+                      </label>
+                      <Select
+                        id="qoder-auth-mode"
+                        value={qoderAuthMode || 'token'}
+                        options={[
+                          {
+                            value: 'token',
+                            label: t('auth_login.qoder_auth_mode_token', { defaultValue: 'Token' })
+                          },
+                          {
+                            value: 'oauth',
+                            label: t('auth_login.qoder_auth_mode_oauth', { defaultValue: 'OAuth' })
+                          }
+                        ]}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        ariaLabel={t('auth_login.qoder_auth_mode_label', { defaultValue: '认证方式' })}
+                        onChange={(value) => switchQoderAuthMode(value as 'token' | 'oauth')}
+                      />
+                      <div className={styles.cardHintSecondary}>
+                        {t('auth_login.qoder_auth_mode_hint', {
+                          defaultValue: 'Token 模式适合直接粘贴 Personal Access Token；OAuth 模式保留浏览器授权与回调流程。'
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {isQoderTokenMode && (
+                    <div className={styles.qoderTokenField}>
+                      <Input
+                        type="password"
+                        label={t('auth_login.qoder_token_label', {
+                          defaultValue: 'Personal Access Token'
+                        })}
+                        hint={t('auth_login.qoder_token_input_hint', {
+                          defaultValue: '请输入您的 Qoder Personal Access Token。'
+                        })}
+                        value={state.personalAccessToken || ''}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            personalAccessToken: e.target.value,
+                            status: undefined,
+                            error: undefined
+                          })
+                        }
+                        placeholder={t('auth_login.qoder_token_placeholder', {
+                          defaultValue: '请输入 Personal Access Token'
+                        })}
+                      />
+                    </div>
+                  )}
                   {provider.id === 'gemini-cli' && (
                     <div className={styles.geminiProjectField}>
                       <Input
@@ -704,7 +882,7 @@ export function OAuthPage() {
                       />
                     </div>
                   )}
-                  {state.url && (
+                  {(!isQoder || isQoderOAuthMode) && state.url && (
                     <div className={styles.authUrlBox}>
                       <div className={styles.authUrlLabel}>{t(provider.urlLabelKey)}</div>
                       <div className={styles.authUrlValue}>{state.url}</div>
