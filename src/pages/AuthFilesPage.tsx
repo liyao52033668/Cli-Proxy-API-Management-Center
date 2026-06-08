@@ -779,27 +779,6 @@ export function AuthFilesPage() {
                     }}
                     placeholder={t('auth_files.search_placeholder')}
                   />
-                  <div className={styles.filterStatusButtons}>
-                    {([
-                      { key: 'all', label: t('auth_files.filter_status_all') },
-                      { key: 'problem', label: t('auth_files.filter_status_problem') },
-                      { key: 'disabled', label: t('auth_files.filter_status_disabled') },
-                      { key: 'normal', label: t('auth_files.filter_status_normal') },
-                    ] as const).map((button) => (
-                      <Button
-                        key={button.key}
-                        size="sm"
-                        variant={statusFilter === button.key ? 'primary' : 'secondary'}
-                        onClick={() => {
-                          setStatusFilter(button.key);
-                          setPage(1);
-                        }}
-                        className={styles.filterStatusButton}
-                      >
-                        {button.label}
-                      </Button>
-                    ))}
-                  </div>
                 </div>
                 <div className={styles.filterItem}>
                   <label>{t('auth_files.page_size_label')}</label>
@@ -833,6 +812,78 @@ export function AuthFilesPage() {
                 <div className={`${styles.filterItem} ${styles.filterToggleItem}`}>
                   <label>{t('auth_files.display_options_label')}</label>
                   <div className={styles.filterToggleGroup}>
+                    <div className={styles.filterToggleCard}>
+                      <ToggleSwitch
+                        checked={statusFilter === 'all'}
+                        onChange={() => {
+                          setStatusFilter('all');
+                          setPage(1);
+                        }}
+                        ariaLabel={t('auth_files.filter_status_all')}
+                        label={
+                          <span className={styles.filterToggleLabel}>
+                            {t('auth_files.filter_status_all')}
+                          </span>
+                        }
+                      />
+                    </div>
+                    <div className={styles.filterToggleCard}>
+                      <ToggleSwitch
+                        checked={statusFilter === 'problem'}
+                        onChange={() => {
+                          if (statusFilter === 'problem') {
+                            setStatusFilter('all');
+                          } else {
+                            setStatusFilter('problem');
+                          }
+                          setPage(1);
+                        }}
+                        ariaLabel={t('auth_files.filter_status_problem')}
+                        label={
+                          <span className={styles.filterToggleLabel}>
+                            {t('auth_files.filter_status_problem')}
+                          </span>
+                        }
+                      />
+                    </div>
+                    <div className={styles.filterToggleCard}>
+                      <ToggleSwitch
+                        checked={statusFilter === 'disabled'}
+                        onChange={() => {
+                          if (statusFilter === 'disabled') {
+                            setStatusFilter('all');
+                          } else {
+                            setStatusFilter('disabled');
+                          }
+                          setPage(1);
+                        }}
+                        ariaLabel={t('auth_files.filter_status_disabled')}
+                        label={
+                          <span className={styles.filterToggleLabel}>
+                            {t('auth_files.filter_status_disabled')}
+                          </span>
+                        }
+                      />
+                    </div>
+                    <div className={styles.filterToggleCard}>
+                      <ToggleSwitch
+                        checked={statusFilter === 'normal'}
+                        onChange={() => {
+                          if (statusFilter === 'normal') {
+                            setStatusFilter('all');
+                          } else {
+                            setStatusFilter('normal');
+                          }
+                          setPage(1);
+                        }}
+                        ariaLabel={t('auth_files.filter_status_normal')}
+                        label={
+                          <span className={styles.filterToggleLabel}>
+                            {t('auth_files.filter_status_normal')}
+                          </span>
+                        }
+                      />
+                    </div>
                     <div className={styles.filterToggleCard}>
                       <ToggleSwitch
                         checked={compactMode}
