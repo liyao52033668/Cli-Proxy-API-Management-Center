@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
+import { useNotificationStore } from '@/stores';
 import { createServerCodexInspectionAdapter } from '@/features/codexInspection/adapters/server';
 import { CodexInspectionActionBar } from '@/features/codexInspection/components/CodexInspectionActionBar';
 import { CodexInspectionResultsTable } from '@/features/codexInspection/components/CodexInspectionResultsTable';
@@ -145,36 +146,50 @@ export function CodexInspectionPage() {
     }
   }, [adapter, applySnapshot, settings, t]);
 
+  const showConfirmation = useNotificationStore((state) => state.showConfirmation);
+
   const executeAction = useCallback(
     async (action: CodexInspectionAction, fileNames = selected) => {
       if (fileNames.length === 0) {
         return;
       }
-      const confirmDelete =
-        action === 'delete'
-          ? window.confirm(
-              t('codex_inspection.delete_confirm', {
-                defaultValue: 'Delete the selected Codex auth files?',
-              })
-            )
-          : false;
-      if (action === 'delete' && !confirmDelete) {
+
+      const performAction = async (confirmedDelete = false) => {
+        setError('');
+        setBusy(true);
+        try {
+          const result = await adapter.execute(action, fileNames, confirmedDelete);
+          applySnapshot(result.snapshot);
+          setSelected([]);
+          await refreshSnapshot();
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : t('notification.refresh_failed'));
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      if (action === 'delete') {
+        showConfirmation({
+          title: t('codex_inspection.delete_confirm_title', {
+            defaultValue: 'Confirm delete',
+          }),
+          message: t('codex_inspection.delete_confirm', {
+            defaultValue: 'Delete the selected Codex auth files?',
+          }),
+          confirmText: t('common.delete', { defaultValue: 'Delete' }),
+          cancelText: t('common.cancel'),
+          variant: 'danger',
+          onConfirm: async () => {
+            await performAction(true);
+          },
+        });
         return;
       }
 
-      setError('');
-      setBusy(true);
-      try {
-        const result = await adapter.execute(action, fileNames, confirmDelete);
-        applySnapshot(result.snapshot);
-        setSelected([]);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : t('notification.refresh_failed'));
-      } finally {
-        setBusy(false);
-      }
+      await performAction(false);
     },
-    [adapter, applySnapshot, selected, t]
+    [adapter, applySnapshot, refreshSnapshot, selected, showConfirmation, t]
   );
 
   const filteredResults = useMemo(() => {
