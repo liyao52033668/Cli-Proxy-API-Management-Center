@@ -255,6 +255,18 @@ const mergeAuthFileEntries = (entries: AuthFileEntry[]): AuthFileEntry => {
 };
 
 const dedupeAuthFilesResponse = (payload: AuthFilesResponse): AuthFilesResponse => {
+  const normalizeBoolean = (value: unknown): boolean | undefined => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const trimmed = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(trimmed)) return true;
+      if (['false', '0', 'no', 'n', 'off'].includes(trimmed)) return false;
+    }
+    return Boolean(value);
+  };
+
   const files = Array.isArray(payload?.files) ? payload.files : [];
   const grouped = new Map<string, AuthFileEntry[]>();
 
@@ -269,7 +281,19 @@ const dedupeAuthFilesResponse = (payload: AuthFilesResponse): AuthFilesResponse 
     grouped.set(key, [entry]);
   });
 
-  const normalizedFiles = Array.from(grouped.values()).map(mergeAuthFileEntries);
+  const normalizedFiles = Array.from(grouped.values()).map((entries) => {
+    const merged = mergeAuthFileEntries(entries);
+    // Normalize disabled field to strict boolean
+    if (merged.disabled !== undefined) {
+      const normalized = normalizeBoolean(merged.disabled);
+      if (normalized !== undefined) {
+        merged.disabled = normalized;
+      } else {
+        delete merged.disabled;
+      }
+    }
+    return merged;
+  });
   normalizedFiles.sort((left, right) =>
     readTextField(left, 'name').localeCompare(readTextField(right, 'name'), undefined, {
       sensitivity: 'accent',
@@ -365,17 +389,17 @@ const normalizeOauthModelAlias = (payload: unknown): Record<string, OAuthModelAl
     if (!key) return;
     if (!Array.isArray(mappings)) return;
 
-	    const seen = new Set<string>();
-	    const normalized = mappings
-	      .map((item) => {
-	        if (!item || typeof item !== 'object') return null;
-	        const entry = item as Record<string, unknown>;
-	        const name = String(entry.name ?? entry.id ?? entry.model ?? '').trim();
-	        const alias = String(entry.alias ?? '').trim();
-	        if (!name || !alias) return null;
-	        const fork = entry.fork === true;
-	        return fork ? { name, alias, fork } : { name, alias };
-	      })
+    const seen = new Set<string>();
+    const normalized = mappings
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const entry = item as Record<string, unknown>;
+        const name = String(entry.name ?? entry.id ?? entry.model ?? '').trim();
+        const alias = String(entry.alias ?? '').trim();
+        if (!name || !alias) return null;
+        const fork = entry.fork === true;
+        return fork ? { name, alias, fork } : { name, alias };
+      })
       .filter(Boolean)
       .filter((entry) => {
         const aliasEntry = entry as OAuthModelAliasEntry;

@@ -4,6 +4,7 @@ export type AuthFilesSortMode = (typeof AUTH_FILES_SORT_MODES)[number];
 
 export type AuthFilesUiState = {
   filter?: string;
+  statusFilter?: 'all' | 'problem' | 'disabled' | 'normal';
   problemOnly?: boolean;
   disabledOnly?: boolean;
   compactMode?: boolean;

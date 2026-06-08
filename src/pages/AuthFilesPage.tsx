@@ -32,7 +32,6 @@ import {
   getAuthFileIcon,
   getTypeColor,
   getTypeLabel,
-  hasAuthFileStatusMessage,
   isRuntimeOnlyAuthFile,
   normalizeProviderKey,
   parsePriorityValue,
@@ -60,7 +59,8 @@ import {
   writePersistedAuthFilesCompactMode,
   type AuthFilesSortMode,
 } from '@/features/authFiles/uiState';
-import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
+import { hasAuthFileProblem } from '@/features/authFiles/authFileProblemFilter';
+import { useAuthStore, useNotificationStore, useQuotaStore, useThemeStore } from '@/stores';
 import styles from './AuthFilesPage.module.scss';
 
 const easePower3Out = (progress: number) => 1 - (1 - progress) ** 4;
@@ -106,9 +106,10 @@ export function AuthFilesPage() {
   const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.status === 'current' : true;
   const navigate = useNavigate();
 
+  type StatusFilter = 'all' | 'problem' | 'disabled' | 'normal';
+
   const [filter, setFilter] = useState<'all' | string>('all');
-  const [problemOnly, setProblemOnly] = useState(false);
-  const [disabledOnly, setDisabledOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [compactMode, setCompactMode] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -156,6 +157,21 @@ export function AuthFilesPage() {
   } = useAuthFilesData({ refreshKeyStats });
 
   const statusBarCache = useAuthFilesStatusBarCache(files, usageDetails);
+  const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
+  const claudeQuota = useQuotaStore((state) => state.claudeQuota);
+  const codexQuota = useQuotaStore((state) => state.codexQuota);
+  const geminiCliQuota = useQuotaStore((state) => state.geminiCliQuota);
+  const kimiQuota = useQuotaStore((state) => state.kimiQuota);
+  const quotaProblems = useMemo(
+    () => ({
+      antigravity: antigravityQuota,
+      claude: claudeQuota,
+      codex: codexQuota,
+      'gemini-cli': geminiCliQuota,
+      kimi: kimiQuota,
+    }),
+    [antigravityQuota, claudeQuota, codexQuota, geminiCliQuota, kimiQuota]
+  );
 
   const {
     excluded,
@@ -219,11 +235,15 @@ export function AuthFilesPage() {
       if (typeof persisted.filter === 'string' && persisted.filter.trim()) {
         setFilter(persisted.filter);
       }
-      if (typeof persisted.problemOnly === 'boolean') {
-        setProblemOnly(persisted.problemOnly);
-      }
-      if (typeof persisted.disabledOnly === 'boolean') {
-        setDisabledOnly(persisted.disabledOnly);
+      if (typeof persisted.statusFilter === 'string') {
+        const normalized = persisted.statusFilter as StatusFilter;
+        if (['all', 'problem', 'disabled', 'normal'].includes(normalized)) {
+          setStatusFilter(normalized);
+        }
+      } else if (typeof persisted.disabledOnly === 'boolean' && persisted.disabledOnly) {
+        setStatusFilter('disabled');
+      } else if (typeof persisted.problemOnly === 'boolean' && persisted.problemOnly) {
+        setStatusFilter('problem');
       }
       if (
         typeof persistedCompactMode !== 'boolean' &&
@@ -261,13 +281,16 @@ export function AuthFilesPage() {
     setUiStateHydrated(true);
   }, []);
 
+  const problemOnly = statusFilter === 'problem';
+  const disabledOnly = statusFilter === 'disabled';
+  const normalOnly = statusFilter === 'normal';
+
   useEffect(() => {
     if (!uiStateHydrated) return;
 
     writeAuthFilesUiState({
       filter,
-      problemOnly,
-      disabledOnly,
+      statusFilter,
       compactMode,
       search,
       page,
@@ -279,14 +302,13 @@ export function AuthFilesPage() {
     writePersistedAuthFilesCompactMode(compactMode);
   }, [
     compactMode,
-    disabledOnly,
     filter,
     page,
     pageSize,
     pageSizeByMode,
-    problemOnly,
     search,
     sortMode,
+    statusFilter,
     uiStateHydrated,
   ]);
 
@@ -383,11 +405,14 @@ export function AuthFilesPage() {
   const filesMatchingStatusFilters = useMemo(
     () =>
       files.filter((file) => {
-        if (problemOnly && !hasAuthFileStatusMessage(file)) return false;
-        if (disabledOnly && file.disabled !== true) return false;
+        const isProblemFile = hasAuthFileProblem(file, quotaProblems);
+        const isDisabled = file.disabled === true;
+        if (statusFilter === 'problem' && !isProblemFile) return false;
+        if (statusFilter === 'disabled' && !isDisabled) return false;
+        if (statusFilter === 'normal' && (isDisabled || isProblemFile)) return false;
         return true;
       }),
-    [disabledOnly, files, problemOnly]
+    [files, quotaProblems, statusFilter]
   );
 
   const sortOptions = useMemo(
@@ -670,7 +695,7 @@ export function AuthFilesPage() {
   );
 
   const deleteAllButtonLabel = (() => {
-    if (disabledOnly) {
+    if (disabledOnly || normalOnly) {
       return t('auth_files.delete_filtered_result_button');
     }
     if (problemOnly) {
@@ -713,9 +738,11 @@ export function AuthFilesPage() {
                   filter,
                   problemOnly,
                   disabledOnly,
+                  normalOnly,
                   onResetFilterToAll: () => setFilter('all'),
-                  onResetProblemOnly: () => setProblemOnly(false),
-                  onResetDisabledOnly: () => setDisabledOnly(false),
+                  onResetProblemOnly: () => setStatusFilter('all'),
+                  onResetDisabledOnly: () => setStatusFilter('all'),
+                  onResetNormalOnly: () => setStatusFilter('all'),
                 })
               }
               disabled={disableControls || loading || deletingAll}
@@ -752,6 +779,27 @@ export function AuthFilesPage() {
                     }}
                     placeholder={t('auth_files.search_placeholder')}
                   />
+                  <div className={styles.filterStatusButtons}>
+                    {([
+                      { key: 'all', label: t('auth_files.filter_status_all') },
+                      { key: 'problem', label: t('auth_files.filter_status_problem') },
+                      { key: 'disabled', label: t('auth_files.filter_status_disabled') },
+                      { key: 'normal', label: t('auth_files.filter_status_normal') },
+                    ] as const).map((button) => (
+                      <Button
+                        key={button.key}
+                        size="sm"
+                        variant={statusFilter === button.key ? 'primary' : 'secondary'}
+                        onClick={() => {
+                          setStatusFilter(button.key);
+                          setPage(1);
+                        }}
+                        className={styles.filterStatusButton}
+                      >
+                        {button.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
                 <div className={styles.filterItem}>
                   <label>{t('auth_files.page_size_label')}</label>
@@ -785,36 +833,6 @@ export function AuthFilesPage() {
                 <div className={`${styles.filterItem} ${styles.filterToggleItem}`}>
                   <label>{t('auth_files.display_options_label')}</label>
                   <div className={styles.filterToggleGroup}>
-                    <div className={styles.filterToggleCard}>
-                      <ToggleSwitch
-                        checked={problemOnly}
-                        onChange={(value) => {
-                          setProblemOnly(value);
-                          setPage(1);
-                        }}
-                        ariaLabel={t('auth_files.problem_filter_only')}
-                        label={
-                          <span className={styles.filterToggleLabel}>
-                            {t('auth_files.problem_filter_only')}
-                          </span>
-                        }
-                      />
-                    </div>
-                    <div className={styles.filterToggleCard}>
-                      <ToggleSwitch
-                        checked={disabledOnly}
-                        onChange={(value) => {
-                          setDisabledOnly(value);
-                          setPage(1);
-                        }}
-                        ariaLabel={t('auth_files.disabled_filter_only')}
-                        label={
-                          <span className={styles.filterToggleLabel}>
-                            {t('auth_files.disabled_filter_only')}
-                          </span>
-                        }
-                      />
-                    </div>
                     <div className={styles.filterToggleCard}>
                       <ToggleSwitch
                         checked={compactMode}
