@@ -174,7 +174,7 @@ export function CodexInspectionPage() {
           title: t('codex_inspection.delete_confirm_title', {
             defaultValue: 'Confirm delete',
           }),
-          message: t('codex_inspection.delete_confirm', {
+          message: t('codex_inspection.delete_confirm_message', {
             defaultValue: 'Delete the selected Codex auth files?',
           }),
           confirmText: t('common.delete', { defaultValue: 'Delete' }),
@@ -198,6 +198,12 @@ export function CodexInspectionPage() {
     }
     if (resultFilter === 'disabled') {
       return snapshot.results.filter((item) => item.disabled);
+    }
+    if (resultFilter === 'disable') {
+      return snapshot.results.filter((item) => item.action === 'disable' && !item.disabled);
+    }
+    if (resultFilter === 'enable') {
+      return snapshot.results.filter((item) => item.action === 'enable' && item.disabled);
     }
     return snapshot.results.filter((item) => item.action === resultFilter);
   }, [resultFilter, snapshot.results]);

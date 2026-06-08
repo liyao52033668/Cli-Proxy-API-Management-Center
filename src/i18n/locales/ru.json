@@ -1598,6 +1598,8 @@
     "disable_selected": "Отключить выбранные",
     "enable_selected": "Включить выбранные",
     "delete_selected": "Удалить выбранные",
+    "delete_confirm_title": "Подтвердите удаление",
+    "delete_confirm_message": "Удалить выбранные Codex файлы аутентификации?",
     "total_files": "Всего файлов",
     "sampled_count": "Проверено",
     "disabled_count": "Отключено",

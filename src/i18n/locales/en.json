@@ -1599,6 +1599,8 @@
     "disable_selected": "Disable selected",
     "enable_selected": "Enable selected",
     "delete_selected": "Delete selected",
+    "delete_confirm_title": "Confirm delete",
+    "delete_confirm_message": "Delete the selected Codex auth files?",
     "total_files": "Total files",
     "sampled_count": "Sampled",
     "disabled_count": "Disabled",

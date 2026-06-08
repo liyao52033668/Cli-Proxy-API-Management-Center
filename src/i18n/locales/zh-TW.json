@@ -1625,6 +1625,8 @@
     "disable_selected": "批量停用",
     "enable_selected": "批量啟用",
     "delete_selected": "批量刪除",
+    "delete_confirm_title": "確認刪除",
+    "delete_confirm_message": "確定要刪除所選 Codex 認證檔案嗎？",
     "total_files": "總檔案數",
     "sampled_count": "已取樣",
     "disabled_count": "已停用",

@@ -1603,6 +1603,8 @@
     "disable_selected": "批量禁用",
     "enable_selected": "批量启用",
     "delete_selected": "批量删除",
+    "delete_confirm_title": "确认删除",
+    "delete_confirm_message": "确定要删除所选 Codex 认证文件吗？",
     "total_files": "总文件数",
     "sampled_count": "已采样",
     "disabled_count": "已禁用",
