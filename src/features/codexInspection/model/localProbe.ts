@@ -60,7 +60,7 @@ function resolveWindowSeconds(window?: CodexUsageWindow | null): number | undefi
 function resolveUsageWindows(payload: CodexUsagePayload | null): {
   fiveHourUsedPercent?: number;
   weeklyUsedPercent?: number;
-  thresholdUsedPercent?: number;
+  usedPercent?: number;
 } {
   const rateLimit = payload?.rate_limit ?? payload?.rateLimit ?? null;
   const primaryWindow = rateLimit?.primary_window ?? rateLimit?.primaryWindow ?? null;
@@ -94,8 +94,54 @@ function resolveUsageWindows(payload: CodexUsagePayload | null): {
   return {
     fiveHourUsedPercent,
     weeklyUsedPercent,
-    thresholdUsedPercent: fiveHourUsedPercent ?? weeklyUsedPercent,
+    usedPercent: weeklyUsedPercent ?? fiveHourUsedPercent,
   };
+}
+
+function resolveInspectionAction(
+  disabled: boolean,
+  settings: CodexInspectionSettings,
+  fiveHourUsedPercent?: number,
+  weeklyUsedPercent?: number
+): Pick<CodexInspectionResultItem, 'action' | 'actionReason'> {
+  if (disabled) {
+    if (typeof weeklyUsedPercent === 'number' && weeklyUsedPercent < settings.weeklyUsedPercentThreshold) {
+      return {
+        action: 'enable',
+        actionReason: `weeklyUsedPercent < ${settings.weeklyUsedPercentThreshold}`,
+      };
+    }
+    if (
+      typeof weeklyUsedPercent !== 'number' &&
+      typeof fiveHourUsedPercent === 'number' &&
+      fiveHourUsedPercent < settings.fiveHourUsedPercentThreshold
+    ) {
+      return {
+        action: 'enable',
+        actionReason: `fiveHourUsedPercent < ${settings.fiveHourUsedPercentThreshold}`,
+      };
+    }
+    return { action: 'keep', actionReason: 'no issue detected' };
+  }
+
+  if (typeof weeklyUsedPercent === 'number') {
+    if (weeklyUsedPercent >= settings.weeklyUsedPercentThreshold) {
+      return {
+        action: 'disable',
+        actionReason: `weeklyUsedPercent >= ${settings.weeklyUsedPercentThreshold}`,
+      };
+    }
+    return { action: 'keep', actionReason: 'no issue detected' };
+  }
+
+  if (typeof fiveHourUsedPercent === 'number' && fiveHourUsedPercent >= settings.fiveHourUsedPercentThreshold) {
+    return {
+      action: 'disable',
+      actionReason: `fiveHourUsedPercent >= ${settings.fiveHourUsedPercentThreshold}`,
+    };
+  }
+
+  return { action: 'keep', actionReason: 'no issue detected' };
 }
 
 async function inspectFile(
@@ -123,26 +169,13 @@ async function inspectFile(
     : { statusCode: 0, header: {}, bodyText: '', body: null };
 
   const payload = parseCodexUsagePayload(result.body ?? result.bodyText);
-  const { fiveHourUsedPercent, weeklyUsedPercent, thresholdUsedPercent } = resolveUsageWindows(payload);
+  const { fiveHourUsedPercent, weeklyUsedPercent, usedPercent } = resolveUsageWindows(payload);
   const disabled = file.disabled === true;
 
-  let action: CodexInspectionResultItem['action'] = 'keep';
-  if (result.statusCode === 401) {
-    action = 'delete';
-  } else if (
-    typeof thresholdUsedPercent === 'number' &&
-    disabled &&
-    thresholdUsedPercent > 0 &&
-    thresholdUsedPercent < settings.usedPercentThreshold
-  ) {
-    action = 'enable';
-  } else if (
-    typeof thresholdUsedPercent === 'number' &&
-    !disabled &&
-    thresholdUsedPercent >= settings.usedPercentThreshold
-  ) {
-    action = 'disable';
-  }
+  const inspectionAction =
+    result.statusCode === 401
+      ? { action: 'delete' as const, actionReason: '401 response' }
+      : resolveInspectionAction(disabled, settings, fiveHourUsedPercent, weeklyUsedPercent);
 
   return {
     fileName: file.name,
@@ -152,19 +185,12 @@ async function inspectFile(
     accountId,
     disabled,
     statusCode: result.statusCode,
-    usedPercent: thresholdUsedPercent,
+    usedPercent,
     fiveHourUsedPercent,
     weeklyUsedPercent,
     error: result.statusCode >= 400 ? getApiCallErrorMessage(result) : '',
-    action,
-    actionReason:
-      action === 'disable'
-        ? `usedPercent >= ${settings.usedPercentThreshold}`
-        : action === 'enable'
-          ? `usedPercent < ${settings.usedPercentThreshold}`
-          : action === 'delete'
-            ? '401 response'
-            : 'no issue detected',
+    action: inspectionAction.action,
+    actionReason: inspectionAction.actionReason,
     executable: true,
   };
 }

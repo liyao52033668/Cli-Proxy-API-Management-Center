@@ -1620,7 +1620,8 @@
     "timeout_seconds": "超时秒数",
     "retries": "重试次数",
     "sample_size": "采样数量",
-    "used_percent_threshold": "阈值百分比",
+    "five_hour_used_percent_threshold": "5小时额度阈值",
+    "weekly_used_percent_threshold": "周额度阈值",
     "schedule_enabled": "启用定时",
     "interval_minutes": "间隔分钟",
     "next_trigger_at": "下一次执行时间",
@@ -1648,8 +1649,10 @@
     "action_reauth": "需要重登",
     "reason_no_issue_detected": "无异常",
     "reason_unauthorized": "401 未授权",
-    "reason_threshold_ge": "使用率 ≥ {{threshold}}%",
-    "reason_threshold_lt": "使用率 < {{threshold}}%"
+    "reason_weekly_threshold_ge": "周额度使用率 ≥ {{threshold}}%",
+    "reason_weekly_threshold_lt": "周额度使用率 < {{threshold}}%",
+    "reason_five_hour_threshold_ge": "5小时额度使用率 ≥ {{threshold}}%",
+    "reason_five_hour_threshold_lt": "5小时额度使用率 < {{threshold}}%"
   },
   "system_info": {
     "title": "管理中心信息",

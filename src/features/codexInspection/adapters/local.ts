@@ -32,7 +32,8 @@ const fallbackSettings: CodexInspectionSettings = {
   timeoutSeconds: 20,
   retries: 1,
   sampleSize: 0,
-  usedPercentThreshold: 85,
+  fiveHourUsedPercentThreshold: 85,
+  weeklyUsedPercentThreshold: 85,
   schedule: { enabled: false, mode: 'interval', intervalMinutes: 60 },
 };
 
@@ -51,7 +52,7 @@ function createEmptySnapshot(settings: CodexInspectionSettings): CodexInspection
 export function createLocalCodexInspectionAdapter() {
   return {
     loadSnapshot: async (): Promise<CodexInspectionSnapshot> => {
-      const snapshot = loadLocalSnapshot();
+      const snapshot = loadLocalSnapshot(fallbackSettings);
       if (snapshot) {
         return snapshot;
       }
@@ -64,7 +65,7 @@ export function createLocalCodexInspectionAdapter() {
     },
     saveSettings: async (settings: CodexInspectionSettings) => {
       saveLocalSettings(settings);
-      const snapshot = loadLocalSnapshot();
+      const snapshot = loadLocalSnapshot(fallbackSettings);
       const nextSnapshot = snapshot ? { ...snapshot, settings } : createEmptySnapshot(settings);
       saveLocalSnapshot(nextSnapshot);
       return nextSnapshot;

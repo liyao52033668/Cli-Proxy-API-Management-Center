@@ -1616,7 +1616,8 @@
     "timeout_seconds": "Timeout seconds",
     "retries": "Retries",
     "sample_size": "Sample size",
-    "used_percent_threshold": "Used % threshold",
+    "five_hour_used_percent_threshold": "5h used % threshold",
+    "weekly_used_percent_threshold": "Weekly used % threshold",
     "schedule_enabled": "Schedule enabled",
     "interval_minutes": "Interval minutes",
     "next_trigger_at": "Next trigger at",
@@ -1644,8 +1645,10 @@
     "action_reauth": "Reauth required",
     "reason_no_issue_detected": "No issue detected",
     "reason_unauthorized": "401 unauthorized",
-    "reason_threshold_ge": "Used percent >= {{threshold}}%",
-    "reason_threshold_lt": "Used percent < {{threshold}}%"
+    "reason_weekly_threshold_ge": "Weekly used percent >= {{threshold}}%",
+    "reason_weekly_threshold_lt": "Weekly used percent < {{threshold}}%",
+    "reason_five_hour_threshold_ge": "5h used percent >= {{threshold}}%",
+    "reason_five_hour_threshold_lt": "5h used percent < {{threshold}}%"
   },
   "system_info": {
     "title": "Management Center Info",

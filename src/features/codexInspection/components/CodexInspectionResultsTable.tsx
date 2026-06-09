@@ -115,19 +115,35 @@ function renderReason(reason: string, t: TFunction) {
     return t('codex_inspection.reason_unauthorized', { defaultValue: '401 response' });
   }
 
-  const greaterMatch = reason.match(/^usedPercent >=\s*(\d+)$/);
-  if (greaterMatch) {
-    return t('codex_inspection.reason_threshold_ge', {
-      defaultValue: 'Used percent >= {{threshold}}',
-      threshold: greaterMatch[1],
+  const weeklyGreaterMatch = reason.match(/^weeklyUsedPercent >=\s*(\d+)$/);
+  if (weeklyGreaterMatch) {
+    return t('codex_inspection.reason_weekly_threshold_ge', {
+      defaultValue: 'Weekly used percent >= {{threshold}}',
+      threshold: weeklyGreaterMatch[1],
     });
   }
 
-  const lowerMatch = reason.match(/^usedPercent <\s*(\d+)$/);
-  if (lowerMatch) {
-    return t('codex_inspection.reason_threshold_lt', {
-      defaultValue: 'Used percent < {{threshold}}',
-      threshold: lowerMatch[1],
+  const weeklyLowerMatch = reason.match(/^weeklyUsedPercent <\s*(\d+)$/);
+  if (weeklyLowerMatch) {
+    return t('codex_inspection.reason_weekly_threshold_lt', {
+      defaultValue: 'Weekly used percent < {{threshold}}',
+      threshold: weeklyLowerMatch[1],
+    });
+  }
+
+  const fiveHourGreaterMatch = reason.match(/^fiveHourUsedPercent >=\s*(\d+)$/);
+  if (fiveHourGreaterMatch) {
+    return t('codex_inspection.reason_five_hour_threshold_ge', {
+      defaultValue: '5h used percent >= {{threshold}}',
+      threshold: fiveHourGreaterMatch[1],
+    });
+  }
+
+  const fiveHourLowerMatch = reason.match(/^fiveHourUsedPercent <\s*(\d+)$/);
+  if (fiveHourLowerMatch) {
+    return t('codex_inspection.reason_five_hour_threshold_lt', {
+      defaultValue: '5h used percent < {{threshold}}',
+      threshold: fiveHourLowerMatch[1],
     });
   }
 

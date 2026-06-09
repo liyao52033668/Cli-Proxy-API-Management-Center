@@ -1615,7 +1615,8 @@
     "timeout_seconds": "Таймаут (сек)",
     "retries": "Повторы",
     "sample_size": "Размер выборки",
-    "used_percent_threshold": "Порог использования %",
+    "five_hour_used_percent_threshold": "Порог 5ч использования %",
+    "weekly_used_percent_threshold": "Недельный порог использования %",
     "schedule_enabled": "Включить расписание",
     "interval_minutes": "Интервал (мин)",
     "next_trigger_at": "Следующий запуск",
@@ -1643,8 +1644,10 @@
     "action_reauth": "Нужно войти снова",
     "reason_no_issue_detected": "Проблем не обнаружено",
     "reason_unauthorized": "401 не авторизовано",
-    "reason_threshold_ge": "Использование ≥ {{threshold}}%",
-    "reason_threshold_lt": "Использование < {{threshold}}%"
+    "reason_weekly_threshold_ge": "Недельное использование ≥ {{threshold}}%",
+    "reason_weekly_threshold_lt": "Недельное использование < {{threshold}}%",
+    "reason_five_hour_threshold_ge": "Использование за 5ч ≥ {{threshold}}%",
+    "reason_five_hour_threshold_lt": "Использование за 5ч < {{threshold}}%"
   },
   "system_info": {
     "title": "Информация о центре управления",

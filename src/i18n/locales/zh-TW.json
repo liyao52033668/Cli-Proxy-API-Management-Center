@@ -1642,7 +1642,8 @@
     "timeout_seconds": "逾時秒數",
     "retries": "重試次數",
     "sample_size": "取樣數量",
-    "used_percent_threshold": "門檻百分比",
+    "five_hour_used_percent_threshold": "5小時額度門檻",
+    "weekly_used_percent_threshold": "週額度門檻",
     "schedule_enabled": "啟用排程",
     "interval_minutes": "間隔分鐘",
     "next_trigger_at": "下一次執行時間",
@@ -1670,8 +1671,10 @@
     "action_reauth": "需要重新登入",
     "reason_no_issue_detected": "無異常",
     "reason_unauthorized": "401 未授權",
-    "reason_threshold_ge": "使用率 ≥ {{threshold}}%",
-    "reason_threshold_lt": "使用率 < {{threshold}}%"
+    "reason_weekly_threshold_ge": "週額度使用率 ≥ {{threshold}}%",
+    "reason_weekly_threshold_lt": "週額度使用率 < {{threshold}}%",
+    "reason_five_hour_threshold_ge": "5小時額度使用率 ≥ {{threshold}}%",
+    "reason_five_hour_threshold_lt": "5小時額度使用率 < {{threshold}}%"
   },
   "system_info": {
     "title": "管理中心資訊",

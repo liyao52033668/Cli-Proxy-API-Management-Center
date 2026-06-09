@@ -38,7 +38,8 @@ const emptySettings: CodexInspectionSettings = {
   timeoutSeconds: 20,
   retries: 1,
   sampleSize: 0,
-  usedPercentThreshold: 85,
+  fiveHourUsedPercentThreshold: 85,
+  weeklyUsedPercentThreshold: 85,
   schedule: {
     enabled: false,
     mode: 'interval',
@@ -56,6 +57,29 @@ const emptySnapshot: CodexInspectionSnapshot = {
   actionLogs: [],
 };
 
+function normalizeSettings(settings: CodexInspectionSettings): CodexInspectionSettings {
+  const { usedPercentThreshold: legacyThreshold, schedule, ...rest } = settings;
+  const fiveHourUsedPercentThreshold =
+    typeof settings.fiveHourUsedPercentThreshold === 'number'
+      ? settings.fiveHourUsedPercentThreshold
+      : legacyThreshold ?? emptySettings.fiveHourUsedPercentThreshold;
+  const weeklyUsedPercentThreshold =
+    typeof settings.weeklyUsedPercentThreshold === 'number'
+      ? settings.weeklyUsedPercentThreshold
+      : legacyThreshold ?? emptySettings.weeklyUsedPercentThreshold;
+
+  return {
+    ...emptySettings,
+    ...rest,
+    fiveHourUsedPercentThreshold,
+    weeklyUsedPercentThreshold,
+    schedule: {
+      ...emptySettings.schedule,
+      ...schedule,
+    },
+  };
+}
+
 export function CodexInspectionPage() {
   const { t } = useTranslation();
   const [snapshot, setSnapshot] = useState<CodexInspectionSnapshot>(emptySnapshot);
@@ -69,8 +93,9 @@ export function CodexInspectionPage() {
   const adapter = useMemo(() => serverAdapter, []);
 
   const applySnapshot = useCallback((nextSnapshot: CodexInspectionSnapshot) => {
-    setSnapshot(nextSnapshot);
-    setSettings(nextSnapshot.settings);
+    const normalizedSettings = normalizeSettings(nextSnapshot.settings);
+    setSnapshot({ ...nextSnapshot, settings: normalizedSettings });
+    setSettings(normalizedSettings);
   }, []);
 
   const refreshSnapshot = useCallback(async () => {
@@ -138,7 +163,7 @@ export function CodexInspectionPage() {
     setBusy(true);
     try {
       const nextSettings: CodexInspectionSettings = {
-        ...settings,
+        ...normalizeSettings(settings),
         schedule: {
           ...settings.schedule,
           intervalMinutes: Math.max(1, settings.schedule.intervalMinutes || 1),

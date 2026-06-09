@@ -15,7 +15,9 @@ export interface CodexInspectionSettings {
   timeoutSeconds: number;
   retries: number;
   sampleSize: number;
-  usedPercentThreshold: number;
+  fiveHourUsedPercentThreshold: number;
+  weeklyUsedPercentThreshold: number;
+  usedPercentThreshold?: number;
   schedule: CodexInspectionSchedule;
 }
 
