@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useNotificationStore } from '@/stores';
 import { createServerCodexInspectionAdapter } from '@/features/codexInspection/adapters/server';
+import { CodexInspectionRunError } from '@/services/api/codexInspection';
 import { CodexInspectionActionBar } from '@/features/codexInspection/components/CodexInspectionActionBar';
 import { CodexInspectionResultsTable } from '@/features/codexInspection/components/CodexInspectionResultsTable';
 import { CodexInspectionSettingsPanel } from '@/features/codexInspection/components/CodexInspectionSettingsPanel';
@@ -116,15 +117,21 @@ export function CodexInspectionPage() {
     setError('');
     setBusy(true);
     try {
-      const nextSnapshot = await adapter.run();
+      const nextSnapshot = await adapter.run(selected.length > 0 ? selected : undefined);
       applySnapshot(nextSnapshot);
+      if (nextSnapshot.run.status === 'failed' && nextSnapshot.run.error) {
+        setError(nextSnapshot.run.error);
+      }
       setSelected([]);
     } catch (err: unknown) {
+      if (err instanceof CodexInspectionRunError) {
+        applySnapshot(err.snapshot);
+      }
       setError(err instanceof Error ? err.message : t('notification.refresh_failed'));
     } finally {
       setBusy(false);
     }
-  }, [adapter, applySnapshot, t]);
+  }, [adapter, applySnapshot, selected, t]);
 
   const saveSettings = useCallback(async () => {
     setError('');
