@@ -98,7 +98,7 @@ export function CodexInspectionPage() {
   }, [refreshSnapshot]);
 
   useEffect(() => {
-    if (!snapshot.settings.schedule.enabled && snapshot.run.status !== 'running') {
+    if (!snapshot.settings.schedule.enabled || snapshot.run.status !== 'running') {
       return undefined;
     }
 
