@@ -24,13 +24,14 @@ export const LOG_REFRESH_DELAY_MS = 500;
 // 日志相关
 export const MAX_LOG_LINES = 2000;
 export const LOG_FETCH_LIMIT = 2500;
-export const LOGS_TIMEOUT_MS = 60 * 1000;
+export const LOGS_TIMEOUT_MS = 120 * 1000;
 
 // 认证文件分页
 export const DEFAULT_AUTH_FILES_PAGE_SIZE = 20;
 export const MIN_AUTH_FILES_PAGE_SIZE = 10;
 export const MAX_AUTH_FILES_PAGE_SIZE = 100;
 export const MAX_AUTH_FILE_SIZE = 10 * 1024 * 1024;
+export const AUTH_FILES_UPLOAD_TIMEOUT_MS = 120 * 1000;
 
 // 本地存储键名
 export const STORAGE_KEY_AUTH = 'cli-proxy-auth';

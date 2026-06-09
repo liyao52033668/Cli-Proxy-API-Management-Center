@@ -6,6 +6,7 @@ import { apiClient } from './client';
 import type { AuthFilePatchFields, AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
+import { AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
 
 type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
@@ -438,7 +439,9 @@ export const authFilesApi = {
     files.forEach((file) => {
       formData.append('file', file, file.name);
     });
-    const payload = await apiClient.postForm<AuthFileBatchUploadResponse>('/auth-files', formData);
+    const payload = await apiClient.postForm<AuthFileBatchUploadResponse>('/auth-files', formData, {
+      timeout: AUTH_FILES_UPLOAD_TIMEOUT_MS,
+    });
     return normalizeBatchUploadResponse(payload, requestedNames);
   },
 
