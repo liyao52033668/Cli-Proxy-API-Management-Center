@@ -488,10 +488,39 @@ export const authFilesApi = {
       return { status: 'ok', deleted: 0, files: [], failed: [] };
     }
 
-    const payload = await apiClient.delete<AuthFileBatchDeleteResponse>('/auth-files', {
-      data: { names: requestedNames },
-    });
-    return normalizeBatchDeleteResponse(payload, requestedNames);
+    const batches: string[][] = [];
+    for (let index = 0; index < requestedNames.length; index += AUTH_FILES_UPLOAD_BATCH_SIZE) {
+      batches.push(requestedNames.slice(index, index + AUTH_FILES_UPLOAD_BATCH_SIZE));
+    }
+
+    if (batches.length === 1) {
+      const payload = await apiClient.delete<AuthFileBatchDeleteResponse>('/auth-files', {
+        data: { names: requestedNames },
+      });
+      return normalizeBatchDeleteResponse(payload, requestedNames);
+    }
+
+    const aggregatedFailed: AuthFileBatchFailure[] = [];
+    const aggregatedFiles: string[] = [];
+    let aggregatedDeleted = 0;
+
+    for (const batchNames of batches) {
+      const payload = await apiClient.delete<AuthFileBatchDeleteResponse>('/auth-files', {
+        data: { names: batchNames },
+      });
+      const batchResult = normalizeBatchDeleteResponse(payload, batchNames);
+
+      aggregatedDeleted += batchResult.deleted;
+      aggregatedFiles.push(...batchResult.files);
+      aggregatedFailed.push(...batchResult.failed);
+    }
+
+    return {
+      status: aggregatedFailed.length > 0 ? 'partial' : 'ok',
+      deleted: aggregatedDeleted,
+      files: aggregatedFiles,
+      failed: aggregatedFailed,
+    };
   },
 
   deleteFile: (name: string) => authFilesApi.deleteFiles([name]),
