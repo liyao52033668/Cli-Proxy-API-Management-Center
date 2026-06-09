@@ -223,8 +223,9 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
       setUploading(true);
       try {
         const result = await authFilesApi.uploadFiles(validFiles);
-        const successCount = result.uploaded;
+        setUploading(false);
 
+        const successCount = result.uploaded;
         if (successCount > 0) {
           const suffix = validFiles.length > 1 ? ` (${successCount}/${validFiles.length})` : '';
           showNotification(
