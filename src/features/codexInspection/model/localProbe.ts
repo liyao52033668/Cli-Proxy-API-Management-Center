@@ -115,11 +115,11 @@ async function inspectFile(
 
   const result = authIndex
     ? await apiCallApi.request({
-        authIndex,
-        method: 'GET',
-        url: 'https://chatgpt.com/backend-api/wham/usage',
-        header: headers
-      })
+      authIndex,
+      method: 'GET',
+      url: 'https://chatgpt.com/backend-api/wham/usage',
+      header: headers
+    })
     : { statusCode: 0, header: {}, bodyText: '', body: null };
 
   const payload = parseCodexUsagePayload(result.body ?? result.bodyText);
@@ -132,6 +132,7 @@ async function inspectFile(
   } else if (
     typeof thresholdUsedPercent === 'number' &&
     disabled &&
+    thresholdUsedPercent > 0 &&
     thresholdUsedPercent < settings.usedPercentThreshold
   ) {
     action = 'enable';

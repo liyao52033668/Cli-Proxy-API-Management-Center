@@ -205,6 +205,9 @@ export function CodexInspectionPage() {
     if (resultFilter === 'enable') {
       return snapshot.results.filter((item) => item.action === 'enable' && item.disabled);
     }
+    if (resultFilter === 'keep') {
+      return snapshot.results.filter((item) => item.action === 'keep' && !item.disabled);
+    }
     return snapshot.results.filter((item) => item.action === resultFilter);
   }, [resultFilter, snapshot.results]);
 
