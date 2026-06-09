@@ -35,6 +35,7 @@ export const DEFAULT_AUTH_FILES_PAGE_SIZE = 20;
 export const MIN_AUTH_FILES_PAGE_SIZE = 10;
 export const MAX_AUTH_FILES_PAGE_SIZE = 100;
 export const MAX_AUTH_FILE_SIZE = 10 * 1024 * 1024;
+export const AUTH_FILES_UPLOAD_BATCH_SIZE = 200;
 export const AUTH_FILES_UPLOAD_TIMEOUT_MS = 120 * 1000;
 
 // 本地存储键名

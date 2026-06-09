@@ -6,7 +6,7 @@ import { apiClient } from './client';
 import type { AuthFilePatchFields, AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
-import { AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
+import { AUTH_FILES_UPLOAD_BATCH_SIZE, AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
 
 type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
@@ -435,14 +435,49 @@ export const authFilesApi = {
       return { status: 'ok', uploaded: 0, files: [], failed: [] };
     }
 
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append('file', file, file.name);
-    });
-    const payload = await apiClient.postForm<AuthFileBatchUploadResponse>('/auth-files', formData, {
-      timeout: AUTH_FILES_UPLOAD_TIMEOUT_MS,
-    });
-    return normalizeBatchUploadResponse(payload, requestedNames);
+    const batches: File[][] = [];
+    for (let index = 0; index < files.length; index += AUTH_FILES_UPLOAD_BATCH_SIZE) {
+      batches.push(files.slice(index, index + AUTH_FILES_UPLOAD_BATCH_SIZE));
+    }
+
+    if (batches.length === 1) {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('file', file, file.name);
+      });
+      const payload = await apiClient.postForm<AuthFileBatchUploadResponse>('/auth-files', formData, {
+        timeout: AUTH_FILES_UPLOAD_TIMEOUT_MS,
+      });
+      return normalizeBatchUploadResponse(payload, requestedNames);
+    }
+
+    const aggregatedFailed: AuthFileBatchFailure[] = [];
+    const aggregatedFiles: string[] = [];
+    let aggregatedUploaded = 0;
+
+    for (const batchFiles of batches) {
+      const batchRequestedNames = batchFiles.map((file) => file.name);
+      const formData = new FormData();
+      batchFiles.forEach((file) => {
+        formData.append('file', file, file.name);
+      });
+
+      const payload = await apiClient.postForm<AuthFileBatchUploadResponse>('/auth-files', formData, {
+        timeout: AUTH_FILES_UPLOAD_TIMEOUT_MS,
+      });
+      const batchResult = normalizeBatchUploadResponse(payload, batchRequestedNames);
+
+      aggregatedUploaded += batchResult.uploaded;
+      aggregatedFiles.push(...batchResult.files);
+      aggregatedFailed.push(...batchResult.failed);
+    }
+
+    return {
+      status: aggregatedFailed.length > 0 ? 'partial' : 'ok',
+      uploaded: aggregatedUploaded,
+      files: aggregatedFiles,
+      failed: aggregatedFailed,
+    };
   },
 
   upload: (file: File) => authFilesApi.uploadFiles([file]),
