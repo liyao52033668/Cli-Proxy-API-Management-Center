@@ -1,0 +1,41 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e6]: CLI
+    - generic [ref=e7]: PROXY
+    - generic [ref=e8]: API
+  - generic [ref=e10]:
+    - img "Logo" [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: CLI Proxy API Management Center
+          - button "Language" [ref=e17] [cursor=pointer]:
+            - generic [ref=e18]: English
+            - img [ref=e20]
+        - generic [ref=e22]: Please enter connection information to access the management interface
+      - generic [ref=e23]:
+        - generic [ref=e24]: Current URL
+        - generic [ref=e25]: http://localhost:5173
+        - generic [ref=e26]: The system will automatically use the current URL for connection
+      - generic [ref=e28] [cursor=pointer]:
+        - checkbox "Custom Connection URL:" [checked] [active] [ref=e29]
+        - img [ref=e48]
+        - generic [ref=e31]: "Custom Connection URL:"
+      - generic [ref=e50]:
+        - generic [ref=e51]: "Custom Connection URL:"
+        - textbox "Custom Connection URL:" [ref=e53]:
+          - /placeholder: "Eg: https://example.com:8317"
+          - text: http://localhost:5173
+        - generic [ref=e54]: By default the current URL is used. Override it here if needed.
+      - generic [ref=e32]:
+        - generic [ref=e33]: "Management Key:"
+        - generic [ref=e34]:
+          - textbox "Management Key:" [ref=e35]:
+            - /placeholder: Enter the management key
+          - button "显示密钥" [ref=e37] [cursor=pointer]:
+            - img [ref=e38]
+      - generic [ref=e42] [cursor=pointer]:
+        - checkbox "Remember password" [ref=e43]
+        - generic [ref=e45]: Remember password
+      - button "Login" [ref=e46] [cursor=pointer]:
+        - generic [ref=e47]: Login

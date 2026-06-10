@@ -312,6 +312,8 @@ export function filterUsageByTimeRange<T>(
         totalSummary.totalRequests += apiSummary.totalRequests;
         totalSummary.totalTokens += apiSummary.totalTokens;
       }
+      totalSummary.successCount += apiSummary.successCount;
+      totalSummary.failureCount += apiSummary.failureCount;
     });
 
     return {
