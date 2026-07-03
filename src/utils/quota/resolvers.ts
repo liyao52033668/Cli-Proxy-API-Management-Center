@@ -9,10 +9,31 @@ import {
   parseIdTokenPayload
 } from './parsers';
 
-export function extractCodexChatgptAccountId(value: unknown): string | null {
+function extractCodexAuthPayload(value: unknown): Record<string, unknown> | null {
   const payload = parseIdTokenPayload(value);
   if (!payload) return null;
+  const nested = payload['https://api.openai.com/auth'];
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return nested as Record<string, unknown>;
+  }
+  return payload;
+}
+
+export function extractCodexChatgptAccountId(value: unknown): string | null {
+  const payload = extractCodexAuthPayload(value);
+  if (!payload) return null;
   return normalizeStringValue(payload.chatgpt_account_id ?? payload.chatgptAccountId);
+}
+
+function extractCodexPlanType(value: unknown): string | null {
+  const payload = extractCodexAuthPayload(value);
+  if (!payload) return null;
+  return normalizePlanType(
+    payload.plan_type ??
+      payload.planType ??
+      payload.chatgpt_plan_type ??
+      payload.chatgptPlanType
+  );
 }
 
 export function resolveCodexChatgptAccountId(file: AuthFileItem): string | null {
@@ -25,9 +46,23 @@ export function resolveCodexChatgptAccountId(file: AuthFileItem): string | null 
       ? (file.attributes as Record<string, unknown>)
       : null;
 
-  const candidates = [file.id_token, metadata?.id_token, attributes?.id_token];
+  const directCandidates = [
+    file.chatgpt_account_id,
+    file.chatgptAccountId,
+    metadata?.chatgpt_account_id,
+    metadata?.chatgptAccountId,
+    attributes?.chatgpt_account_id,
+    attributes?.chatgptAccountId
+  ];
 
-  for (const candidate of candidates) {
+  for (const candidate of directCandidates) {
+    const id = normalizeStringValue(candidate);
+    if (id) return id;
+  }
+
+  const tokenCandidates = [file.id_token, metadata?.id_token, attributes?.id_token];
+
+  for (const candidate of tokenCandidates) {
     const id = extractCodexChatgptAccountId(candidate);
     if (id) return id;
   }
@@ -52,26 +87,40 @@ export function resolveCodexPlanType(file: AuthFileItem): string | null {
     metadata && typeof metadata.id_token === 'object' && metadata.id_token !== null
       ? (metadata.id_token as Record<string, unknown>)
       : null;
-  const candidates = [
+  const directCandidates = [
     file.plan_type,
     file.planType,
     file['plan_type'],
     file['planType'],
-    file.id_token,
+    file.chatgpt_plan_type,
+    file.chatgptPlanType,
     idToken?.plan_type,
     idToken?.planType,
+    idToken?.chatgpt_plan_type,
+    idToken?.chatgptPlanType,
     metadata?.plan_type,
     metadata?.planType,
-    metadata?.id_token,
+    metadata?.chatgpt_plan_type,
+    metadata?.chatgptPlanType,
     metadataIdToken?.plan_type,
     metadataIdToken?.planType,
+    metadataIdToken?.chatgpt_plan_type,
+    metadataIdToken?.chatgptPlanType,
     attributes?.plan_type,
     attributes?.planType,
-    attributes?.id_token
+    attributes?.chatgpt_plan_type,
+    attributes?.chatgptPlanType
   ];
 
-  for (const candidate of candidates) {
+  for (const candidate of directCandidates) {
     const planType = normalizePlanType(candidate);
+    if (planType) return planType;
+  }
+
+  const tokenCandidates = [file.id_token, metadata?.id_token, attributes?.id_token];
+
+  for (const candidate of tokenCandidates) {
+    const planType = extractCodexPlanType(candidate);
     if (planType) return planType;
   }
 
