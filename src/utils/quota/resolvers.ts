@@ -49,10 +49,16 @@ export function resolveCodexChatgptAccountId(file: AuthFileItem): string | null 
   const directCandidates = [
     file.chatgpt_account_id,
     file.chatgptAccountId,
+    file.account_id,
+    file.accountId,
     metadata?.chatgpt_account_id,
     metadata?.chatgptAccountId,
+    metadata?.account_id,
+    metadata?.accountId,
     attributes?.chatgpt_account_id,
-    attributes?.chatgptAccountId
+    attributes?.chatgptAccountId,
+    attributes?.account_id,
+    attributes?.accountId
   ];
 
   for (const candidate of directCandidates) {
