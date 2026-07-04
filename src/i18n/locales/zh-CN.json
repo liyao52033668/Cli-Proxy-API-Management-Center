@@ -555,6 +555,7 @@
     "sort_default": "默认",
     "sort_az": "A-Z 名称",
     "sort_priority": "优先级",
+    "sort_success": "请求成功次数",
     "priority_display": "优先级",
     "page_size_label": "单页数量",
     "page_size_unit": "个/页",

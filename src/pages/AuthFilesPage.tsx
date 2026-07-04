@@ -35,6 +35,7 @@ import {
   isRuntimeOnlyAuthFile,
   normalizeProviderKey,
   parsePriorityValue,
+  resolveAuthFileStats,
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
@@ -421,6 +422,7 @@ export function AuthFilesPage() {
       // { value: 'time', label: t('auth_files.sort_time') },
       { value: 'az', label: t('auth_files.sort_az') },
       { value: 'priority', label: t('auth_files.sort_priority') },
+      { value: 'success', label: t('auth_files.sort_success') },
     ],
     [t]
   );
@@ -475,9 +477,20 @@ export function AuthFilesPage() {
         const pb = parsePriorityValue(b.priority ?? b['priority']) ?? 0;
         return pb - pa; // 高优先级排前面
       });
+    } else if (sortMode === 'success') {
+      copy.sort((a, b) => {
+        const statsA = resolveAuthFileStats(a, keyStats);
+        const statsB = resolveAuthFileStats(b, keyStats);
+        const successA = statsA.success ?? 0;
+        const successB = statsB.success ?? 0;
+        if (successA !== successB) return successB - successA; // 成功次数从高到低
+        const dateA = readAuthFileTimestamp(a);
+        const dateB = readAuthFileTimestamp(b);
+        return dateB - dateA; // 成功次数相同时按修改时间倒序
+      });
     }
     return copy;
-  }, [filtered, sortMode]);
+  }, [filtered, sortMode, keyStats]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const currentPage = Math.min(page, totalPages);

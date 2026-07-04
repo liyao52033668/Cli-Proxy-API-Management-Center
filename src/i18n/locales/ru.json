@@ -555,6 +555,7 @@
     "sort_default": "По умолчанию",
     "sort_az": "A-Z Имя",
     "sort_priority": "Приоритет",
+    "sort_success": "Количество успешных запросов",
     "priority_display": "Приоритет",
     "page_size_label": "На странице",
     "page_size_unit": "элементов",
