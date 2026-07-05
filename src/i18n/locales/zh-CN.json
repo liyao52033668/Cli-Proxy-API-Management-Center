@@ -1649,7 +1649,7 @@
     "action_delete": "建议删除",
     "action_reauth": "需要重登",
     "reason_no_issue_detected": "无异常",
-    "reason_unauthorized": "401 未授权",
+    "reason_unauthorized": "401/402 未授权",
     "reason_weekly_threshold_ge": "周额度使用率 ≥ {{threshold}}%",
     "reason_weekly_threshold_lt": "周额度使用率 < {{threshold}}%",
     "reason_five_hour_threshold_ge": "5小时额度使用率 ≥ {{threshold}}%",

@@ -111,8 +111,8 @@ function renderReason(reason: string, t: TFunction) {
   if (reason === 'no issue detected') {
     return '';
   }
-  if (reason === '401 response') {
-    return t('codex_inspection.reason_unauthorized', { defaultValue: '401 response' });
+  if (reason === '401 response' || reason === '402 response' || reason === '401/402 response') {
+    return t('codex_inspection.reason_unauthorized', { defaultValue: '401/402 response' });
   }
 
   const weeklyGreaterMatch = reason.match(/^weeklyUsedPercent >=\s*(\d+)$/);

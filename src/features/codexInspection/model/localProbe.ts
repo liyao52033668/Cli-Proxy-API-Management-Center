@@ -173,8 +173,8 @@ async function inspectFile(
   const disabled = file.disabled === true;
 
   const inspectionAction =
-    result.statusCode === 401
-      ? { action: 'delete' as const, actionReason: '401 response' }
+    result.statusCode === 401 || result.statusCode === 402
+      ? { action: 'delete' as const, actionReason: '401/402 response' }
       : resolveInspectionAction(disabled, settings, fiveHourUsedPercent, weeklyUsedPercent);
 
   return {

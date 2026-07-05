@@ -1644,7 +1644,7 @@
     "action_delete": "Рекомендуется удалить",
     "action_reauth": "Нужно войти снова",
     "reason_no_issue_detected": "Проблем не обнаружено",
-    "reason_unauthorized": "401 не авторизовано",
+    "reason_unauthorized": "401/402 не авторизовано",
     "reason_weekly_threshold_ge": "Недельное использование ≥ {{threshold}}%",
     "reason_weekly_threshold_lt": "Недельное использование < {{threshold}}%",
     "reason_five_hour_threshold_ge": "Использование за 5ч ≥ {{threshold}}%",

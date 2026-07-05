@@ -1671,7 +1671,7 @@
     "action_delete": "建議刪除",
     "action_reauth": "需要重新登入",
     "reason_no_issue_detected": "無異常",
-    "reason_unauthorized": "401 未授權",
+    "reason_unauthorized": "401/402 未授權",
     "reason_weekly_threshold_ge": "週額度使用率 ≥ {{threshold}}%",
     "reason_weekly_threshold_lt": "週額度使用率 < {{threshold}}%",
     "reason_five_hour_threshold_ge": "5小時額度使用率 ≥ {{threshold}}%",
