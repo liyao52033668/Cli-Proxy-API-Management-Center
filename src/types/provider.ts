@@ -57,6 +57,7 @@ export interface OpenAIProviderConfig {
   headers?: Record<string, string>;
   models?: ModelAlias[];
   disabled?: boolean;
+  forceStream?: boolean;
   updatedAt?: string;
   priority?: number;
   testModel?: string;

@@ -450,6 +450,8 @@
     "openai_edit_modal_url_label": "Базовый URL:",
     "openai_edit_modal_models_label": "Список моделей (name[, alias] по строкам):",
     "openai_delete_confirm": "Удалить этого провайдера OpenAI?",
+    "openai_force_stream_label": "Принудительный upstream streaming",
+    "openai_force_stream_hint": "Для провайдеров, принимающих только stream=true. Нестриминговые запросы клиентов агрегируются бэкендом перед возвратом.",
     "openai_keys_count": "Количество ключей",
     "openai_models_count": "Количество моделей",
     "openai_test_title": "Тест подключения",

@@ -13,6 +13,7 @@ export interface OpenAIFormState {
   prefix: string;
   baseUrl: string;
   disabled: boolean;
+  forceStream: boolean;
   updatedAt?: string;
   headers: HeaderEntry[];
   testModel?: string;

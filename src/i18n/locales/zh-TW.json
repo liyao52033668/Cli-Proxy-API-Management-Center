@@ -450,6 +450,8 @@
     "openai_edit_modal_url_label": "Base URL:",
     "openai_edit_modal_models_label": "模型清單（name[, alias] 每行一個）:",
     "openai_delete_confirm": "確定要刪除這個 OpenAI 供應商嗎？",
+    "openai_force_stream_label": "強制上游串流",
+    "openai_force_stream_hint": "適用於只接受 stream=true 的渠道。下游非串流請求會在後端聚合後返回。",
     "openai_keys_count": "金鑰數量",
     "openai_models_count": "模型數量",
     "openai_test_title": "連通性測試",

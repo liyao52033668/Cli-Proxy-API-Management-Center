@@ -47,6 +47,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   prefix: '',
   baseUrl: '',
   disabled: false,
+  forceStream: false,
   headers: [],
   apiKeyEntries: [buildApiKeyEntry()],
   modelEntries: [{ name: '', alias: '' }],
@@ -112,6 +113,7 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
   disabled: Boolean(form.disabled),
+  forceStream: Boolean(form.forceStream),
   headers: normalizeHeaderEntries(form.headers),
   apiKeyEntries: normalizeApiKeyEntries(form.apiKeyEntries),
   models: normalizeModelEntries(form.modelEntries),
@@ -303,6 +305,7 @@ export function AiProvidersOpenAIEditLayout() {
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
         disabled: Boolean(initialData.disabled),
+        forceStream: Boolean(initialData.forceStream),
         updatedAt: initialData.updatedAt,
         headers: headersToEntries(initialData.headers),
         testModel: initialData.testModel,
@@ -429,6 +432,7 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
       baseline.disabled !== Boolean(form.disabled) ||
+      baseline.forceStream !== Boolean(form.forceStream) ||
       baseline.testModel !== normalizedTestModel ||
       isHeadersDirty ||
       isApiKeyEntriesDirty ||
@@ -474,6 +478,7 @@ export function AiProvidersOpenAIEditLayout() {
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
         disabled: Boolean(form.disabled),
+        forceStream: Boolean(form.forceStream),
         headers: buildHeaderObject(form.headers),
         apiKeyEntries: form.apiKeyEntries.map((entry: ApiKeyEntry) => ({
           apiKey: entry.apiKey.trim(),

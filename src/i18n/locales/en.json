@@ -450,6 +450,8 @@
     "openai_edit_modal_url_label": "Base URL:",
     "openai_edit_modal_models_label": "Model List (name[, alias] one per line):",
     "openai_delete_confirm": "Are you sure you want to delete this OpenAI provider?",
+    "openai_force_stream_label": "Force upstream streaming",
+    "openai_force_stream_hint": "Use for providers that only accept stream=true. Non-streaming downstream requests are aggregated by the backend before returning.",
     "openai_keys_count": "Keys Count",
     "openai_models_count": "Models Count",
     "openai_test_title": "Connection Test",

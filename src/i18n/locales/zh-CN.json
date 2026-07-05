@@ -450,6 +450,8 @@
     "openai_edit_modal_url_label": "Base URL:",
     "openai_edit_modal_models_label": "模型列表 (name[, alias] 每行一个):",
     "openai_delete_confirm": "确定要删除这个OpenAI提供商吗？",
+    "openai_force_stream_label": "强制上游流式",
+    "openai_force_stream_hint": "适用于只接受 stream=true 的渠道。下游非流式请求会在后端聚合后返回。",
     "openai_keys_count": "密钥数量",
     "openai_models_count": "模型数量",
     "openai_test_title": "连通性测试",

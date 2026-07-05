@@ -246,6 +246,9 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   const headers = normalizeHeaders(provider.headers);
   const models = normalizeModelAliases(provider.models);
   const disabled = normalizeBoolean(provider.disabled ?? provider['disabled']);
+  const forceStream = normalizeBoolean(
+    provider['force-stream'] ?? provider.forceStream ?? provider['force_stream']
+  );
   const updatedAt = provider['updated-at'] ?? provider.updatedAt;
   const priority = provider.priority ?? provider['priority'];
   const testModel = provider['test-model'] ?? provider.testModel;
@@ -261,6 +264,7 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   if (headers) result.headers = headers;
   if (models.length) result.models = models;
   if (disabled !== undefined) result.disabled = disabled;
+  if (forceStream !== undefined) result.forceStream = forceStream;
   if (typeof updatedAt === 'string' && updatedAt) result.updatedAt = updatedAt;
   if (priority !== undefined) result.priority = Number(priority);
   if (testModel) result.testModel = String(testModel);

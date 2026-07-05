@@ -26,6 +26,7 @@ export type OpenAIEditBaseline = {
   prefix: string;
   baseUrl: string;
   disabled: boolean;
+  forceStream: boolean;
   headers: Array<{ key: string; value: string }>;
   apiKeyEntries: Array<{
     apiKey: string;
@@ -71,6 +72,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   prefix: '',
   baseUrl: '',
   disabled: false,
+  forceStream: false,
   headers: [],
   apiKeyEntries: [buildApiKeyEntry()],
   modelEntries: [{ name: '', alias: '' }],

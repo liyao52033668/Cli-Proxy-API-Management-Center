@@ -22,6 +22,20 @@ import layoutStyles from './AiProvidersEditLayout.module.scss';
 
 const OPENAI_TEST_TIMEOUT_MS = 30_000;
 
+const isOpenAIStreamTestBodySuccessful = (body: string) => {
+  const normalized = String(body ?? '').trim();
+  if (!normalized) return true;
+  if (normalized.includes('data: [DONE]')) return true;
+  return normalized
+    .split(/\r?\n/)
+    .some((line) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) return false;
+      const data = trimmed.slice(5).trim();
+      return data !== '' && data !== '[DONE]';
+    });
+};
+
 type KeyTestResult = {
   success: boolean;
   completed: boolean;
@@ -186,8 +200,8 @@ export function AiProvidersOpenAIEditPage() {
     const modelsSignature = form.modelEntries
       .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
       .join('|');
-    return [form.baseUrl.trim(), testModel.trim(), headersSignature, modelsSignature].join('||');
-  }, [form.baseUrl, form.headers, form.modelEntries, testModel]);
+    return [form.baseUrl.trim(), String(form.forceStream), testModel.trim(), headersSignature, modelsSignature].join('||');
+  }, [form.baseUrl, form.forceStream, form.headers, form.modelEntries, testModel]);
   const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
 
   useEffect(() => {
@@ -281,10 +295,14 @@ export function AiProvidersOpenAIEditPage() {
       }
 
       const customHeaders = buildHeaderObject(form.headers);
+      const forceStream = Boolean(form.forceStream);
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...customHeaders,
       };
+      if (forceStream && !hasHeader(headers, 'accept')) {
+        headers.Accept = 'text/event-stream';
+      }
       if (!hasHeader(headers, 'authorization')) {
         headers.Authorization = `Bearer ${keyEntry.apiKey.trim()}`;
       }
@@ -301,7 +319,7 @@ export function AiProvidersOpenAIEditPage() {
             data: JSON.stringify({
               model: modelName,
               messages: [{ role: 'user', content: 'Hi' }],
-              stream: false,
+              stream: forceStream,
               max_tokens: 5,
             }),
           },
@@ -309,6 +327,9 @@ export function AiProvidersOpenAIEditPage() {
         );
 
         if (result.statusCode < 200 || result.statusCode >= 300) {
+          throw new Error(getApiCallErrorMessage(result));
+        }
+        if (forceStream && !isOpenAIStreamTestBodySuccessful(String(result.body ?? ''))) {
           throw new Error(getApiCallErrorMessage(result));
         }
 
@@ -328,7 +349,7 @@ export function AiProvidersOpenAIEditPage() {
         return { success: false, completed: true };
       }
     },
-    [form.baseUrl, form.apiKeyEntries, form.headers, testModel, availableModels, t, setDraftKeyTestStatus, showNotification]
+    [form.baseUrl, form.apiKeyEntries, form.forceStream, form.headers, testModel, availableModels, t, setDraftKeyTestStatus, showNotification]
   );
 
   const testSingleKey = useCallback(
@@ -806,6 +827,22 @@ export function AiProvidersOpenAIEditPage() {
               {providerSavedAtLabel ? (
                 <div className={styles.sectionHint}>{t('ai_providers.last_saved_at', { time: providerSavedAtLabel })}</div>
               ) : null}
+            </div>
+            <div className={styles.modelConfigSection}>
+              <div className={styles.modelConfigHeader}>
+                <div>
+                  <label className={styles.modelConfigTitle}>{t('ai_providers.openai_force_stream_label')}</label>
+                  <div className={styles.sectionHint}>{t('ai_providers.openai_force_stream_hint')}</div>
+                </div>
+                <div className={styles.modelConfigToolbar}>
+                  <ToggleSwitch
+                    checked={Boolean(form.forceStream)}
+                    onChange={(enabled) => setForm((prev) => ({ ...prev, forceStream: enabled }))}
+                    disabled={saving || disableControls || isTestingKeys}
+                    ariaLabel={t('ai_providers.openai_force_stream_label')}
+                  />
+                </div>
+              </div>
             </div>
 
             <HeaderInputList
