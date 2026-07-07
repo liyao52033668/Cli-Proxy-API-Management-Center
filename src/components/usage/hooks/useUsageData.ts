@@ -234,9 +234,38 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     }
   };
 
-  const handleSetModelPrices = useCallback((prices: Record<string, ModelPrice>) => {
+  const handleSetModelPrices = useCallback(async (prices: Record<string, ModelPrice>) => {
+    const previousPrices = modelPrices;
     setModelPricesState(prices);
-  }, []);
+
+    try {
+      const previousModels = new Set(Object.keys(previousPrices));
+      const nextModels = new Set(Object.keys(prices));
+      await Promise.all([
+        ...Object.entries(prices).map(([model, pricing]) =>
+          usageApi.updatePricing(model, {
+            prompt_price_per_1m: pricing.prompt,
+            completion_price_per_1m: pricing.completion,
+            cache_price_per_1m: pricing.cache,
+          })
+        ),
+        ...Array.from(previousModels)
+          .filter((model) => !nextModels.has(model))
+          .map((model) => usageApi.deletePricing(model)),
+      ]);
+    } catch (error) {
+      setModelPricesState(previousPrices);
+      if (error instanceof ApiError && error.status === 401) {
+        onAuthRequired?.();
+        return;
+      }
+      const message = error instanceof Error ? error.message : '';
+      showNotification(
+        `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
+        'error'
+      );
+    }
+  }, [modelPrices, onAuthRequired, showNotification, t]);
 
   const usage = usageSnapshot
     ? ((() => {
