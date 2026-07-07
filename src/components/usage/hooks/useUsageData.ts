@@ -18,7 +18,8 @@ export interface UseUsageDataReturn {
   error: string;
   lastRefreshedAt: Date | null;
   modelPrices: Record<string, ModelPrice>;
-  setModelPrices: (prices: Record<string, ModelPrice>) => void;
+  setModelPrice: (model: string, price: ModelPrice) => void;
+  deleteModelPrice: (model: string) => void;
   loadUsage: () => Promise<void>;
   handleExport: () => Promise<void>;
   handleImport: () => void;
@@ -234,25 +235,38 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     }
   };
 
-  const handleSetModelPrices = useCallback(async (prices: Record<string, ModelPrice>) => {
+  const handleSetModelPrice = useCallback(async (model: string, price: ModelPrice) => {
     const previousPrices = modelPrices;
-    setModelPricesState(prices);
+    setModelPricesState({ ...previousPrices, [model]: price });
 
     try {
-      const previousModels = new Set(Object.keys(previousPrices));
-      const nextModels = new Set(Object.keys(prices));
-      await Promise.all([
-        ...Object.entries(prices).map(([model, pricing]) =>
-          usageApi.updatePricing(model, {
-            prompt_price_per_1m: pricing.prompt,
-            completion_price_per_1m: pricing.completion,
-            cache_price_per_1m: pricing.cache,
-          })
-        ),
-        ...Array.from(previousModels)
-          .filter((model) => !nextModels.has(model))
-          .map((model) => usageApi.deletePricing(model)),
-      ]);
+      await usageApi.updatePricing(model, {
+        prompt_price_per_1m: price.prompt,
+        completion_price_per_1m: price.completion,
+        cache_price_per_1m: price.cache,
+      });
+    } catch (error) {
+      setModelPricesState(previousPrices);
+      if (error instanceof ApiError && error.status === 401) {
+        onAuthRequired?.();
+        return;
+      }
+      const message = error instanceof Error ? error.message : '';
+      showNotification(
+        `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
+        'error'
+      );
+    }
+  }, [modelPrices, onAuthRequired, showNotification, t]);
+
+  const handleDeleteModelPrice = useCallback(async (model: string) => {
+    const previousPrices = modelPrices;
+    const nextPrices = { ...previousPrices };
+    delete nextPrices[model];
+    setModelPricesState(nextPrices);
+
+    try {
+      await usageApi.deletePricing(model);
     } catch (error) {
       setModelPricesState(previousPrices);
       if (error instanceof ApiError && error.status === 401) {
@@ -301,7 +315,8 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     error,
     lastRefreshedAt,
     modelPrices,
-    setModelPrices: handleSetModelPrices,
+    setModelPrice: handleSetModelPrice,
+    deleteModelPrice: handleDeleteModelPrice,
     loadUsage,
     handleExport,
     handleImport,

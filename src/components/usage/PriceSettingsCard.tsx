@@ -11,13 +11,15 @@ import styles from '@/pages/UsagePage.module.scss';
 export interface PriceSettingsCardProps {
   modelNames: string[];
   modelPrices: Record<string, ModelPrice>;
-  onPricesChange: (prices: Record<string, ModelPrice>) => void;
+  onPriceSave: (model: string, price: ModelPrice) => void;
+  onPriceDelete: (model: string) => void;
 }
 
 export function PriceSettingsCard({
   modelNames,
   modelPrices,
-  onPricesChange
+  onPriceSave,
+  onPriceDelete
 }: PriceSettingsCardProps) {
   const { t } = useTranslation();
 
@@ -38,8 +40,7 @@ export function PriceSettingsCard({
     const prompt = parseFloat(promptPrice) || 0;
     const completion = parseFloat(completionPrice) || 0;
     const cache = cachePrice.trim() === '' ? prompt : parseFloat(cachePrice) || 0;
-    const newPrices = { ...modelPrices, [selectedModel]: { prompt, completion, cache } };
-    onPricesChange(newPrices);
+    onPriceSave(selectedModel, { prompt, completion, cache });
     setSelectedModel('');
     setPromptPrice('');
     setCompletionPrice('');
@@ -47,9 +48,7 @@ export function PriceSettingsCard({
   };
 
   const handleDeletePrice = (model: string) => {
-    const newPrices = { ...modelPrices };
-    delete newPrices[model];
-    onPricesChange(newPrices);
+    onPriceDelete(model);
   };
 
   const handleOpenEdit = (model: string) => {
@@ -65,8 +64,7 @@ export function PriceSettingsCard({
     const prompt = parseFloat(editPrompt) || 0;
     const completion = parseFloat(editCompletion) || 0;
     const cache = editCache.trim() === '' ? prompt : parseFloat(editCache) || 0;
-    const newPrices = { ...modelPrices, [editModel]: { prompt, completion, cache } };
-    onPricesChange(newPrices);
+    onPriceSave(editModel, { prompt, completion, cache });
     setEditModel(null);
   };
 
