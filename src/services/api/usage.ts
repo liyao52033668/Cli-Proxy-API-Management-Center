@@ -513,22 +513,22 @@ export const usageApi = {
   getUsedModels: () => apiClient.get<UsedModelsResponse>('/api/v1/models/used', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 获取定价信息（keeper API）
+   * 获取定价信息（management API）
    */
-  getPricing: () => apiClient.get<PricingResponse>('/api/v1/pricing', { timeout: USAGE_TIMEOUT_MS }),
+  getPricing: () => apiClient.get<PricingResponse>('/pricing', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 更新定价（keeper API）
+   * 更新定价（management API）
    */
   updatePricing: (model: string, pricing: Omit<PricingEntry, 'model'>) =>
-    apiClient.put<PricingEntry>('/api/v1/pricing', { model, ...pricing }, { timeout: USAGE_TIMEOUT_MS }),
+    apiClient.put<PricingEntry>('/pricing', { model, ...pricing }, { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 删除定价（keeper API）
+   * 删除定价（management API）
    */
   deletePricing: (model: string) => {
     const params = new URLSearchParams({ model });
-    return apiClient.delete<void>(`/api/v1/pricing?${params.toString()}`, { timeout: USAGE_TIMEOUT_MS });
+    return apiClient.delete<void>(`/pricing?${params.toString()}`, { timeout: USAGE_TIMEOUT_MS });
   },
 
   /**

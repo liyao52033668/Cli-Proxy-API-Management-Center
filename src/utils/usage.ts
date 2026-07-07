@@ -959,20 +959,6 @@ export function loadModelPrices(): Record<string, ModelPrice> {
 }
 
 /**
- * 保存模型价格到 localStorage
- */
-export function saveModelPrices(prices: Record<string, ModelPrice>): void {
-  try {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-    localStorage.setItem(MODEL_PRICE_STORAGE_KEY, JSON.stringify(prices));
-  } catch {
-    console.warn('保存模型价格失败');
-  }
-}
-
-/**
  * 获取 API 统计数据
  */
 export function getApiStats(

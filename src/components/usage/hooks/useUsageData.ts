@@ -2,7 +2,7 @@ import { ApiError } from '@/services/api/client';
 import { usageApi, type UsageOverviewResponse, type UsageSnapshot, type UsageTimeRange } from '@/services/api/usage';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
 import { downloadBlob } from '@/utils/download';
-import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
+import type { ModelPrice } from '@/utils/usage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -131,17 +131,31 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     if (!enabled || !customRangeReady) {
       return;
     }
-    void loadUsageStats({
-      staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-      range: resolvedRange,
-      start: requestStart,
-      end: requestEnd,
-    }).catch((error) => {
+    void Promise.all([
+      loadUsageStats({
+        staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+        range: resolvedRange,
+        start: requestStart,
+        end: requestEnd,
+      }),
+      usageApi.getPricing().then((response) => {
+        const prices = Object.fromEntries(
+          response.pricing.map((entry) => [
+            entry.model,
+            {
+              prompt: entry.prompt_price_per_1m,
+              completion: entry.completion_price_per_1m,
+              cache: entry.cache_price_per_1m,
+            },
+          ])
+        );
+        setModelPricesState(prices);
+      }),
+    ]).catch((error) => {
       if (error instanceof ApiError && error.status === 401) {
         onAuthRequired?.();
       }
     });
-    setModelPricesState(loadModelPrices());
   }, [customRangeReady, enabled, loadUsageStats, onAuthRequired, requestEnd, requestStart, resolvedRange]);
 
   const handleExport = async () => {
@@ -222,7 +236,6 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
 
   const handleSetModelPrices = useCallback((prices: Record<string, ModelPrice>) => {
     setModelPricesState(prices);
-    saveModelPrices(prices);
   }, []);
 
   const usage = usageSnapshot
