@@ -1798,5 +1798,28 @@
     "build_date": "构建时间",
     "version": "管理中心版本",
     "author": "作者"
+  },
+  "xai_quota": {
+    "title": "Grok 额度",
+    "empty_title": "暂无 xAI/Grok 认证",
+    "empty_desc": "使用 xAI OAuth 登录后即可查看 Grok 额度。",
+    "idle": "点击此处刷新额度",
+    "loading": "正在加载额度...",
+    "load_failed": "额度获取失败：{{message}}",
+    "missing_auth_index": "认证文件缺少 auth_index",
+    "empty_data": "暂无额度数据",
+    "refresh_button": "刷新额度",
+    "fetch_all": "获取全部",
+    "weekly_limit": "周限额",
+    "monthly_credits": "月度积分",
+    "used_percent": "已用 {{percent}}",
+    "reset_at": "重置 {{time}}",
+    "product_usage": "{{product}} 使用",
+    "plan_label": "套餐",
+    "plan_supergrok": "SuperGrok",
+    "plan_supergrok_heavy": "SuperGrok Heavy",
+    "pay_as_you_go_label": "按量付费",
+    "pay_as_you_go_enabled": "已启用，封顶 {{cap}}",
+    "pay_as_you_go_disabled": "未启用"
   }
 }

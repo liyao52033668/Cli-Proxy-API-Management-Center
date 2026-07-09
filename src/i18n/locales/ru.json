@@ -1793,5 +1793,28 @@
     "build_date": "Время сборки",
     "version": "Версия интерфейса управления",
     "author": "Автор"
+  },
+  "xai_quota": {
+    "title": "Квота Grok",
+    "empty_title": "Файлы авторизации xAI/Grok отсутствуют",
+    "empty_desc": "Войдите через xAI OAuth, чтобы увидеть квоту Grok.",
+    "idle": "Не загружено. Нажмите \"Обновить квоту\".",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty_data": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все",
+    "weekly_limit": "Недельный лимит",
+    "monthly_credits": "Месячные кредиты",
+    "used_percent": "Использовано {{percent}}",
+    "reset_at": "Сброс {{time}}",
+    "product_usage": "Использование {{product}}",
+    "plan_label": "План",
+    "plan_supergrok": "SuperGrok",
+    "plan_supergrok_heavy": "SuperGrok Heavy",
+    "pay_as_you_go_label": "Оплата по факту",
+    "pay_as_you_go_enabled": "Включено, лимит {{cap}}",
+    "pay_as_you_go_disabled": "Отключено"
   }
 }

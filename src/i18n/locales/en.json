@@ -1794,5 +1794,28 @@
     "build_date": "Build Time",
     "version": "Management UI Version",
     "author": "Author"
+  },
+  "xai_quota": {
+    "title": "Grok Quota",
+    "empty_title": "No xAI/Grok Auth Files",
+    "empty_desc": "Log in with xAI OAuth to view Grok quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_data": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "weekly_limit": "Weekly limit",
+    "monthly_credits": "Monthly credits",
+    "used_percent": "Used {{percent}}",
+    "reset_at": "Resets {{time}}",
+    "product_usage": "{{product}} usage",
+    "plan_label": "Plan",
+    "plan_supergrok": "SuperGrok",
+    "plan_supergrok_heavy": "SuperGrok Heavy",
+    "pay_as_you_go_label": "Pay as you go",
+    "pay_as_you_go_enabled": "Enabled, cap {{cap}}",
+    "pay_as_you_go_disabled": "Disabled"
   }
 }
