@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type {
+  DisableImageGenerationValue,
   PayloadFilterRule,
   PayloadParamEntry,
   PayloadParamValueType,
@@ -146,6 +147,10 @@ export function getVisualConfigValidationErrors(
   return {
     port: getPortError(values.port),
     logsMaxTotalSizeMb: getNonNegativeIntegerError(values.logsMaxTotalSizeMb),
+    errorLogsMaxFiles: getNonNegativeIntegerError(values.errorLogsMaxFiles),
+    redisUsageQueueRetentionSeconds: getNonNegativeIntegerError(
+      values.redisUsageQueueRetentionSeconds
+    ),
     requestRetry: getNonNegativeIntegerError(values.requestRetry),
     maxRetryCredentials: getNonNegativeIntegerError(values.maxRetryCredentials),
     maxRetryInterval: getNonNegativeIntegerError(values.maxRetryInterval),
@@ -300,6 +305,13 @@ function parseRawPayloadParamValue(raw: unknown): string {
 function parsePayloadProtocol(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   return raw.trim() ? raw : undefined;
+}
+
+function parseDisableImageGenerationValue(raw: unknown): DisableImageGenerationValue {
+  if (raw === true) return 'true';
+  if (raw === 'true') return 'true';
+  if (raw === 'chat') return 'chat';
+  return 'false';
 }
 
 function deleteLegacyApiKeysProvider(doc: YamlDocument): void {
@@ -578,6 +590,12 @@ function getNextDirtyFields(
       nextValues.rmDisableControlPanel === baselineValues.rmDisableControlPanel
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'rmDisableAutoUpdatePanel')) {
+    updateDirty(
+      'rmDisableAutoUpdatePanel',
+      nextValues.rmDisableAutoUpdatePanel === baselineValues.rmDisableAutoUpdatePanel
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'rmPanelRepo')) {
     updateDirty('rmPanelRepo', nextValues.rmPanelRepo === baselineValues.rmPanelRepo);
   }
@@ -586,6 +604,14 @@ function getNextDirtyFields(
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'apiKeysText')) {
     updateDirty('apiKeysText', nextValues.apiKeysText === baselineValues.apiKeysText);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'ignoredAuthJsonPaths')) {
+    const left = nextValues.ignoredAuthJsonPaths;
+    const right = baselineValues.ignoredAuthJsonPaths;
+    updateDirty(
+      'ignoredAuthJsonPaths',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'debug')) {
     updateDirty('debug', nextValues.debug === baselineValues.debug);
@@ -602,10 +628,22 @@ function getNextDirtyFields(
       nextValues.logsMaxTotalSizeMb === baselineValues.logsMaxTotalSizeMb
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'errorLogsMaxFiles')) {
+    updateDirty(
+      'errorLogsMaxFiles',
+      nextValues.errorLogsMaxFiles === baselineValues.errorLogsMaxFiles
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'usageStatisticsEnabled')) {
     updateDirty(
       'usageStatisticsEnabled',
       nextValues.usageStatisticsEnabled === baselineValues.usageStatisticsEnabled
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'redisUsageQueueRetentionSeconds')) {
+    updateDirty(
+      'redisUsageQueueRetentionSeconds',
+      nextValues.redisUsageQueueRetentionSeconds === baselineValues.redisUsageQueueRetentionSeconds
     );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'proxyUrl')) {
@@ -615,6 +653,24 @@ function getNextDirtyFields(
     updateDirty(
       'forceModelPrefix',
       nextValues.forceModelPrefix === baselineValues.forceModelPrefix
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'passthroughHeaders')) {
+    updateDirty(
+      'passthroughHeaders',
+      nextValues.passthroughHeaders === baselineValues.passthroughHeaders
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'enableGeminiCliEndpoint')) {
+    updateDirty(
+      'enableGeminiCliEndpoint',
+      nextValues.enableGeminiCliEndpoint === baselineValues.enableGeminiCliEndpoint
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'disableImageGeneration')) {
+    updateDirty(
+      'disableImageGeneration',
+      nextValues.disableImageGeneration === baselineValues.disableImageGeneration
     );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'requestRetry')) {
@@ -820,6 +876,7 @@ export function useVisualConfig() {
             ? remoteManagement['secret-key']
             : '',
         rmDisableControlPanel: Boolean(remoteManagement?.['disable-control-panel']),
+        rmDisableAutoUpdatePanel: Boolean(remoteManagement?.['disable-auto-update-panel']),
         rmPanelRepo:
           typeof remoteManagement?.['panel-github-repository'] === 'string'
             ? remoteManagement['panel-github-repository']
@@ -829,15 +886,25 @@ export function useVisualConfig() {
 
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
         apiKeysText: resolveApiKeysText(parsed),
+        ignoredAuthJsonPaths: Array.isArray(parsed['ignored-auth-json-paths'])
+          ? parsed['ignored-auth-json-paths'].map(String)
+          : [],
 
         debug: Boolean(parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
         loggingToFile: Boolean(parsed['logging-to-file']),
         logsMaxTotalSizeMb: String(parsed['logs-max-total-size-mb'] ?? ''),
+        errorLogsMaxFiles: String(parsed['error-logs-max-files'] ?? ''),
         usageStatisticsEnabled: Boolean(parsed['usage-statistics-enabled']),
+        redisUsageQueueRetentionSeconds: String(
+          parsed['redis-usage-queue-retention-seconds'] ?? ''
+        ),
 
         proxyUrl: typeof parsed['proxy-url'] === 'string' ? parsed['proxy-url'] : '',
         forceModelPrefix: Boolean(parsed['force-model-prefix']),
+        passthroughHeaders: Boolean(parsed['passthrough-headers']),
+        enableGeminiCliEndpoint: Boolean(parsed['enable-gemini-cli-endpoint']),
+        disableImageGeneration: parseDisableImageGenerationValue(parsed['disable-image-generation']),
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
@@ -915,6 +982,7 @@ export function useVisualConfig() {
           values.rmAllowRemote ||
           values.rmSecretKey.trim() ||
           values.rmDisableControlPanel ||
+          values.rmDisableAutoUpdatePanel ||
           values.rmPanelRepo.trim()
         ) {
           ensureMapInDoc(doc, ['remote-management']);
@@ -925,6 +993,11 @@ export function useVisualConfig() {
             ['remote-management', 'disable-control-panel'],
             values.rmDisableControlPanel
           );
+          setBooleanInDoc(
+            doc,
+            ['remote-management', 'disable-auto-update-panel'],
+            values.rmDisableAutoUpdatePanel
+          );
           setStringInDoc(doc, ['remote-management', 'panel-github-repository'], values.rmPanelRepo);
           if (docHas(doc, ['remote-management', 'panel-repo'])) {
             doc.deleteIn(['remote-management', 'panel-repo']);
@@ -933,6 +1006,14 @@ export function useVisualConfig() {
         }
 
         setStringInDoc(doc, ['auth-dir'], values.authDir);
+        const ignoredAuthJsonPaths = values.ignoredAuthJsonPaths
+          .map((path) => path.trim())
+          .filter(Boolean);
+        if (ignoredAuthJsonPaths.length > 0) {
+          doc.setIn(['ignored-auth-json-paths'], ignoredAuthJsonPaths);
+        } else if (docHas(doc, ['ignored-auth-json-paths'])) {
+          doc.deleteIn(['ignored-auth-json-paths']);
+        }
         const apiKeys = values.apiKeysText
           .split('\n')
           .map((key) => key.trim())
@@ -949,10 +1030,25 @@ export function useVisualConfig() {
         setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
         setBooleanInDoc(doc, ['logging-to-file'], values.loggingToFile);
         setIntFromStringInDoc(doc, ['logs-max-total-size-mb'], values.logsMaxTotalSizeMb);
+        setIntFromStringInDoc(doc, ['error-logs-max-files'], values.errorLogsMaxFiles);
         setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
+        setIntFromStringInDoc(
+          doc,
+          ['redis-usage-queue-retention-seconds'],
+          values.redisUsageQueueRetentionSeconds
+        );
 
         setStringInDoc(doc, ['proxy-url'], values.proxyUrl);
         setBooleanInDoc(doc, ['force-model-prefix'], values.forceModelPrefix);
+        setBooleanInDoc(doc, ['passthrough-headers'], values.passthroughHeaders);
+        setBooleanInDoc(doc, ['enable-gemini-cli-endpoint'], values.enableGeminiCliEndpoint);
+        if (values.disableImageGeneration === 'true') {
+          doc.setIn(['disable-image-generation'], true);
+        } else if (values.disableImageGeneration === 'chat') {
+          doc.setIn(['disable-image-generation'], 'chat');
+        } else if (docHas(doc, ['disable-image-generation'])) {
+          doc.setIn(['disable-image-generation'], false);
+        }
         setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
         setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
         setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);

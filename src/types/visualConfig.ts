@@ -7,12 +7,16 @@ export type PayloadParamValidationErrorCode =
 export type VisualConfigFieldPath =
   | 'port'
   | 'logsMaxTotalSizeMb'
+  | 'errorLogsMaxFiles'
+  | 'redisUsageQueueRetentionSeconds'
   | 'requestRetry'
   | 'maxRetryCredentials'
   | 'maxRetryInterval'
   | 'streaming.keepaliveSeconds'
   | 'streaming.bootstrapRetries'
   | 'streaming.nonstreamKeepaliveInterval';
+
+export type DisableImageGenerationValue = 'false' | 'true' | 'chat';
 
 export type VisualConfigValidationErrorCode = 'port_range' | 'non_negative_integer';
 
@@ -60,16 +64,23 @@ export type VisualConfigValues = {
   rmAllowRemote: boolean;
   rmSecretKey: string;
   rmDisableControlPanel: boolean;
+  rmDisableAutoUpdatePanel: boolean;
   rmPanelRepo: string;
   authDir: string;
+  ignoredAuthJsonPaths: string[];
   apiKeysText: string;
   debug: boolean;
   commercialMode: boolean;
   loggingToFile: boolean;
   logsMaxTotalSizeMb: string;
+  errorLogsMaxFiles: string;
+  redisUsageQueueRetentionSeconds: string;
   usageStatisticsEnabled: boolean;
   proxyUrl: string;
   forceModelPrefix: boolean;
+  passthroughHeaders: boolean;
+  enableGeminiCliEndpoint: boolean;
+  disableImageGeneration: DisableImageGenerationValue;
   requestRetry: string;
   maxRetryCredentials: string;
   maxRetryInterval: string;
@@ -102,16 +113,23 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   rmAllowRemote: false,
   rmSecretKey: '',
   rmDisableControlPanel: false,
+  rmDisableAutoUpdatePanel: false,
   rmPanelRepo: '',
   authDir: '',
+  ignoredAuthJsonPaths: [],
   apiKeysText: '',
   debug: false,
   commercialMode: false,
   loggingToFile: false,
   logsMaxTotalSizeMb: '',
+  errorLogsMaxFiles: '',
+  redisUsageQueueRetentionSeconds: '',
   usageStatisticsEnabled: false,
   proxyUrl: '',
   forceModelPrefix: false,
+  passthroughHeaders: false,
+  enableGeminiCliEndpoint: false,
+  disableImageGeneration: 'false',
   requestRetry: '',
   maxRetryCredentials: '',
   maxRetryInterval: '',

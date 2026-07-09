@@ -41,6 +41,7 @@ import {
   ApiKeysCardEditor,
   PayloadFilterRulesEditor,
   PayloadRulesEditor,
+  StringListEditor,
 } from './VisualConfigEditorBlocks';
 import styles from './VisualConfigEditor.module.scss';
 
@@ -209,6 +210,11 @@ export function VisualConfigEditor({
 
   const portError = getValidationMessage(t, validationErrors?.port);
   const logsMaxSizeError = getValidationMessage(t, validationErrors?.logsMaxTotalSizeMb);
+  const errorLogsMaxFilesError = getValidationMessage(t, validationErrors?.errorLogsMaxFiles);
+  const redisUsageQueueRetentionSecondsError = getValidationMessage(
+    t,
+    validationErrors?.redisUsageQueueRetentionSeconds
+  );
   const requestRetryError = getValidationMessage(t, validationErrors?.requestRetry);
   const maxRetryCredentialsError = getValidationMessage(t, validationErrors?.maxRetryCredentials);
   const maxRetryIntervalError = getValidationMessage(t, validationErrors?.maxRetryInterval);
@@ -288,7 +294,11 @@ export function VisualConfigEditor({
         title: t('config_management.visual.sections.system.title'),
         description: t('config_management.visual.sections.system.description'),
         icon: IconDiamond,
-        errorCount: countErrors(['logsMaxTotalSizeMb']),
+        errorCount: countErrors([
+          'logsMaxTotalSizeMb',
+          'errorLogsMaxFiles',
+          'redisUsageQueueRetentionSeconds',
+        ]),
       },
       {
         id: 'network',
@@ -707,6 +717,15 @@ export function VisualConfigEditor({
                 disabled={disabled}
                 onChange={(rmDisableControlPanel) => onChange({ rmDisableControlPanel })}
               />
+              <ToggleRow
+                title={t('config_management.visual.sections.remote.disable_auto_update_panel')}
+                description={t(
+                  'config_management.visual.sections.remote.disable_auto_update_panel_desc'
+                )}
+                checked={values.rmDisableAutoUpdatePanel}
+                disabled={disabled}
+                onChange={(rmDisableAutoUpdatePanel) => onChange({ rmDisableAutoUpdatePanel })}
+              />
               <SectionGrid>
                 <Input
                   label={t('config_management.visual.sections.remote.secret_key')}
@@ -746,6 +765,20 @@ export function VisualConfigEditor({
                 disabled={disabled}
                 hint={t('config_management.visual.sections.auth.auth_dir_hint')}
               />
+              <SectionSubsection
+                title={t('config_management.visual.sections.auth.ignored_json_paths')}
+                description={t('config_management.visual.sections.auth.ignored_json_paths_desc')}
+              >
+                <StringListEditor
+                  value={values.ignoredAuthJsonPaths}
+                  disabled={disabled}
+                  placeholder=".management/codex-inspection-latest.json"
+                  inputAriaLabel={t(
+                    'config_management.visual.sections.auth.ignored_json_paths_input'
+                  )}
+                  onChange={(ignoredAuthJsonPaths) => onChange({ ignoredAuthJsonPaths })}
+                />
+              </SectionSubsection>
               <div className={styles.subsection}>
                 <ApiKeysCardEditor
                   value={values.apiKeysText}
@@ -808,6 +841,59 @@ export function VisualConfigEditor({
                   disabled={disabled}
                   error={logsMaxSizeError}
                 />
+                <Input
+                  label={t('config_management.visual.sections.system.error_logs_max_files')}
+                  type="number"
+                  placeholder="10"
+                  value={values.errorLogsMaxFiles}
+                  onChange={(e) => onChange({ errorLogsMaxFiles: e.target.value })}
+                  disabled={disabled}
+                  error={errorLogsMaxFilesError}
+                />
+                <Input
+                  label={t('config_management.visual.sections.system.redis_usage_retention')}
+                  type="number"
+                  placeholder="60"
+                  value={values.redisUsageQueueRetentionSeconds}
+                  onChange={(e) => onChange({ redisUsageQueueRetentionSeconds: e.target.value })}
+                  disabled={disabled}
+                  hint={t('config_management.visual.sections.system.redis_usage_retention_hint')}
+                  error={redisUsageQueueRetentionSecondsError}
+                />
+                <FieldShell
+                  label={t('config_management.visual.sections.system.disable_image_generation')}
+                  hint={t('config_management.visual.sections.system.disable_image_generation_hint')}
+                >
+                  <Select
+                    value={values.disableImageGeneration}
+                    options={[
+                      {
+                        value: 'false',
+                        label: t('config_management.visual.sections.system.image_generation_enabled'),
+                      },
+                      {
+                        value: 'chat',
+                        label: t(
+                          'config_management.visual.sections.system.image_generation_chat_disabled'
+                        ),
+                      },
+                      {
+                        value: 'true',
+                        label: t('config_management.visual.sections.system.image_generation_disabled'),
+                      },
+                    ]}
+                    disabled={disabled}
+                    ariaLabel={t(
+                      'config_management.visual.sections.system.disable_image_generation'
+                    )}
+                    onChange={(disableImageGeneration) =>
+                      onChange({
+                        disableImageGeneration:
+                          disableImageGeneration as VisualConfigValues['disableImageGeneration'],
+                      })
+                    }
+                  />
+                </FieldShell>
               </SectionGrid>
             </SectionStack>
           </ConfigSection>
@@ -919,6 +1005,24 @@ export function VisualConfigEditor({
                   checked={values.wsAuth}
                   disabled={disabled}
                   onChange={(wsAuth) => onChange({ wsAuth })}
+                />
+                <ToggleRow
+                  title={t('config_management.visual.sections.network.passthrough_headers')}
+                  description={t(
+                    'config_management.visual.sections.network.passthrough_headers_desc'
+                  )}
+                  checked={values.passthroughHeaders}
+                  disabled={disabled}
+                  onChange={(passthroughHeaders) => onChange({ passthroughHeaders })}
+                />
+                <ToggleRow
+                  title={t('config_management.visual.sections.network.enable_gemini_cli_endpoint')}
+                  description={t(
+                    'config_management.visual.sections.network.enable_gemini_cli_endpoint_desc'
+                  )}
+                  checked={values.enableGeminiCliEndpoint}
+                  disabled={disabled}
+                  onChange={(enableGeminiCliEndpoint) => onChange({ enableGeminiCliEndpoint })}
                 />
               </SectionGrid>
             </SectionStack>

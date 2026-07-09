@@ -1443,6 +1443,8 @@
           "allow_remote_desc": "Allow management access from other hosts",
           "disable_panel": "Disable Control Panel",
           "disable_panel_desc": "Disable the built-in web control panel",
+          "disable_auto_update_panel": "Disable panel auto-update",
+          "disable_auto_update_panel_desc": "Prevent the management panel from checking for and applying updates automatically",
           "secret_key": "Management Key",
           "secret_key_placeholder": "Set management key",
           "panel_repo": "Panel Repository"
@@ -1451,7 +1453,10 @@
           "title": "Authentication Configuration",
           "description": "API keys and authentication directory settings",
           "auth_dir": "Auth Directory (auth-dir)",
-          "auth_dir_hint": "Directory path for authentication files (supports ~)"
+          "auth_dir_hint": "Directory path for authentication files (supports ~)",
+          "ignored_json_paths": "Ignored auth JSON paths",
+          "ignored_json_paths_desc": "These auth JSON files are skipped by inspection, statistics, or automatic processing",
+          "ignored_json_paths_input": "Add an auth JSON path to ignore"
         },
         "system": {
           "title": "System Configuration",
@@ -1464,7 +1469,15 @@
           "logging_to_file_desc": "Save logs to files",
           "usage_statistics": "Usage Statistics",
           "usage_statistics_desc": "Collect usage statistics",
-          "logs_max_size": "Log File Size Limit (MB)"
+          "logs_max_size": "Log File Size Limit (MB)",
+          "error_logs_max_files": "Error request log files to keep",
+          "redis_usage_retention": "Redis usage queue retention seconds",
+          "redis_usage_retention_hint": "Controls how long Redis usage queue events are retained. Leave empty to use the server default.",
+          "disable_image_generation": "Image generation capability",
+          "disable_image_generation_hint": "Controls whether image generation requests are allowed through.",
+          "image_generation_enabled": "Allow image generation",
+          "image_generation_chat_disabled": "Disable image generation in chat only",
+          "image_generation_disabled": "Disable all image generation"
         },
         "network": {
           "title": "Network Configuration",
@@ -1483,7 +1496,11 @@
           "force_model_prefix_desc": "Unprefixed model requests only use credentials without prefix",
           "session_affinity": "Session Affinity Routing",
           "ws_auth": "WebSocket Authentication",
-          "ws_auth_desc": "Enable WebSocket authentication (/v1/ws)"
+          "ws_auth_desc": "Enable WebSocket authentication (/v1/ws)",
+          "passthrough_headers": "Pass through headers",
+          "passthrough_headers_desc": "Forward client request headers to upstream services",
+          "enable_gemini_cli_endpoint": "Enable Gemini CLI endpoint",
+          "enable_gemini_cli_endpoint_desc": "Enable the proxy endpoint compatible with Gemini CLI"
         },
         "quota": {
           "title": "Quota Fallback",

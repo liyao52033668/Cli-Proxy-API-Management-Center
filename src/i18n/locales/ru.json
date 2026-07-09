@@ -1440,6 +1440,8 @@
           "allow_remote_desc": "Разрешить управление с других хостов",
           "disable_panel": "Отключить панель",
           "disable_panel_desc": "Отключить встроенную веб-панель управления",
+          "disable_auto_update_panel": "Отключить автообновление панели",
+          "disable_auto_update_panel_desc": "Не позволять панели управления автоматически проверять и применять обновления",
           "secret_key": "Ключ управления",
           "secret_key_placeholder": "Задайте ключ управления",
           "panel_repo": "Репозиторий панели"
@@ -1448,7 +1450,10 @@
           "title": "Настройки аутентификации",
           "description": "API-ключи и каталог аутентификации",
           "auth_dir": "Каталог auth-dir",
-          "auth_dir_hint": "Путь к каталогу с файлами аутентификации (поддерживает ~)"
+          "auth_dir_hint": "Путь к каталогу с файлами аутентификации (поддерживает ~)",
+          "ignored_json_paths": "Игнорируемые пути JSON-аутентификации",
+          "ignored_json_paths_desc": "Эти JSON-файлы аутентификации пропускаются при проверках, статистике и автоматической обработке",
+          "ignored_json_paths_input": "Добавить путь JSON-аутентификации для игнорирования"
         },
         "system": {
           "title": "Системные настройки",
@@ -1462,6 +1467,14 @@
           "usage_statistics": "Статистика использования",
           "usage_statistics_desc": "Собирать статистику использования",
           "logs_max_size": "Максимальный размер файла журнала (МБ)",
+          "error_logs_max_files": "Сколько файлов журнала ошибок хранить",
+          "redis_usage_retention": "Хранение очереди usage в Redis (сек)",
+          "redis_usage_retention_hint": "Задаёт срок хранения событий очереди usage в Redis. Оставьте пустым, чтобы использовать значение сервера по умолчанию.",
+          "disable_image_generation": "Возможность генерации изображений",
+          "disable_image_generation_hint": "Управляет тем, пропускать ли запросы, связанные с генерацией изображений.",
+          "image_generation_enabled": "Разрешить генерацию изображений",
+          "image_generation_chat_disabled": "Отключить генерацию изображений только в чате",
+          "image_generation_disabled": "Отключить всю генерацию изображений",
           "usage_retention_days": "Хранить статистику (дней)",
           "usage_retention_hint": "0 означает без ограничений (без очистки)"
         },
@@ -1482,7 +1495,11 @@
           "force_model_prefix_desc": "Запросы к моделям без префикса используют только учётные данные без префикса",
           "session_affinity": "Маршрутизация с привязкой к сессии",
           "ws_auth": "Аутентификация WebSocket",
-          "ws_auth_desc": "Включить аутентификацию WebSocket (/v1/ws)"
+          "ws_auth_desc": "Включить аутентификацию WebSocket (/v1/ws)",
+          "passthrough_headers": "Передавать заголовки",
+          "passthrough_headers_desc": "Передавать заголовки клиентского запроса в вышестоящие сервисы",
+          "enable_gemini_cli_endpoint": "Включить endpoint Gemini CLI",
+          "enable_gemini_cli_endpoint_desc": "Включить прокси-endpoint, совместимый с Gemini CLI"
         },
         "quota": {
           "title": "Резерв по квоте",

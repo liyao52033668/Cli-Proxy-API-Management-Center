@@ -1447,6 +1447,8 @@
           "allow_remote_desc": "允许从其他主机访问管理接口",
           "disable_panel": "禁用控制面板",
           "disable_panel_desc": "禁用内置的 Web 控制面板",
+          "disable_auto_update_panel": "禁用面板自动更新",
+          "disable_auto_update_panel_desc": "阻止管理面板自动检查并应用更新",
           "secret_key": "管理密钥",
           "secret_key_placeholder": "设置管理密钥",
           "panel_repo": "面板仓库"
@@ -1455,7 +1457,10 @@
           "title": "认证配置",
           "description": "API 密钥与认证文件目录设置",
           "auth_dir": "认证文件目录 (auth-dir)",
-          "auth_dir_hint": "存放认证文件的目录路径（支持 ~）"
+          "auth_dir_hint": "存放认证文件的目录路径（支持 ~）",
+          "ignored_json_paths": "忽略的认证 JSON 路径",
+          "ignored_json_paths_desc": "这些认证 JSON 文件会被巡检、统计或自动处理逻辑跳过",
+          "ignored_json_paths_input": "添加要忽略的认证 JSON 路径"
         },
         "system": {
           "title": "系统配置",
@@ -1468,7 +1473,15 @@
           "logging_to_file_desc": "将日志保存到文件",
           "usage_statistics": "使用统计",
           "usage_statistics_desc": "收集使用统计信息",
-          "logs_max_size": "日志文件大小限制 (MB)"
+          "logs_max_size": "日志文件大小限制 (MB)",
+          "error_logs_max_files": "错误请求日志保留文件数",
+          "redis_usage_retention": "Redis usage 队列保留秒数",
+          "redis_usage_retention_hint": "控制 Redis usage 队列事件保留时间，留空表示使用服务端默认值。",
+          "disable_image_generation": "图片生成能力",
+          "disable_image_generation_hint": "控制图片生成相关请求是否允许通过。",
+          "image_generation_enabled": "允许图片生成",
+          "image_generation_chat_disabled": "仅禁用聊天中的图片生成",
+          "image_generation_disabled": "禁用全部图片生成"
         },
         "network": {
           "title": "网络配置",
@@ -1487,7 +1500,11 @@
           "force_model_prefix_desc": "未带前缀的模型请求只使用无前缀凭据",
           "session_affinity": "会话粘性路由",
           "ws_auth": "WebSocket 认证",
-          "ws_auth_desc": "启用 WebSocket 连接认证 (/v1/ws)"
+          "ws_auth_desc": "启用 WebSocket 连接认证 (/v1/ws)",
+          "passthrough_headers": "透传请求头",
+          "passthrough_headers_desc": "将客户端请求头透传给上游服务",
+          "enable_gemini_cli_endpoint": "启用 Gemini CLI 端点",
+          "enable_gemini_cli_endpoint_desc": "启用兼容 Gemini CLI 的代理端点"
         },
         "quota": {
           "title": "配额回退",
