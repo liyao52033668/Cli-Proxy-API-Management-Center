@@ -11,6 +11,7 @@ import {
   parsePriorityValue,
   readCodexAuthFileWebsockets,
 } from '@/features/authFiles/constants';
+import { isXaiFile } from '@/utils/quota/validators';
 
 type AuthFileHeaders = Record<string, string>;
 type AuthFileEditableJson = Pick<
@@ -22,6 +23,7 @@ type AuthFileEditableJson = Pick<
   | 'excluded_models'
   | 'disable_cooling'
   | 'websockets'
+  | 'using_api'
   | 'note'
 >;
 type AuthFileHeadersErrorKey =
@@ -35,16 +37,21 @@ export type PrefixProxyEditorField =
   | 'priority'
   | 'excludedModelsText'
   | 'disableCooling'
+  | 'usingApi'
   | 'websockets'
   | 'note'
   | 'headersText';
 
 export type PrefixProxyEditorFieldValue = string | boolean;
 
+/** xAI using_api select values. "default" maps to null on save (clear override). */
+export type UsingApiSelectValue = 'default' | 'true' | 'false';
+
 export type PrefixProxyEditorState = {
   fileName: string;
   fileInfoText: string;
   isCodexFile: boolean;
+  isXaiFile: boolean;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -56,12 +63,25 @@ export type PrefixProxyEditorState = {
   priority: string;
   excludedModelsText: string;
   disableCooling: string;
+  usingApi: UsingApiSelectValue;
   websockets: boolean;
   note: string;
   noteTouched: boolean;
   headersText: string;
   headersTouched: boolean;
   headersError: string | null;
+};
+
+const toUsingApiSelectValue = (value: unknown): UsingApiSelectValue => {
+  const parsed = parseDisableCoolingValue(value);
+  if (parsed === undefined) return 'default';
+  return parsed ? 'true' : 'false';
+};
+
+const usingApiSelectToPatchValue = (value: UsingApiSelectValue): boolean | null => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
 };
 
 export type UseAuthFilesPrefixProxyEditorOptions = {
@@ -133,6 +153,11 @@ const buildPrefixProxyUpdatedJson = (
   next.excluded_models = parseExcludedModelsText(editor.excludedModelsText);
   next.disable_cooling = parseDisableCoolingValue(editor.disableCooling) ?? null;
 
+  if (editor.isXaiFile) {
+    // null clears the override so backend falls back to auth_kind defaults.
+    next.using_api = usingApiSelectToPatchValue(editor.usingApi);
+  }
+
   if (editor.noteTouched || 'note' in editor.json) {
     next.note = editor.note;
   }
@@ -173,6 +198,9 @@ const buildPrefixProxyUpdatedText = (
   }
   if (next.disable_cooling === null || next.disable_cooling === undefined) {
     delete next.disable_cooling;
+  }
+  if (next.using_api === null || next.using_api === undefined) {
+    delete next.using_api;
   }
   if (next.note === '') delete next.note;
   if (isRecordObject(next.headers) && Object.keys(next.headers).length === 0) delete next.headers;
@@ -217,6 +245,7 @@ export function useAuthFilesPrefixProxyEditor(
       .trim()
       .toLowerCase();
     const isCodexFile = normalizedType === 'codex' || normalizedProvider === 'codex';
+    const isXaiAuthFile = isXaiFile(file);
 
     if (disableControls) return;
     if (prefixProxyEditor?.fileName === name) {
@@ -228,6 +257,7 @@ export function useAuthFilesPrefixProxyEditor(
       fileName: name,
       fileInfoText: JSON.stringify(file, null, 2),
       isCodexFile,
+      isXaiFile: isXaiAuthFile,
       loading: true,
       saving: false,
       error: null,
@@ -239,6 +269,7 @@ export function useAuthFilesPrefixProxyEditor(
       priority: '',
       excludedModelsText: '',
       disableCooling: '',
+      usingApi: 'default',
       websockets: false,
       note: '',
       noteTouched: false,
@@ -294,6 +325,7 @@ export function useAuthFilesPrefixProxyEditor(
       const priority = parsePriorityValue(json.priority);
       const excludedModels = normalizeExcludedModels(json.excluded_models);
       const disableCoolingValue = parseDisableCoolingValue(json.disable_cooling);
+      const usingApiValue = toUsingApiSelectValue(json.using_api);
       const websocketsValue = readCodexAuthFileWebsockets(json);
       const note = typeof json.note === 'string' ? json.note : '';
       const headers = json.headers;
@@ -319,6 +351,7 @@ export function useAuthFilesPrefixProxyEditor(
           excludedModelsText: excludedModels.join('\n'),
           disableCooling:
             disableCoolingValue === undefined ? '' : disableCoolingValue ? 'true' : 'false',
+          usingApi: usingApiValue,
           websockets: websocketsValue,
           note,
           noteTouched: false,
@@ -349,6 +382,12 @@ export function useAuthFilesPrefixProxyEditor(
       if (field === 'priority') return { ...prev, priority: String(value) };
       if (field === 'excludedModelsText') return { ...prev, excludedModelsText: String(value) };
       if (field === 'disableCooling') return { ...prev, disableCooling: String(value) };
+      if (field === 'usingApi') {
+        const nextValue = String(value);
+        const usingApi: UsingApiSelectValue =
+          nextValue === 'true' || nextValue === 'false' ? nextValue : 'default';
+        return { ...prev, usingApi };
+      }
       if (field === 'note') return { ...prev, note: String(value), noteTouched: true };
       if (field === 'headersText') {
         const headersText = String(value);

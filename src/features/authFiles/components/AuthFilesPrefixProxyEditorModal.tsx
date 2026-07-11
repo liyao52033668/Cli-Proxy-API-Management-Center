@@ -3,6 +3,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import type {
   PrefixProxyEditorField,
@@ -166,6 +167,32 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                   disabled={disableControls || editor.saving || !editor.json}
                   onChange={(e) => onChange('disableCooling', e.target.value)}
                 />
+                {editor.isXaiFile && (
+                  <div className="form-group">
+                    <label>{t('auth_files.using_api_label')}</label>
+                    <Select
+                      value={editor.usingApi}
+                      options={[
+                        {
+                          value: 'default',
+                          label: t('auth_files.using_api_option_default'),
+                        },
+                        {
+                          value: 'true',
+                          label: t('auth_files.using_api_option_true'),
+                        },
+                        {
+                          value: 'false',
+                          label: t('auth_files.using_api_option_false'),
+                        },
+                      ]}
+                      disabled={disableControls || editor.saving || !editor.json}
+                      ariaLabel={t('auth_files.using_api_label')}
+                      onChange={(value) => onChange('usingApi', value)}
+                    />
+                    <div className="hint">{t('auth_files.using_api_hint')}</div>
+                  </div>
+                )}
                 <Input
                   label={t('auth_files.note_label')}
                   value={editor.note}

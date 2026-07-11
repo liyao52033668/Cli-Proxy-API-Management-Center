@@ -37,6 +37,7 @@ export interface AuthFileItem {
   excluded_models?: string[];
   disable_cooling?: boolean | string | number;
   websockets?: boolean | string | number;
+  using_api?: boolean | string | number;
   note?: string;
   headers?: Record<string, string>;
   [key: string]: unknown;
@@ -50,6 +51,7 @@ export interface AuthFilePatchFields {
   excluded_models?: string[];
   disable_cooling?: boolean | null;
   websockets?: boolean | null;
+  using_api?: boolean | null;
   note?: string;
 }
 

@@ -798,28 +798,42 @@
   flex-wrap: wrap;
 }
 
-.payloadRuleModelRow {
-  display: grid;
-  grid-template-columns: 1fr 160px auto;
+// Payload detail pane is often narrow (nested side panel). Stack model rows so
+// the model name never collapses to a few glyphs beside the protocol select.
+.payloadRuleModelRow,
+.payloadRuleModelRowProtocolFirst {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  min-width: 0;
 }
 
-.payloadRuleModelRowProtocolFirst {
-  grid-template-columns: 160px 1fr auto;
+.payloadRuleModelRowMain {
+  min-width: 0;
+  width: 100%;
+}
+
+.payloadRuleModelRowControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
 }
 
 .payloadRuleParamRow {
   display: grid;
-  grid-template-columns: 1fr 140px 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 140px) minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+  min-width: 0;
 }
 
 .payloadRuleParamGroup {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .payloadJsonInput {
@@ -835,10 +849,10 @@
 }
 
 .payloadFilterModelRow {
-  display: grid;
-  grid-template-columns: 1fr 160px auto;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  min-width: 0;
 }
 
 .apiKeyModalInputRow {
@@ -852,10 +866,11 @@
 }
 
 @media (max-width: 900px) {
-  .payloadRuleModelRow,
-  .payloadRuleModelRowProtocolFirst,
-  .payloadRuleParamRow,
-  .payloadFilterModelRow {
+  .payloadRuleParamRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .payloadRuleModelRowControls {
     grid-template-columns: minmax(0, 1fr);
   }
 

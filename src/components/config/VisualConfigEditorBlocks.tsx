@@ -452,12 +452,12 @@ export const StringListEditor = memo(function StringListEditor({
 export const PayloadRulesEditor = memo(function PayloadRulesEditor({
   value,
   disabled,
-  protocolFirst = false,
   rawJsonValues = false,
   onChange,
 }: {
   value: PayloadRule[];
   disabled?: boolean;
+  /** @deprecated Layout no longer switches order; kept optional for call-site compatibility. */
   protocolFirst?: boolean;
   rawJsonValues?: boolean;
   onChange: (next: PayloadRule[]) => void;
@@ -642,67 +642,38 @@ export const PayloadRulesEditor = memo(function PayloadRulesEditor({
               {t('config_management.visual.payload_rules.models')}
             </div>
             {(rule.models.length ? rule.models : []).map((model, modelIndex) => (
-              <div
-                key={model.id}
-                className={[
-                  styles.payloadRuleModelRow,
-                  protocolFirst ? styles.payloadRuleModelRowProtocolFirst : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {protocolFirst ? (
-                  <>
-                    <Select
-                      value={model.protocol ?? ''}
-                      options={protocolOptions}
-                      disabled={disabled}
-                      ariaLabel={t('config_management.visual.payload_rules.provider_type')}
-                      onChange={(nextValue) =>
-                        updateModel(ruleIndex, modelIndex, {
-                          protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
-                        })
-                      }
-                    />
-                    <ExpandableInput
-                      placeholder={t('config_management.visual.payload_rules.model_name')}
-                      ariaLabel={t('config_management.visual.payload_rules.model_name')}
-                      value={model.name}
-                      onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
-                      disabled={disabled}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ExpandableInput
-                      placeholder={t('config_management.visual.payload_rules.model_name')}
-                      ariaLabel={t('config_management.visual.payload_rules.model_name')}
-                      value={model.name}
-                      onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
-                      disabled={disabled}
-                    />
-                    <Select
-                      value={model.protocol ?? ''}
-                      options={protocolOptions}
-                      disabled={disabled}
-                      ariaLabel={t('config_management.visual.payload_rules.provider_type')}
-                      onChange={(nextValue) =>
-                        updateModel(ruleIndex, modelIndex, {
-                          protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
-                        })
-                      }
-                    />
-                  </>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={styles.payloadRowActionButton}
-                  onClick={() => removeModel(ruleIndex, modelIndex)}
-                  disabled={disabled}
-                >
-                  {t('config_management.visual.common.delete')}
-                </Button>
+              <div key={model.id} className={styles.payloadRuleModelRow}>
+                <div className={styles.payloadRuleModelRowMain}>
+                  <ExpandableInput
+                    placeholder={t('config_management.visual.payload_rules.model_name')}
+                    ariaLabel={t('config_management.visual.payload_rules.model_name')}
+                    value={model.name}
+                    onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
+                    disabled={disabled}
+                  />
+                </div>
+                <div className={styles.payloadRuleModelRowControls}>
+                  <Select
+                    value={model.protocol ?? ''}
+                    options={protocolOptions}
+                    disabled={disabled}
+                    ariaLabel={t('config_management.visual.payload_rules.provider_type')}
+                    onChange={(nextValue) =>
+                      updateModel(ruleIndex, modelIndex, {
+                        protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
+                      })
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={styles.payloadRowActionButton}
+                    onClick={() => removeModel(ruleIndex, modelIndex)}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.common.delete')}
+                  </Button>
+                </div>
               </div>
             ))}
             <div className={styles.actionRow}>
@@ -864,33 +835,37 @@ export const PayloadFilterRulesEditor = memo(function PayloadFilterRulesEditor({
             </div>
             {rule.models.map((model, modelIndex) => (
               <div key={model.id} className={styles.payloadFilterModelRow}>
-                <ExpandableInput
-                  placeholder={t('config_management.visual.payload_rules.model_name')}
-                  ariaLabel={t('config_management.visual.payload_rules.model_name')}
-                  value={model.name}
-                  onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
-                  disabled={disabled}
-                />
-                <Select
-                  value={model.protocol ?? ''}
-                  options={protocolOptions}
-                  disabled={disabled}
-                  ariaLabel={t('config_management.visual.payload_rules.provider_type')}
-                  onChange={(nextValue) =>
-                    updateModel(ruleIndex, modelIndex, {
-                      protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
-                    })
-                  }
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={styles.payloadRowActionButton}
-                  onClick={() => removeModel(ruleIndex, modelIndex)}
-                  disabled={disabled}
-                >
-                  {t('config_management.visual.common.delete')}
-                </Button>
+                <div className={styles.payloadRuleModelRowMain}>
+                  <ExpandableInput
+                    placeholder={t('config_management.visual.payload_rules.model_name')}
+                    ariaLabel={t('config_management.visual.payload_rules.model_name')}
+                    value={model.name}
+                    onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
+                    disabled={disabled}
+                  />
+                </div>
+                <div className={styles.payloadRuleModelRowControls}>
+                  <Select
+                    value={model.protocol ?? ''}
+                    options={protocolOptions}
+                    disabled={disabled}
+                    ariaLabel={t('config_management.visual.payload_rules.provider_type')}
+                    onChange={(nextValue) =>
+                      updateModel(ruleIndex, modelIndex, {
+                        protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
+                      })
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={styles.payloadRowActionButton}
+                    onClick={() => removeModel(ruleIndex, modelIndex)}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.common.delete')}
+                  </Button>
+                </div>
               </div>
             ))}
             <div className={styles.actionRow}>
