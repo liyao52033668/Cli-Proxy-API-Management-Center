@@ -2,9 +2,11 @@
 @use '../../styles/variables' as *;
 
 .section {
-  display: grid;
-  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
-  gap: 24px;
+  // Title sits above content so the editor pane keeps full width.
+  // Left-side section navigation already covers jumping between modules.
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   padding: 26px 0;
   border-top: 1px solid color-mix(in srgb, var(--border-color) 76%, transparent);
   scroll-margin-top: 112px;
@@ -15,24 +17,17 @@
   }
 
   @include mobile {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    gap: 14px;
     padding: 22px 0;
     scroll-margin-top: 88px;
   }
 }
 
 .header {
-  position: sticky;
-  top: 104px;
-  align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-
-  @include mobile {
-    position: static;
-  }
+  gap: 12px;
+  min-width: 0;
 }
 
 .titleRow {
@@ -90,14 +85,10 @@
 
 .description {
   margin: 0;
-  max-width: 34ch;
+  max-width: 72ch;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.7;
-
-  @include mobile {
-    max-width: none;
-  }
 }
 
 .content {

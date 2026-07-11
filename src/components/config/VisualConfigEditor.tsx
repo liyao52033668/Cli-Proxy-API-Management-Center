@@ -1,5 +1,4 @@
 import {
-  useLayoutEffect,
   useCallback,
   useEffect,
   useId,
@@ -9,7 +8,6 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import { Input } from '@/components/ui/Input';
@@ -182,8 +180,6 @@ export function VisualConfigEditor({
   const pageTransitionLayer = usePageTransitionLayer();
   const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.isCurrentLayer : true;
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const isFloatingSidebar = useMediaQuery('(min-width: 1025px)');
-  const shouldRenderFloatingSidebar = !isMobile && isFloatingSidebar && isCurrentLayer;
   const routingStrategyLabelId = useId();
   const routingStrategyHintId = `${routingStrategyLabelId}-hint`;
   const keepaliveInputId = useId();
@@ -193,9 +189,6 @@ export function VisualConfigEditor({
   const nonstreamKeepaliveHintId = `${nonstreamKeepaliveInputId}-hint`;
   const nonstreamKeepaliveErrorId = `${nonstreamKeepaliveInputId}-error`;
   const [activeSectionId, setActiveSectionId] = useState<VisualSectionId>('server');
-  const workspaceRef = useRef<HTMLDivElement | null>(null);
-  const sidebarAnchorRef = useRef<HTMLElement | null>(null);
-  const floatingSidebarRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Partial<Record<VisualSectionId, HTMLElement | null>>>({});
   const mobileNavScrollerRef = useRef<HTMLDivElement | null>(null);
   const mobileNavButtonRefs = useRef<Partial<Record<VisualSectionId, HTMLButtonElement | null>>>(
@@ -338,10 +331,6 @@ export function VisualConfigEditor({
 
   const hasValidationIssues =
     sections.some((section) => section.errorCount > 0) || hasPayloadValidationErrors;
-  const focusSections = useMemo(
-    () => sections.filter((section) => ['server', 'network', 'payload'].includes(section.id)),
-    [sections]
-  );
 
   useEffect(() => {
     if (!isCurrentLayer) return undefined;
@@ -396,138 +385,6 @@ export function VisualConfigEditor({
     sectionRefs.current[sectionId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  useLayoutEffect(() => {
-    const floatingElement = floatingSidebarRef.current;
-    const anchorElement = sidebarAnchorRef.current;
-    const workspaceElement = workspaceRef.current;
-    if (!floatingElement) return undefined;
-
-    const clearFloatingStyles = () => {
-      floatingElement.style.removeProperty('transform');
-      floatingElement.style.removeProperty('width');
-      floatingElement.style.removeProperty('max-height');
-      floatingElement.style.removeProperty('opacity');
-      floatingElement.style.removeProperty('pointer-events');
-    };
-
-    if (!shouldRenderFloatingSidebar || !anchorElement || !workspaceElement) {
-      clearFloatingStyles();
-      return undefined;
-    }
-
-    /* ---- Cache header height – recomputed only on resize ---- */
-    const computeHeaderHeight = () => {
-      const header = document.querySelector('.main-header') as HTMLElement | null;
-      if (header) return header.getBoundingClientRect().height;
-
-      const raw = getComputedStyle(document.documentElement).getPropertyValue('--header-height');
-      const parsed = Number.parseFloat(raw);
-      return Number.isFinite(parsed) ? parsed : 64;
-    };
-    let headerHeight = computeHeaderHeight();
-
-    /* ---- Cache content scroller – resolved once ---- */
-    const contentScroller = document.querySelector('.content') as HTMLElement | null;
-
-    /* ---- Cache floating height from previous frame ---- */
-    let cachedFloatingHeight = floatingElement.getBoundingClientRect().height || 200;
-
-    let frameId = 0;
-
-    const updateFloatingPosition = () => {
-      frameId = 0;
-
-      const anchorRect = anchorElement.getBoundingClientRect();
-      const workspaceRect = workspaceElement.getBoundingClientRect();
-      const stickyTop = headerHeight + 20;
-      const viewportPadding = 16;
-      const maxTop = workspaceRect.bottom - cachedFloatingHeight;
-      const unclampedTop = Math.min(Math.max(anchorRect.top, stickyTop), maxTop);
-      const top = Math.max(unclampedTop, viewportPadding);
-      const left = Math.max(anchorRect.left, viewportPadding);
-      const width = Math.max(
-        Math.min(anchorRect.width, window.innerWidth - left - viewportPadding),
-        220
-      );
-      const maxHeight = Math.max(window.innerHeight - top - viewportPadding, 160);
-      const isVisible = workspaceRect.bottom > stickyTop + 24 && anchorRect.top < window.innerHeight;
-
-      floatingElement.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-      floatingElement.style.width = `${width}px`;
-      floatingElement.style.maxHeight = `${maxHeight}px`;
-      floatingElement.style.opacity = isVisible ? '1' : '0';
-      floatingElement.style.pointerEvents = isVisible ? 'auto' : 'none';
-    };
-
-    const requestPositionUpdate = () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(updateFloatingPosition);
-    };
-
-    const handleResize = () => {
-      headerHeight = computeHeaderHeight();
-      cachedFloatingHeight = floatingElement.getBoundingClientRect().height || cachedFloatingHeight;
-      requestPositionUpdate();
-    };
-
-    requestPositionUpdate();
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', requestPositionUpdate, { passive: true });
-    contentScroller?.addEventListener('scroll', requestPositionUpdate, { passive: true });
-
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(requestPositionUpdate);
-    resizeObserver?.observe(anchorElement);
-    resizeObserver?.observe(workspaceElement);
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', requestPositionUpdate);
-      contentScroller?.removeEventListener('scroll', requestPositionUpdate);
-      clearFloatingStyles();
-    };
-  }, [shouldRenderFloatingSidebar]);
-
-  const navContent = (
-    <div className={styles.navList}>
-      {sections.map((section, index) => {
-        const Icon = section.icon;
-
-        return (
-          <button
-            key={section.id}
-            type="button"
-            className={`${styles.navButton} ${
-              activeSectionId === section.id ? styles.navButtonActive : ''
-            }`}
-            onClick={() => handleSectionJump(section.id)}
-          >
-            <span className={styles.navIndex}>{String(index + 1).padStart(2, '0')}</span>
-            <span className={styles.navMain}>
-              <span className={styles.navHeadingRow}>
-                <span className={styles.navLabelWrap}>
-                  <span className={styles.navIcon}>
-                    <Icon size={14} />
-                  </span>
-                  <span className={styles.navLabel}>{section.title}</span>
-                </span>
-                {section.errorCount > 0 ? (
-                  <span className={styles.navBadge} aria-hidden="true">
-                    {section.errorCount}
-                  </span>
-                ) : null}
-              </span>
-              <span className={styles.navDescription}>{section.description}</span>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className={styles.visualEditor}>
       <div className={styles.overview}>
@@ -545,7 +402,7 @@ export function VisualConfigEditor({
         </div>
 
         <div className={styles.overviewFocusList}>
-          {focusSections.map((section) => {
+          {sections.map((section, index) => {
             const Icon = section.icon;
 
             return (
@@ -557,6 +414,7 @@ export function VisualConfigEditor({
                 }`}
                 onClick={() => handleSectionJump(section.id)}
               >
+                <span className={styles.focusIndex}>{String(index + 1).padStart(2, '0')}</span>
                 <span className={styles.focusIcon}>
                   <Icon size={16} />
                 </span>
@@ -575,7 +433,7 @@ export function VisualConfigEditor({
         </div>
       </div>
 
-      <div ref={workspaceRef} className={styles.workspace}>
+      <div className={styles.workspace}>
         {isMobile ? (
           <div className={styles.mobileSectionNav}>
             <div
@@ -609,14 +467,6 @@ export function VisualConfigEditor({
             </div>
           </div>
         ) : null}
-
-        <aside ref={sidebarAnchorRef} className={styles.sidebar}>
-          {isFloatingSidebar ? (
-            <div className={styles.sidebarPlaceholder} aria-hidden="true" />
-          ) : (
-            <div className={styles.sidebarRail}>{navContent}</div>
-          )}
-        </aside>
 
         <div className={styles.sections}>
           <ConfigSection
@@ -1239,15 +1089,6 @@ export function VisualConfigEditor({
           </ConfigSection>
         </div>
       </div>
-
-      {shouldRenderFloatingSidebar && typeof document !== 'undefined'
-        ? createPortal(
-            <div ref={floatingSidebarRef} className={styles.floatingSidebarContainer}>
-              <div className={styles.floatingSidebarRail}>{navContent}</div>
-            </div>,
-            document.body
-          )
-        : null}
     </div>
   );
 }

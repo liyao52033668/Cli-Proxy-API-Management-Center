@@ -695,17 +695,49 @@ export const PayloadRulesEditor = memo(function PayloadRulesEditor({
             {(rule.params.length ? rule.params : []).map((param, paramIndex) => {
               const paramError = getParamErrorMessage(param);
 
+              const deleteButton = (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={styles.payloadRowActionButton}
+                  onClick={() => removeParam(ruleIndex, paramIndex)}
+                  disabled={disabled}
+                >
+                  {t('config_management.visual.common.delete')}
+                </Button>
+              );
+
               return (
                 <div key={param.id} className={styles.payloadRuleParamGroup}>
-                  <div className={styles.payloadRuleParamRow}>
-                    <ExpandableInput
-                      placeholder={t('config_management.visual.payload_rules.json_path')}
-                      ariaLabel={t('config_management.visual.payload_rules.json_path')}
-                      value={param.path}
-                      onChange={(nextValue) => updateParam(ruleIndex, paramIndex, { path: nextValue })}
-                      disabled={disabled}
-                    />
-                    {rawJsonValues ? null : (
+                  {rawJsonValues ? (
+                    <div className={styles.payloadRuleParamRow}>
+                      <div className={styles.payloadRuleParamPathWithActionRow}>
+                        <ExpandableInput
+                          placeholder={t('config_management.visual.payload_rules.json_path')}
+                          ariaLabel={t('config_management.visual.payload_rules.json_path')}
+                          value={param.path}
+                          onChange={(nextValue) =>
+                            updateParam(ruleIndex, paramIndex, { path: nextValue })
+                          }
+                          disabled={disabled}
+                        />
+                        {deleteButton}
+                      </div>
+                      <div className={styles.payloadRuleParamValueRow}>
+                        {renderParamValueEditor(ruleIndex, paramIndex, param)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.payloadRuleParamInlineRow}>
+                      <ExpandableInput
+                        placeholder={t('config_management.visual.payload_rules.json_path')}
+                        ariaLabel={t('config_management.visual.payload_rules.json_path')}
+                        value={param.path}
+                        onChange={(nextValue) =>
+                          updateParam(ruleIndex, paramIndex, { path: nextValue })
+                        }
+                        disabled={disabled}
+                      />
                       <Select
                         value={param.valueType}
                         options={payloadValueTypeOptions}
@@ -723,18 +755,12 @@ export const PayloadRulesEditor = memo(function PayloadRulesEditor({
                           })
                         }
                       />
-                    )}
-                    {renderParamValueEditor(ruleIndex, paramIndex, param)}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={styles.payloadRowActionButton}
-                      onClick={() => removeParam(ruleIndex, paramIndex)}
-                      disabled={disabled}
-                    >
-                      {t('config_management.visual.common.delete')}
-                    </Button>
-                  </div>
+                      <div className={styles.payloadRuleParamInlineValue}>
+                        {renderParamValueEditor(ruleIndex, paramIndex, param)}
+                      </div>
+                      {deleteButton}
+                    </div>
+                  )}
                   {paramError && (
                     <div className={`error-box ${styles.payloadParamError}`}>{paramError}</div>
                   )}

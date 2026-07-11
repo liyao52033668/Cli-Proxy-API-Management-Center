@@ -203,12 +203,9 @@
 .overviewFocusList {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  // All config modules live in this top jump grid after removing the left rail.
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
   @include mobile {
     grid-template-columns: minmax(0, 1fr);
@@ -241,6 +238,22 @@
 .overviewFocusLinkActive {
   border-color: color-mix(in srgb, var(--primary-color) 28%, var(--border-color));
   background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+}
+
+.focusIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  flex: 0 0 auto;
 }
 
 .focusIcon {
@@ -276,14 +289,10 @@
 }
 
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  align-items: start;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  min-width: 0;
 
   @include mobile {
     gap: 16px;
@@ -798,22 +807,48 @@
   flex-wrap: wrap;
 }
 
-// Payload detail pane is often narrow (nested side panel). Stack model rows so
-// the model name never collapses to a few glyphs beside the protocol select.
+// Full-width editor pane: keep model name, protocol, and delete on one row.
 .payloadRuleModelRow,
-.payloadRuleModelRowProtocolFirst {
+.payloadRuleModelRowProtocolFirst,
+.payloadFilterModelRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.payloadRuleModelRowMain {
+  min-width: 0;
+}
+
+// Let protocol select + delete participate in the parent 3-column grid.
+.payloadRuleModelRowControls {
+  display: contents;
+}
+
+// Typed params (default/override): path | type | value | delete on one row.
+.payloadRuleParamInlineRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 150px) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+}
+
+.payloadRuleParamInlineValue {
+  min-width: 0;
+}
+
+// Raw params: path+delete on first row, JSON value below.
+.payloadRuleParamRow {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
 }
 
-.payloadRuleModelRowMain {
-  min-width: 0;
-  width: 100%;
-}
-
-.payloadRuleModelRowControls {
+.payloadRuleParamPathWithActionRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -821,12 +856,9 @@
   min-width: 0;
 }
 
-.payloadRuleParamRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 140px) minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
+.payloadRuleParamValueRow {
   min-width: 0;
+  width: 100%;
 }
 
 .payloadRuleParamGroup {
@@ -848,13 +880,6 @@
   margin: 0;
 }
 
-.payloadFilterModelRow {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
 .apiKeyModalInputRow {
   display: flex;
   gap: 8px;
@@ -866,11 +891,20 @@
 }
 
 @media (max-width: 900px) {
-  .payloadRuleParamRow {
+  .payloadRuleModelRow,
+  .payloadRuleModelRowProtocolFirst,
+  .payloadFilterModelRow {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .payloadRuleModelRowControls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .payloadRuleParamInlineRow {
     grid-template-columns: minmax(0, 1fr);
   }
 
