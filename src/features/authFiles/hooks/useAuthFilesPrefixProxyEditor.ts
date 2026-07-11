@@ -207,8 +207,9 @@ const buildPrefixProxyUpdatedText = (
     ...(buildPrefixProxyUpdatedJson(editor, resolveHeadersError) ?? {}),
   };
 
-  if (editor.isXaiFile) {
-    // Keep preview base_url in sync with using_api selection.
+  if (editor.isXaiFile && (editor.usingApi === 'true' || editor.usingApi === 'false')) {
+    // Only rewrite base_url when the user explicitly overrides XAI upstream.
+    // Default keeps the file's existing base_url (OAuth login default is fine).
     next.base_url = resolveXaiBaseUrlForUsingApi(editor.usingApi, editor.json.auth_kind);
   }
 
