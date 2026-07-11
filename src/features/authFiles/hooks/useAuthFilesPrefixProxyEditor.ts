@@ -84,6 +84,23 @@ const usingApiSelectToPatchValue = (value: UsingApiSelectValue): boolean | null 
   return null;
 };
 
+const XAI_OFFICIAL_API_BASE_URL = 'https://api.x.ai/v1';
+const XAI_CLI_CHAT_PROXY_BASE_URL = 'https://cli-chat-proxy.grok.com/v1';
+
+const resolveXaiBaseUrlForUsingApi = (
+  usingApi: UsingApiSelectValue,
+  authKind: unknown
+): string => {
+  if (usingApi === 'true') return XAI_OFFICIAL_API_BASE_URL;
+  if (usingApi === 'false') return XAI_CLI_CHAT_PROXY_BASE_URL;
+  // default: oauth -> chat-proxy, otherwise official API
+  return String(authKind ?? '')
+    .trim()
+    .toLowerCase() === 'oauth'
+    ? XAI_CLI_CHAT_PROXY_BASE_URL
+    : XAI_OFFICIAL_API_BASE_URL;
+};
+
 export type UseAuthFilesPrefixProxyEditorOptions = {
   disableControls: boolean;
   loadFiles: () => Promise<void>;
@@ -189,6 +206,11 @@ const buildPrefixProxyUpdatedText = (
     ...editor.json,
     ...(buildPrefixProxyUpdatedJson(editor, resolveHeadersError) ?? {}),
   };
+
+  if (editor.isXaiFile) {
+    // Keep preview base_url in sync with using_api selection.
+    next.base_url = resolveXaiBaseUrlForUsingApi(editor.usingApi, editor.json.auth_kind);
+  }
 
   if (!next.prefix) delete next.prefix;
   if (!next.proxy_url) delete next.proxy_url;
