@@ -441,6 +441,7 @@ export function UsagePage() {
         codexConfigs={config?.codexApiKeys || []}
         vertexConfigs={config?.vertexApiKeys || []}
         openaiProviders={openaiProvidersForUsage}
+        modelPrices={modelPrices}
       />
 
       {/* Price Settings */}
