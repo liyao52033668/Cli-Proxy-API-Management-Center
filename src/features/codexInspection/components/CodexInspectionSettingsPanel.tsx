@@ -51,6 +51,19 @@ const checkboxStyle: CSSProperties = {
   flex: '0 0 auto',
 };
 
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value));
+}
+
+/** Backend stores used%; UI edits remaining%. */
+function toRemainingThreshold(usedThreshold: number) {
+  return clampPercent(100 - usedThreshold);
+}
+
+function toUsedThreshold(remainingThreshold: number) {
+  return clampPercent(100 - remainingThreshold);
+}
+
 export function CodexInspectionSettingsPanel({
   settings,
   showSchedule,
@@ -152,8 +165,8 @@ export function CodexInspectionSettingsPanel({
         </label>
         <label style={fieldStyle}>
           <span>
-            {t('codex_inspection.five_hour_used_percent_threshold', {
-              defaultValue: '5h used % threshold',
+            {t('codex_inspection.five_hour_remaining_percent_threshold', {
+              defaultValue: '5h remaining % threshold',
             })}
           </span>
           <input
@@ -161,20 +174,20 @@ export function CodexInspectionSettingsPanel({
             type="number"
             min={0}
             max={100}
-            value={settings.fiveHourUsedPercentThreshold}
+            value={toRemainingThreshold(settings.fiveHourUsedPercentThreshold)}
             disabled={disabled}
             onChange={(event) =>
               onChange({
                 ...settings,
-                fiveHourUsedPercentThreshold: Math.min(100, Math.max(0, Number(event.target.value) || 0)),
+                fiveHourUsedPercentThreshold: toUsedThreshold(Number(event.target.value) || 0),
               })
             }
           />
         </label>
         <label style={fieldStyle}>
           <span>
-            {t('codex_inspection.weekly_used_percent_threshold', {
-              defaultValue: 'Weekly used % threshold',
+            {t('codex_inspection.weekly_remaining_percent_threshold', {
+              defaultValue: 'Weekly remaining % threshold',
             })}
           </span>
           <input
@@ -182,12 +195,12 @@ export function CodexInspectionSettingsPanel({
             type="number"
             min={0}
             max={100}
-            value={settings.weeklyUsedPercentThreshold}
+            value={toRemainingThreshold(settings.weeklyUsedPercentThreshold)}
             disabled={disabled}
             onChange={(event) =>
               onChange({
                 ...settings,
-                weeklyUsedPercentThreshold: Math.min(100, Math.max(0, Number(event.target.value) || 0)),
+                weeklyUsedPercentThreshold: toUsedThreshold(Number(event.target.value) || 0),
               })
             }
           />

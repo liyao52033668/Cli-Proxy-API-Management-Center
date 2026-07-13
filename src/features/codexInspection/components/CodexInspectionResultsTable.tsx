@@ -74,6 +74,12 @@ function toRemainingPercent(value?: number) {
   return Math.max(0, Math.min(100, 100 - value));
 }
 
+function toRemainingThreshold(usedThreshold: string | number) {
+  const parsed = typeof usedThreshold === 'number' ? usedThreshold : Number(usedThreshold);
+  if (!Number.isFinite(parsed)) return usedThreshold;
+  return Math.max(0, Math.min(100, 100 - parsed));
+}
+
 function renderQuota(item: CodexInspectionResultItem, t: TFunction) {
   const fiveHour = toRemainingPercent(item.fiveHourUsedPercent ?? item.usedPercent);
   const weekly = toRemainingPercent(item.weeklyUsedPercent);
@@ -115,35 +121,49 @@ function renderReason(reason: string, t: TFunction) {
     return t('codex_inspection.reason_unauthorized', { defaultValue: '401/402 response' });
   }
 
+  // Backend reasons use used%; convert thresholds to remaining% for display.
+  // used >= T  => remaining <= 100-T
+  // used <  T  => remaining >  100-T
   const weeklyGreaterMatch = reason.match(/^weeklyUsedPercent >=\s*(\d+)$/);
   if (weeklyGreaterMatch) {
-    return t('codex_inspection.reason_weekly_threshold_ge', {
-      defaultValue: 'Weekly used percent >= {{threshold}}',
-      threshold: weeklyGreaterMatch[1],
+    return t('codex_inspection.reason_weekly_remaining_le', {
+      defaultValue: 'Weekly remaining <= {{threshold}}%',
+      threshold: toRemainingThreshold(weeklyGreaterMatch[1]),
+    });
+  }
+
+  const bothRecoveredMatch = reason.match(
+    /^fiveHourUsedPercent <\s*(\d+)\s*&&\s*weeklyUsedPercent <\s*(\d+)$/
+  );
+  if (bothRecoveredMatch) {
+    return t('codex_inspection.reason_both_remaining_gt', {
+      defaultValue: '5h remaining > {{fiveHourThreshold}}% and weekly remaining > {{weeklyThreshold}}%',
+      fiveHourThreshold: toRemainingThreshold(bothRecoveredMatch[1]),
+      weeklyThreshold: toRemainingThreshold(bothRecoveredMatch[2]),
     });
   }
 
   const weeklyLowerMatch = reason.match(/^weeklyUsedPercent <\s*(\d+)$/);
   if (weeklyLowerMatch) {
-    return t('codex_inspection.reason_weekly_threshold_lt', {
-      defaultValue: 'Weekly used percent < {{threshold}}',
-      threshold: weeklyLowerMatch[1],
+    return t('codex_inspection.reason_weekly_remaining_gt', {
+      defaultValue: 'Weekly remaining > {{threshold}}%',
+      threshold: toRemainingThreshold(weeklyLowerMatch[1]),
     });
   }
 
   const fiveHourGreaterMatch = reason.match(/^fiveHourUsedPercent >=\s*(\d+)$/);
   if (fiveHourGreaterMatch) {
-    return t('codex_inspection.reason_five_hour_threshold_ge', {
-      defaultValue: '5h used percent >= {{threshold}}',
-      threshold: fiveHourGreaterMatch[1],
+    return t('codex_inspection.reason_five_hour_remaining_le', {
+      defaultValue: '5h remaining <= {{threshold}}%',
+      threshold: toRemainingThreshold(fiveHourGreaterMatch[1]),
     });
   }
 
   const fiveHourLowerMatch = reason.match(/^fiveHourUsedPercent <\s*(\d+)$/);
   if (fiveHourLowerMatch) {
-    return t('codex_inspection.reason_five_hour_threshold_lt', {
-      defaultValue: '5h used percent < {{threshold}}',
-      threshold: fiveHourLowerMatch[1],
+    return t('codex_inspection.reason_five_hour_remaining_gt', {
+      defaultValue: '5h remaining > {{threshold}}%',
+      threshold: toRemainingThreshold(fiveHourLowerMatch[1]),
     });
   }
 

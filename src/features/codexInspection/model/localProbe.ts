@@ -104,36 +104,31 @@ function resolveInspectionAction(
   fiveHourUsedPercent?: number,
   weeklyUsedPercent?: number
 ): Pick<CodexInspectionResultItem, 'action' | 'actionReason'> {
+  // Weekly remaining below threshold → suggest delete (highest priority).
+  if (typeof weeklyUsedPercent === 'number' && weeklyUsedPercent >= settings.weeklyUsedPercentThreshold) {
+    return {
+      action: 'delete',
+      actionReason: `weeklyUsedPercent >= ${settings.weeklyUsedPercentThreshold}`,
+    };
+  }
+
+  // Enable only when disabled and BOTH 5h/weekly remaining are above thresholds.
   if (disabled) {
-    if (typeof weeklyUsedPercent === 'number' && weeklyUsedPercent < settings.weeklyUsedPercentThreshold) {
-      return {
-        action: 'enable',
-        actionReason: `weeklyUsedPercent < ${settings.weeklyUsedPercentThreshold}`,
-      };
-    }
     if (
-      typeof weeklyUsedPercent !== 'number' &&
       typeof fiveHourUsedPercent === 'number' &&
-      fiveHourUsedPercent < settings.fiveHourUsedPercentThreshold
+      typeof weeklyUsedPercent === 'number' &&
+      fiveHourUsedPercent < settings.fiveHourUsedPercentThreshold &&
+      weeklyUsedPercent < settings.weeklyUsedPercentThreshold
     ) {
       return {
         action: 'enable',
-        actionReason: `fiveHourUsedPercent < ${settings.fiveHourUsedPercentThreshold}`,
+        actionReason: `fiveHourUsedPercent < ${settings.fiveHourUsedPercentThreshold} && weeklyUsedPercent < ${settings.weeklyUsedPercentThreshold}`,
       };
     }
     return { action: 'keep', actionReason: 'no issue detected' };
   }
 
-  if (typeof weeklyUsedPercent === 'number') {
-    if (weeklyUsedPercent >= settings.weeklyUsedPercentThreshold) {
-      return {
-        action: 'disable',
-        actionReason: `weeklyUsedPercent >= ${settings.weeklyUsedPercentThreshold}`,
-      };
-    }
-    return { action: 'keep', actionReason: 'no issue detected' };
-  }
-
+  // 5h remaining below threshold → suggest disable.
   if (typeof fiveHourUsedPercent === 'number' && fiveHourUsedPercent >= settings.fiveHourUsedPercentThreshold) {
     return {
       action: 'disable',

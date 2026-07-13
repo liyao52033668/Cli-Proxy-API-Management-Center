@@ -1667,8 +1667,8 @@
     "timeout_seconds": "逾時秒數",
     "retries": "重試次數",
     "sample_size": "取樣數量",
-    "five_hour_used_percent_threshold": "5小時額度門檻",
-    "weekly_used_percent_threshold": "週額度門檻",
+    "five_hour_remaining_percent_threshold": "5小時剩餘額度門檻",
+    "weekly_remaining_percent_threshold": "週剩餘額度門檻",
     "schedule_enabled": "啟用排程",
     "interval_minutes": "間隔分鐘",
     "next_trigger_at": "下一次執行時間",
@@ -1696,10 +1696,11 @@
     "action_reauth": "需要重新登入",
     "reason_no_issue_detected": "無異常",
     "reason_unauthorized": "401/402 未授權",
-    "reason_weekly_threshold_ge": "週額度使用率 ≥ {{threshold}}%",
-    "reason_weekly_threshold_lt": "週額度使用率 < {{threshold}}%",
-    "reason_five_hour_threshold_ge": "5小時額度使用率 ≥ {{threshold}}%",
-    "reason_five_hour_threshold_lt": "5小時額度使用率 < {{threshold}}%"
+    "reason_weekly_remaining_le": "週剩餘額度 ≤ {{threshold}}%",
+    "reason_weekly_remaining_gt": "週剩餘額度 > {{threshold}}%",
+    "reason_five_hour_remaining_le": "5小時剩餘額度 ≤ {{threshold}}%",
+    "reason_five_hour_remaining_gt": "5小時剩餘額度 > {{threshold}}%",
+    "reason_both_remaining_gt": "5小時剩餘額度 > {{fiveHourThreshold}}% 且 週剩餘額度 > {{weeklyThreshold}}%"
   },
   "system_info": {
     "title": "管理中心資訊",

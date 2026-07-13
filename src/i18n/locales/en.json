@@ -1641,8 +1641,8 @@
     "timeout_seconds": "Timeout seconds",
     "retries": "Retries",
     "sample_size": "Sample size",
-    "five_hour_used_percent_threshold": "5h used % threshold",
-    "weekly_used_percent_threshold": "Weekly used % threshold",
+    "five_hour_remaining_percent_threshold": "5h remaining % threshold",
+    "weekly_remaining_percent_threshold": "Weekly remaining % threshold",
     "schedule_enabled": "Schedule enabled",
     "interval_minutes": "Interval minutes",
     "next_trigger_at": "Next trigger at",
@@ -1670,10 +1670,11 @@
     "action_reauth": "Reauth required",
     "reason_no_issue_detected": "No issue detected",
     "reason_unauthorized": "401/402 unauthorized",
-    "reason_weekly_threshold_ge": "Weekly used percent >= {{threshold}}%",
-    "reason_weekly_threshold_lt": "Weekly used percent < {{threshold}}%",
-    "reason_five_hour_threshold_ge": "5h used percent >= {{threshold}}%",
-    "reason_five_hour_threshold_lt": "5h used percent < {{threshold}}%"
+    "reason_weekly_remaining_le": "Weekly remaining <= {{threshold}}%",
+    "reason_weekly_remaining_gt": "Weekly remaining > {{threshold}}%",
+    "reason_five_hour_remaining_le": "5h remaining <= {{threshold}}%",
+    "reason_five_hour_remaining_gt": "5h remaining > {{threshold}}%",
+    "reason_both_remaining_gt": "5h remaining > {{fiveHourThreshold}}% and weekly remaining > {{weeklyThreshold}}%"
   },
   "system_info": {
     "title": "Management Center Info",
