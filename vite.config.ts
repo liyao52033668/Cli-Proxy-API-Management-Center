@@ -35,6 +35,17 @@ function getVersion(): string {
   return 'dev';
 }
 
+// Local backend for `npm run dev` proxy. Override with VITE_API_PROXY_TARGET.
+const devApiProxyTarget =
+  process.env.VITE_API_PROXY_TARGET?.trim() || 'http://127.0.0.1:8317';
+
+// Browser → Vite (same origin) → backend. Avoids Management API CORS during local UI dev.
+const devApiProxy = {
+  target: devApiProxyTarget,
+  changeOrigin: true,
+  secure: false
+} as const;
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -60,6 +71,24 @@ export default defineConfig({
       scss: {
         additionalData: `@use "@/styles/variables.scss" as *;`
       }
+    }
+  },
+  server: {
+    proxy: {
+      // Management API (login, config, auth-files, quota, logs, ...)
+      '/v0': devApiProxy,
+      // Usage / quota extras mounted under /api/v1/*
+      '/api': devApiProxy,
+      // OpenAI-compatible model listing used by system page helpers
+      '/v1': devApiProxy
+    }
+  },
+  preview: {
+    // Same proxy for `npm run preview` when testing the built single-file UI locally.
+    proxy: {
+      '/v0': devApiProxy,
+      '/api': devApiProxy,
+      '/v1': devApiProxy
     }
   },
   build: {

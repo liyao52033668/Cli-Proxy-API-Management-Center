@@ -1,0 +1,134 @@
+.pagination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-lg;
+  padding-top: $spacing-md;
+  border-top: 1px solid var(--border-color);
+}
+
+.mainControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.pageNumbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pageNumber {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 $spacing-xs;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-color, #3b82f6);
+    color: var(--primary-color, #3b82f6);
+  }
+
+  &:disabled:not(.pageNumberActive) {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.pageNumberActive {
+  background-color: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+  color: #fff;
+  cursor: default;
+
+  &:disabled {
+    opacity: 1;
+  }
+}
+
+.ellipsis {
+  min-width: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  user-select: none;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.pageInfo {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: $spacing-xs $spacing-md;
+  background-color: var(--bg-secondary);
+  border-radius: $radius-md;
+  white-space: nowrap;
+}
+
+.pageJump {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.pageJumpLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pageJumpInput {
+  width: 64px;
+  min-width: 64px;
+  height: 32px;
+  padding: 0 $spacing-sm;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: center;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+}

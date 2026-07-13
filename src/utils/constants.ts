@@ -38,6 +38,9 @@ export const MAX_AUTH_FILE_SIZE = 10 * 1024 * 1024;
 export const AUTH_FILES_UPLOAD_BATCH_SIZE = 200;
 export const AUTH_FILES_UPLOAD_TIMEOUT_MS = 120 * 1000;
 
+// 配额批量刷新：单批并发请求数，避免一次拉全量导致页面卡顿
+export const QUOTA_REFRESH_BATCH_SIZE = 6;
+
 // 本地存储键名
 export const STORAGE_KEY_AUTH = 'cli-proxy-auth';
 export const STORAGE_KEY_THEME = 'cli-proxy-theme';

@@ -12,7 +12,6 @@ import type {
 
 const tableStyle: CSSProperties = {
   width: '100%',
-  minWidth: 1040,
   tableLayout: 'fixed',
   borderCollapse: 'collapse',
 };
@@ -39,7 +38,6 @@ const compactCellStyle: CSSProperties = {
 
 const errorCellStyle: CSSProperties = {
   ...bodyCellStyle,
-  maxWidth: 260,
 };
 
 function shortError(error: string): string {
@@ -96,20 +94,22 @@ function renderQuota(item: CodexInspectionResultItem, t: TFunction) {
   );
 }
 
-function renderInspectionStatus(action: CodexInspectionAction, t: TFunction) {
-  switch (action) {
-    case 'keep':
-      return t('codex_inspection.action_keep', { defaultValue: 'Keep' });
+function renderInspectionStatus(item: CodexInspectionResultItem, t: TFunction) {
+  switch (item.action) {
     case 'disable':
-      return t('codex_inspection.action_disable', { defaultValue: 'Disable' });
+      return t('codex_inspection.action_disable', { defaultValue: 'Suggest disable' });
     case 'enable':
-      return t('codex_inspection.action_enable', { defaultValue: 'Enable' });
+      return t('codex_inspection.action_enable', { defaultValue: 'Suggest enable' });
     case 'delete':
-      return t('codex_inspection.action_delete', { defaultValue: 'Delete' });
     case 'reauth':
-      return t('codex_inspection.action_delete', { defaultValue: 'Delete' });
+      return t('codex_inspection.action_delete', { defaultValue: 'Suggest delete' });
+    case 'keep':
     default:
-      return action;
+      // Already-disabled accounts with no further suggestion should not look "Normal".
+      if (item.disabled) {
+        return t('codex_inspection.status_disabled', { defaultValue: 'Disabled' });
+      }
+      return t('codex_inspection.action_keep', { defaultValue: 'Normal' });
   }
 }
 
@@ -229,15 +229,15 @@ export function CodexInspectionResultsTable({
           </Button>
         ))}
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ width: '100%', overflowX: 'hidden' }}>
         <table style={tableStyle}>
           <colgroup>
-            <col style={{ width: 60 }} />
-            <col style={{ width: '34%' }} />
-            <col style={{ width: 170 }} />
-            <col style={{ width: 110 }} />
-            <col style={{ width: '24%' }} />
-            <col style={{ width: 220 }} />
+            <col style={{ width: 48 }} />
+            <col style={{ width: '28%' }} />
+            <col style={{ width: '16%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '18%' }} />
           </colgroup>
           <thead>
             <tr>
@@ -282,7 +282,7 @@ export function CodexInspectionResultsTable({
                   </td>
                   <td style={bodyCellStyle}>{item.displayName || item.accountId || item.fileName || '-'}</td>
                   <td style={errorCellStyle}>{renderQuota(item, t)}</td>
-                  <td style={compactCellStyle}>{renderInspectionStatus(item.action, t)}</td>
+                  <td style={compactCellStyle}>{renderInspectionStatus(item, t)}</td>
                   <td style={errorCellStyle} title={item.actionReason || undefined}>
                     {renderReason(item.actionReason, t)}
                   </td>

@@ -541,6 +541,10 @@
     "pagination_prev": "Previous",
     "pagination_next": "Next",
     "pagination_info": "Page {{current}} / {{total}} · {{count}} files",
+    "pagination_jump_label": "Go to",
+    "pagination_jump_unit": "",
+    "pagination_jump_go": "Go",
+    "pagination_jump_aria": "Jump to page",
     "search_label": "Search configs",
     "search_placeholder": "Filter by name, type, or provider. Use * as a wildcard",
     "problem_filter_label": "Problem Filter",
@@ -563,7 +567,8 @@
     "page_size_unit": "items",
     "view_mode_paged": "Paged",
     "view_mode_all": "Show all",
-    "too_many_files_warning": "Too many credentials. Showing all may cause performance issues, please use paged view.",
+    "too_many_files_title": "Show all quotas",
+    "too_many_files_warning": "There are currently {{count}} credentials (over {{threshold}}). Showing all may freeze the page — keep paged view and use \"Refresh current\" or \"Refresh all\" (batched).",
     "filter_all": "All",
     "filter_qwen": "Qwen",
     "filter_gemini": "Gemini",
@@ -655,7 +660,9 @@
     "prefix_proxy_invalid_json": "This auth file is not a JSON object, so fields cannot be edited.",
     "prefix_proxy_saved_success": "Updated auth file \"{{name}}\" successfully",
     "quota_refresh_success": "Quota refreshed for \"{{name}}\"",
-    "quota_refresh_failed": "Failed to refresh quota for \"{{name}}\": {{message}}"
+    "quota_refresh_failed": "Failed to refresh quota for \"{{name}}\": {{message}}",
+    "pagination_nav_aria": "Pagination",
+    "pagination_page_aria": "Page {{page}}"
   },
   "antigravity_quota": {
     "title": "Antigravity Quota",
@@ -1614,8 +1621,9 @@
     "description": "Monitor OAuth quota status for Antigravity, Codex, and Gemini CLI credentials.",
     "refresh_files": "Refresh auth files",
     "refresh_files_and_quota": "Refresh files & quota",
+    "refresh_page_credentials": "Refresh current",
     "refresh_all_credentials": "Refresh all credentials",
-    "card_idle_hint": "Use the top \"Refresh all credentials\" button to fetch the latest quota data."
+    "card_idle_hint": "Use \"Refresh current\" or \"Refresh all credentials\" at the top to fetch the latest quota data."
   },
   "codex_inspection": {
     "title": "Codex Inspection",
@@ -1664,6 +1672,7 @@
     "disable_row": "Disable",
     "delete_row": "Delete",
     "action_keep": "Normal",
+    "status_disabled": "Disabled",
     "action_disable": "Suggest disable",
     "action_enable": "Suggest enable",
     "action_delete": "Suggest delete",

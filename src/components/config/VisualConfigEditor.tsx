@@ -194,6 +194,31 @@ export function VisualConfigEditor({
   const mobileNavButtonRefs = useRef<Partial<Record<VisualSectionId, HTMLButtonElement | null>>>(
     {}
   );
+  const programmaticScrollUntilRef = useRef(0);
+
+  const getHeaderHeight = useCallback(() => {
+    const header = document.querySelector('.main-header') as HTMLElement | null;
+    if (header) return header.getBoundingClientRect().height;
+
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--header-height');
+    const value = Number.parseFloat(raw);
+    return Number.isFinite(value) ? value : 0;
+  }, []);
+
+  const getStickyNavOffset = useCallback(() => {
+    if (!isMobile) return 0;
+    const stickyNav = mobileNavScrollerRef.current?.parentElement;
+    if (!stickyNav) return 0;
+    return stickyNav.getBoundingClientRect().height;
+  }, [isMobile]);
+
+  const getDesktopScrollContainer = useCallback((): HTMLElement | null => {
+    const content = document.querySelector('.content') as HTMLElement | null;
+    if (content && content.scrollHeight > content.clientHeight + 1) {
+      return content;
+    }
+    return null;
+  }, []);
 
   const isKeepaliveDisabled =
     values.streaming.keepaliveSeconds === '' || values.streaming.keepaliveSeconds === '0';
@@ -338,6 +363,9 @@ export function VisualConfigEditor({
 
     const observer = new IntersectionObserver(
       (entries) => {
+        // Ignore observer churn while a quick-jump scroll is in progress.
+        if (Date.now() < programmaticScrollUntilRef.current) return;
+
         const visibleEntries = entries
           .filter((entry) => entry.isIntersecting)
           .sort((left, right) => right.intersectionRatio - left.intersectionRatio);
@@ -380,10 +408,42 @@ export function VisualConfigEditor({
     });
   }, [activeSectionId, isCurrentLayer, isMobile]);
 
-  const handleSectionJump = useCallback((sectionId: VisualSectionId) => {
-    setActiveSectionId(sectionId);
-    sectionRefs.current[sectionId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+  const handleSectionJump = useCallback(
+    (sectionId: VisualSectionId) => {
+      const element = sectionRefs.current[sectionId];
+      if (!element) return;
+
+      setActiveSectionId(sectionId);
+      // Keep the clicked status sticky while smooth scrolling settles.
+      programmaticScrollUntilRef.current = Date.now() + 900;
+
+      const headerHeight = getHeaderHeight();
+      const stickyNavOffset = getStickyNavOffset();
+      // page-transition layers use transform/overflow, so native scrollIntoView is unreliable.
+      // Mobile layout scrolls the document; desktop scrolls `.content` (same as ProviderNav).
+      if (isMobile) {
+        const offset = headerHeight + stickyNavOffset + 12;
+        const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        const elementTop = element.getBoundingClientRect().top + scrollY;
+        window.scrollTo({ top: Math.max(0, elementTop - offset), behavior: 'smooth' });
+        return;
+      }
+
+      const container = getDesktopScrollContainer();
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const nextTop = container.scrollTop + (elementRect.top - containerRect.top) - 24;
+        container.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+        return;
+      }
+
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const elementTop = element.getBoundingClientRect().top + scrollY;
+      window.scrollTo({ top: Math.max(0, elementTop - headerHeight - 12), behavior: 'smooth' });
+    },
+    [getDesktopScrollContainer, getHeaderHeight, getStickyNavOffset, isMobile]
+  );
 
   return (
     <div className={styles.visualEditor}>

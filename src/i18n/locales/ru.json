@@ -541,6 +541,10 @@
     "pagination_prev": "Предыдущая",
     "pagination_next": "Следующая",
     "pagination_info": "Страница {{current}} / {{total}} · {{count}} файлов",
+    "pagination_jump_label": "К стр.",
+    "pagination_jump_unit": "",
+    "pagination_jump_go": "Перейти",
+    "pagination_jump_aria": "Перейти к странице",
     "search_label": "Поиск конфигов",
     "search_placeholder": "Фильтр по имени, типу или провайдеру, поддерживается wildcard *",
     "problem_filter_label": "Фильтр проблем",
@@ -563,7 +567,8 @@
     "page_size_unit": "элементов",
     "view_mode_paged": "Постранично",
     "view_mode_all": "Показать все",
-    "too_many_files_warning": "Слишком много учётных данных. Полный список может повлиять на производительность, используйте постраничный режим.",
+    "too_many_files_title": "Показать все квоты",
+    "too_many_files_warning": "Сейчас {{count}} учётных данных (больше {{threshold}}). Показ всех может заморозить страницу — используйте постраничный режим и «Обновить текущие» / «Обновить все» (пакетно).",
     "filter_all": "Все",
     "filter_qwen": "Qwen",
     "filter_gemini": "Gemini",
@@ -652,7 +657,9 @@
     "quota_refresh_single": "Обновить квоту",
     "quota_refresh_hint": "Обновить квоту только для этих учётных данных",
     "quota_refresh_success": "Квота для \"{{name}}\" обновлена",
-    "quota_refresh_failed": "Не удалось обновить квоту для \"{{name}}\": {{message}}"
+    "quota_refresh_failed": "Не удалось обновить квоту для \"{{name}}\": {{message}}",
+    "pagination_nav_aria": "Навигация по страницам",
+    "pagination_page_aria": "Страница {{page}}"
   },
   "antigravity_quota": {
     "title": "Квота Antigravity",
@@ -1613,8 +1620,9 @@
     "description": "Следите за статусом квот OAuth для учётных данных Antigravity, Codex и Gemini CLI.",
     "refresh_files": "Обновить файлы авторизации",
     "refresh_files_and_quota": "Обновить файлы и квоты",
+    "refresh_page_credentials": "Обновить текущие",
     "refresh_all_credentials": "Обновить все учётные данные",
-    "card_idle_hint": "Используйте кнопку «Обновить все учётные данные» сверху, чтобы загрузить актуальные данные по квотам."
+    "card_idle_hint": "Используйте «Обновить текущие» или «Обновить все учётные данные» сверху, чтобы загрузить актуальные данные по квотам."
   },
   "codex_inspection": {
     "title": "Проверка Codex",
@@ -1663,6 +1671,7 @@
     "disable_row": "Отключить",
     "delete_row": "Удалить",
     "action_keep": "Нормально",
+    "status_disabled": "Отключён",
     "action_disable": "Рекомендуется отключить",
     "action_enable": "Рекомендуется включить",
     "action_delete": "Рекомендуется удалить",

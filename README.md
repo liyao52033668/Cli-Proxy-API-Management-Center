@@ -25,14 +25,35 @@
 
 页面会根据当前地址自动推断 API 地址，也支持手动修改。
 
-### 方式 B：开发调试
+### 方式 B：开发调试（推荐本地改 UI 时用）
 
 ```bash
 npm install
+# 先启动本地 CLI Proxy API（默认 http://127.0.0.1:8317）
 npm run dev
 ```
 
-打开 `http://localhost:5173`，然后连接到你的 CLI Proxy API 后端实例。
+打开 `http://localhost:5173`：
+
+1. **不要勾选「自定义连接地址」**，让页面使用当前访问地址（`http://localhost:5173`）。
+2. 只填管理密钥并登录。
+3. Vite 会把 `/v0`、`/api`、`/v1` **同源代理**到本地后端，避免 Management API 的跨域限制。
+
+后端不在默认端口时：
+
+```bash
+# Windows PowerShell
+$env:VITE_API_PROXY_TARGET="http://127.0.0.1:9000"; npm run dev
+
+# bash
+VITE_API_PROXY_TARGET=http://127.0.0.1:9000 npm run dev
+```
+
+说明：
+
+- 代理只在 `npm run dev` / `npm run preview` 生效，**不会**打进线上 `management.html`。
+- 若后端已配置 `remote-management.cors-allowed-origins`（含 `http://localhost:5173` 或你的私有域名），也可勾选「自定义连接地址」直接填后端地址，无需代理。
+- 未在白名单内的跨源访问仍会被 Management API 拒绝 CORS，这是预期行为。
 
 ### 方式 C：构建单文件 HTML
 
@@ -129,6 +150,7 @@ npm run build
 ## 常见问题
 
 - **无法连接 / 401**：确认 API 地址与管理密钥；远程访问可能需要服务端开启远程管理。
+- **本地 `npm run dev` 报跨域（CORS）**：两种做法任选其一。① 不勾选「自定义连接地址」，用当前页 origin，由 Vite 代理转发。② 在后端 `config.yaml` 的 `remote-management.cors-allowed-origins` 加入 `http://localhost:5173`（及你的私有管理域名），然后可勾选自定义连接地址直连后端。
 - **反复输错密钥**：服务端可能对远程 IP 进行临时封禁。
 - **日志页面不显示**：需要在“基础设置”里开启“写入日志文件”，导航项才会出现。
 - **功能提示不支持**：多为后端版本较旧或接口未启用/不存在（如：认证文件模型列表、排除模型、日志相关接口）。

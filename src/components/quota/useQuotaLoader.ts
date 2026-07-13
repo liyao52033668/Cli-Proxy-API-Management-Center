@@ -6,6 +6,7 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AuthFileItem } from '@/types';
 import { useQuotaStore } from '@/stores';
+import { QUOTA_REFRESH_BATCH_SIZE } from '@/utils/constants';
 import { getStatusFromError } from '@/utils/quota';
 import type { QuotaConfig } from './quotaConfigs';
 
@@ -47,43 +48,56 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
       try {
         if (targets.length === 0) return;
 
-        setQuota((prev) => {
-          const nextState = { ...prev };
-          targets.forEach((file) => {
-            nextState[file.name] = config.buildLoadingState();
+        // Mark only the first batch as loading immediately; later batches
+        // flip to loading right before they start, so the UI stays responsive.
+        const markLoading = (files: AuthFileItem[]) => {
+          setQuota((prev) => {
+            const nextState = { ...prev };
+            files.forEach((file) => {
+              nextState[file.name] = config.buildLoadingState();
+            });
+            return nextState;
           });
-          return nextState;
-        });
+        };
 
-        const results = await Promise.all(
-          targets.map(async (file): Promise<LoadQuotaResult<TData>> => {
-            try {
-              const data = await config.fetchQuota(file, t);
-              return { name: file.name, status: 'success', data };
-            } catch (err: unknown) {
-              const message = err instanceof Error ? err.message : t('common.unknown_error');
-              const errorStatus = getStatusFromError(err);
-              return { name: file.name, status: 'error', error: message, errorStatus };
-            }
-          })
-        );
-
-        if (requestId !== requestIdRef.current) return;
-
-        setQuota((prev) => {
-          const nextState = { ...prev };
-          results.forEach((result) => {
-            if (result.status === 'success') {
-              nextState[result.name] = config.buildSuccessState(result.data as TData);
-            } else {
-              nextState[result.name] = config.buildErrorState(
-                result.error || t('common.unknown_error'),
-                result.errorStatus
-              );
-            }
+        const applyResults = (results: LoadQuotaResult<TData>[]) => {
+          setQuota((prev) => {
+            const nextState = { ...prev };
+            results.forEach((result) => {
+              if (result.status === 'success') {
+                nextState[result.name] = config.buildSuccessState(result.data as TData);
+              } else {
+                nextState[result.name] = config.buildErrorState(
+                  result.error || t('common.unknown_error'),
+                  result.errorStatus
+                );
+              }
+            });
+            return nextState;
           });
-          return nextState;
-        });
+        };
+
+        const fetchOne = async (file: AuthFileItem): Promise<LoadQuotaResult<TData>> => {
+          try {
+            const data = await config.fetchQuota(file, t);
+            return { name: file.name, status: 'success', data };
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : t('common.unknown_error');
+            const errorStatus = getStatusFromError(err);
+            return { name: file.name, status: 'error', error: message, errorStatus };
+          }
+        };
+
+        for (let index = 0; index < targets.length; index += QUOTA_REFRESH_BATCH_SIZE) {
+          if (requestId !== requestIdRef.current) return;
+
+          const batch = targets.slice(index, index + QUOTA_REFRESH_BATCH_SIZE);
+          markLoading(batch);
+
+          const results = await Promise.all(batch.map((file) => fetchOne(file)));
+          if (requestId !== requestIdRef.current) return;
+          applyResults(results);
+        }
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);

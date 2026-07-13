@@ -15,6 +15,7 @@ import { animate } from 'motion/mini';
 import type { AnimationPlaybackControlsWithThen } from 'motion-dom';
 import { useInterval } from '@/hooks/useInterval';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
+import { ListPagination } from '@/components/common/ListPagination';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -949,32 +950,14 @@ export function AuthFilesPage() {
               </div>
             )}
 
-            {!loading && sorted.length > pageSize && (
-              <div className={styles.pagination}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1}
-                >
-                  {t('auth_files.pagination_prev')}
-                </Button>
-                <div className={styles.pageInfo}>
-                  {t('auth_files.pagination_info', {
-                    current: currentPage,
-                    total: totalPages,
-                    count: sorted.length,
-                  })}
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage >= totalPages}
-                >
-                  {t('auth_files.pagination_next')}
-                </Button>
-              </div>
+            {!loading && (
+              <ListPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalCount={sorted.length}
+                disabled={loading}
+                onPageChange={setPage}
+              />
             )}
           </div>
         </div>

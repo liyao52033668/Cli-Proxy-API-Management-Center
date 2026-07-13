@@ -541,6 +541,10 @@
     "pagination_prev": "上一頁",
     "pagination_next": "下一頁",
     "pagination_info": "第 {{current}} / {{total}} 頁 · 共 {{count}} 個檔案",
+    "pagination_jump_label": "跳至",
+    "pagination_jump_unit": "頁",
+    "pagination_jump_go": "跳轉",
+    "pagination_jump_aria": "跳轉到指定頁碼",
     "search_label": "搜尋設定檔",
     "search_placeholder": "輸入名稱、類型或供應方關鍵字，支援 * 萬用字元",
     "problem_filter_label": "問題篩選",
@@ -563,7 +567,8 @@
     "page_size_unit": "個/頁",
     "view_mode_paged": "分頁顯示",
     "view_mode_all": "顯示全部",
-    "too_many_files_warning": "您的憑證總數過多，全部載入會導致頁面卡頓，請保持分頁瀏覽。",
+    "too_many_files_title": "顯示全部額度",
+    "too_many_files_warning": "目前共有 {{count}} 個憑證（超過 {{threshold}} 個）。全部載入會導致頁面卡頓，請保持分頁顯示，可使用「重新整理目前憑證」或「重新整理全部憑證」（分批載入）。",
     "filter_all": "全部",
     "filter_qwen": "Qwen",
     "filter_gemini": "Gemini",
@@ -655,7 +660,9 @@
     "prefix_proxy_invalid_json": "該驗證檔案不是 JSON 物件，無法編輯欄位。",
     "prefix_proxy_saved_success": "已更新驗證檔案「{{name}}」",
     "quota_refresh_success": "已重新整理「{{name}}」的配額",
-    "quota_refresh_failed": "重新整理「{{name}}」的配額失敗：{{message}}"
+    "quota_refresh_failed": "重新整理「{{name}}」的配額失敗：{{message}}",
+    "pagination_nav_aria": "分頁導覽",
+    "pagination_page_aria": "第 {{page}} 頁"
   },
   "antigravity_quota": {
     "title": "Antigravity 配額",
@@ -1640,8 +1647,9 @@
     "description": "集中查看 OAuth 配額與剩餘情況",
     "refresh_files": "重新整理驗證檔案",
     "refresh_files_and_quota": "重新整理驗證檔案&配額",
+    "refresh_page_credentials": "重新整理目前憑證",
     "refresh_all_credentials": "重新整理全部憑證",
-    "card_idle_hint": "請使用頂部「重新整理全部憑證」按鈕取得最新配額。"
+    "card_idle_hint": "請使用頂部「重新整理目前憑證」或「重新整理全部憑證」按鈕取得最新配額。"
   },
   "codex_inspection": {
     "title": "Codex 巡檢",
@@ -1690,6 +1698,7 @@
     "disable_row": "停用",
     "delete_row": "刪除",
     "action_keep": "正常",
+    "status_disabled": "已停用",
     "action_disable": "建議停用",
     "action_enable": "建議啟用",
     "action_delete": "建議刪除",
