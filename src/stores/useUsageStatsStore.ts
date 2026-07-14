@@ -1,9 +1,17 @@
 import i18n from '@/i18n';
 import { usageApi, type UsageOverviewResponse } from '@/services/api/usage';
-import { collectUsageDetails, computeKeyStatsFromDetails, type KeyStats, type UsageDetail } from '@/utils/usage';
+import {
+  collectUsageDetails,
+  collectUsageDetailsFromEvents,
+  computeKeyStatsFromDetails,
+  parseKeyStatsFromOverview,
+  type KeyStats,
+  type UsageDetail,
+} from '@/utils/usage';
 import { create } from 'zustand';
 
 export const USAGE_STATS_STALE_TIME_MS = 60_000;
+const USAGE_EVENTS_PAGE_SIZE = 500;
 
 export type UsageTimeRange = 'all' | '4h' | '8h' | '12h' | '24h' | 'today' | '7d' | '30d' | 'custom';
 
@@ -90,12 +98,36 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
           return;
         }
 
-        const rawUsage = response?.usage ?? ((response as unknown as Record<string, unknown>)['Usage']) ?? response;
-        const usageDetails = collectUsageDetails(rawUsage);
+        // Prefer paginated events for request/credential detail UIs. Overview no
+        // longer ships per-request details to keep egress bounded.
+        let usageDetails: UsageDetail[] = [];
+        try {
+          const eventsResponse = await usageApi.getUsageEvents(range, start, end, {
+            page: 1,
+            pageSize: USAGE_EVENTS_PAGE_SIZE,
+          });
+          if (activeRequestController !== controller) {
+            return;
+          }
+          usageDetails = collectUsageDetailsFromEvents(eventsResponse);
+        } catch {
+          // Events are best-effort; fall back to overview details below.
+        }
+
+        if (!usageDetails.length) {
+          const rawUsage =
+            response?.usage ??
+            ((response as unknown as Record<string, unknown>)['Usage']) ??
+            response;
+          usageDetails = collectUsageDetails(rawUsage);
+        }
+
+        const keyStats =
+          parseKeyStatsFromOverview(response) ?? computeKeyStatsFromDetails(usageDetails);
 
         set({
           usage: response,
-          keyStats: computeKeyStatsFromDetails(usageDetails),
+          keyStats,
           usageDetails,
           loading: false,
           error: null,

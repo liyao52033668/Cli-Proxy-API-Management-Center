@@ -10,6 +10,7 @@ import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
+import { useUsageStatsStore } from '@/stores/useUsageStatsStore';
 import {
   collectUsageDetails,
   extractLatencyMs,
@@ -77,6 +78,7 @@ export function RequestEventsDetailsCard({
   openaiProviders,
 }: RequestEventsDetailsCardProps) {
   const { t, i18n } = useTranslation();
+  const storedUsageDetails = useUsageStatsStore((state) => state.usageDetails);
   const latencyHint = t('usage_stats.latency_unit_hint', {
     field: LATENCY_SOURCE_FIELD,
     unit: t('usage_stats.duration_unit_ms'),
@@ -125,7 +127,10 @@ export function RequestEventsDetailsCard({
   );
 
   const rows = useMemo<RequestEventRow[]>(() => {
-    const details = collectUsageDetails(usage);
+    const details =
+      Array.isArray(storedUsageDetails) && storedUsageDetails.length > 0
+        ? storedUsageDetails
+        : collectUsageDetails(usage);
 
     const baseRows = details
       .map((detail, index) => {
@@ -219,7 +224,7 @@ export function RequestEventsDetailsCard({
         source: buildDisambiguatedSourceLabel(row),
       }))
       .sort((a, b) => b.timestampMs - a.timestampMs);
-  }, [authFileMap, i18n.language, sourceInfoMap, usage]);
+  }, [authFileMap, i18n.language, sourceInfoMap, storedUsageDetails, usage]);
 
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
 

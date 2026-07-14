@@ -6,6 +6,7 @@ import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
+import { useUsageStatsStore } from '@/stores/useUsageStatsStore';
 import {
   calculateCost,
   collectUsageDetails,
@@ -13,6 +14,7 @@ import {
   formatCompactNumber,
   formatUsd,
   normalizeAuthIndex,
+  type KeyStats,
   type ModelPrice,
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
@@ -55,6 +57,7 @@ export function CredentialStatsCard({
   modelPrices,
 }: CredentialStatsCardProps) {
   const { t } = useTranslation();
+  const keyStats = useUsageStatsStore((state) => state.keyStats);
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [sortKey, setSortKey] = useState<SortKey>('requests');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -103,17 +106,17 @@ export function CredentialStatsCard({
   );
 
   const rows = useMemo((): CredentialRow[] => {
-    if (!usage) return [];
-
     const rowMap = new Map<string, CredentialRow>();
 
-    collectUsageDetails(usage).forEach((detail) => {
-      const sourceInfo = resolveSourceDisplay(
-        detail.source ?? '',
-        detail.auth_index,
-        sourceInfoMap,
-        authFileMap
-      );
+    const upsert = (
+      source: string,
+      authIndex: string | number | null | undefined,
+      success: number,
+      failure: number,
+      tokens: number,
+      cost: number
+    ) => {
+      const sourceInfo = resolveSourceDisplay(source, authIndex, sourceInfoMap, authFileMap);
       const key = sourceInfo.identityKey ?? sourceInfo.displayName;
       const row =
         rowMap.get(key) ??
@@ -129,21 +132,63 @@ export function CredentialStatsCard({
           cost: 0,
         } satisfies CredentialRow);
 
-      if (detail.failed === true) {
-        row.failure += 1;
-      } else {
-        row.success += 1;
-      }
-
+      row.success += success;
+      row.failure += failure;
       row.total = row.success + row.failure;
       row.successRate = row.total > 0 ? (row.success / row.total) * 100 : 100;
-      row.tokens += extractTotalTokens(detail);
-      row.cost += calculateCost(detail, modelPrices);
+      row.tokens += tokens;
+      row.cost += cost;
       rowMap.set(key, row);
+    };
+
+    const hasServerKeyStats = (stats: KeyStats): boolean =>
+      Object.keys(stats.byAuthIndex).length > 0 || Object.keys(stats.bySource).length > 0;
+
+    if (hasServerKeyStats(keyStats)) {
+      // Prefer auth_index aggregates when present; source-only is fallback when
+      // auth indices were never recorded for the selected window.
+      const authEntries = Object.entries(keyStats.byAuthIndex);
+      if (authEntries.length > 0) {
+        authEntries.forEach(([authIndex, bucket]) => {
+          upsert(
+            '',
+            authIndex,
+            Number(bucket.success) || 0,
+            Number(bucket.failure) || 0,
+            Number(bucket.tokens) || 0,
+            Number(bucket.cost) || 0
+          );
+        });
+      } else {
+        Object.entries(keyStats.bySource).forEach(([source, bucket]) => {
+          upsert(
+            source,
+            null,
+            Number(bucket.success) || 0,
+            Number(bucket.failure) || 0,
+            Number(bucket.tokens) || 0,
+            Number(bucket.cost) || 0
+          );
+        });
+      }
+      return Array.from(rowMap.values());
+    }
+
+    if (!usage) return [];
+
+    collectUsageDetails(usage).forEach((detail) => {
+      upsert(
+        detail.source ?? '',
+        detail.auth_index,
+        detail.failed === true ? 0 : 1,
+        detail.failed === true ? 1 : 0,
+        extractTotalTokens(detail),
+        calculateCost(detail, modelPrices)
+      );
     });
 
     return Array.from(rowMap.values());
-  }, [authFileMap, modelPrices, sourceInfoMap, usage]);
+  }, [authFileMap, keyStats, modelPrices, sourceInfoMap, usage]);
 
   const effectiveSortKey: SortKey = hasPrices || sortKey !== 'cost' ? sortKey : 'requests';
   const effectiveSortDir: SortDir = hasPrices || sortKey !== 'cost' ? sortDir : 'desc';

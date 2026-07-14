@@ -116,6 +116,23 @@ export interface UsageOverviewServiceHealth {
   block_details: UsageOverviewServiceHealthBlock[];
 }
 
+export interface UsageKeyCount {
+  success: number;
+  failure: number;
+  tokens?: number;
+  cost?: number;
+}
+
+export interface UsageKeyStats {
+  by_source?: Record<string, UsageKeyCount>;
+  by_auth_index?: Record<string, UsageKeyCount>;
+  // Compatibility with Go encoding/json field names when tags are absent.
+  bySource?: Record<string, UsageKeyCount>;
+  byAuthIndex?: Record<string, UsageKeyCount>;
+  BySource?: Record<string, UsageKeyCount>;
+  ByAuthIndex?: Record<string, UsageKeyCount>;
+}
+
 export interface UsageOverviewResponse {
   usage: UsageSnapshot;
   summary?: UsageOverviewSummary;
@@ -123,6 +140,9 @@ export interface UsageOverviewResponse {
   hourly_series?: UsageOverviewSeries;
   daily_series?: UsageOverviewSeries;
   service_health?: UsageOverviewServiceHealth;
+  key_stats?: UsageKeyStats;
+  // Compatibility with Go encoding/json field names when tags are absent.
+  KeyStats?: UsageKeyStats;
   timezone?: string;
   range_start?: string;
   range_end?: string;

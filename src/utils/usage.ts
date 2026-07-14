@@ -26,6 +26,8 @@ export type { DurationFormatOptions, LatencyStats } from './usage/latency';
 export interface KeyStatBucket {
   success: number;
   failure: number;
+  tokens?: number;
+  cost?: number;
 }
 
 export interface KeyStats {
@@ -1897,6 +1899,121 @@ export function computeKeyStatsFromDetails(usageDetails: UsageDetail[]): KeyStat
   });
 
   return { bySource, byAuthIndex };
+}
+
+const toFiniteNumber = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeKeyCountMap = (value: unknown): Record<string, KeyStatBucket> => {
+  if (!isRecord(value)) return {};
+  const result: Record<string, KeyStatBucket> = {};
+  Object.entries(value).forEach(([key, raw]) => {
+    if (!key) return;
+    const record = isRecord(raw) ? raw : {};
+    result[key] = {
+      success: toFiniteNumber(record.success ?? record.Success),
+      failure: toFiniteNumber(record.failure ?? record.Failure),
+      tokens: toFiniteNumber(record.tokens ?? record.Tokens),
+      cost: toFiniteNumber(record.cost ?? record.Cost),
+    };
+  });
+  return result;
+};
+
+/**
+ * Prefer server-side key_stats from overview. Falls back to null when absent.
+ */
+export function parseKeyStatsFromOverview(usageData: unknown): KeyStats | null {
+  if (!isRecord(usageData)) return null;
+  const raw =
+    usageData.key_stats ??
+    usageData.KeyStats ??
+    usageData.keyStats ??
+    null;
+  if (!isRecord(raw)) return null;
+
+  const bySource = normalizeKeyCountMap(
+    raw.by_source ?? raw.bySource ?? raw.BySource
+  );
+  const byAuthIndex = normalizeKeyCountMap(
+    raw.by_auth_index ?? raw.byAuthIndex ?? raw.ByAuthIndex
+  );
+  if (Object.keys(bySource).length === 0 && Object.keys(byAuthIndex).length === 0) {
+    return null;
+  }
+  return { bySource, byAuthIndex };
+}
+
+/**
+ * Convert paginated usage events into the UsageDetail shape used by the UI.
+ */
+export function collectUsageDetailsFromEvents(eventsData: unknown): UsageDetail[] {
+  const root = isRecord(eventsData) ? eventsData : null;
+  const eventsRaw = root?.events ?? root?.Events;
+  if (!Array.isArray(eventsRaw) || eventsRaw.length === 0) return [];
+
+  const details: UsageDetail[] = [];
+  eventsRaw.forEach((eventRaw) => {
+    if (!isRecord(eventRaw)) return;
+    const timestampRaw = eventRaw.timestamp ?? eventRaw.Timestamp ?? '';
+    const timestamp =
+      typeof timestampRaw === 'string'
+        ? timestampRaw
+        : timestampRaw instanceof Date
+          ? timestampRaw.toISOString()
+          : String(timestampRaw ?? '');
+    if (!timestamp) return;
+
+    const tokensRaw = isRecord(eventRaw.tokens)
+      ? eventRaw.tokens
+      : isRecord(eventRaw.Tokens)
+        ? eventRaw.Tokens
+        : {
+            input_tokens: eventRaw.input_tokens ?? eventRaw.InputTokens ?? 0,
+            output_tokens: eventRaw.output_tokens ?? eventRaw.OutputTokens ?? 0,
+            reasoning_tokens:
+              eventRaw.reasoning_tokens ?? eventRaw.ReasoningTokens ?? 0,
+            cached_tokens: eventRaw.cached_tokens ?? eventRaw.CachedTokens ?? 0,
+            total_tokens: eventRaw.total_tokens ?? eventRaw.TotalTokens ?? 0,
+          };
+
+    const sourceRaw = eventRaw.source ?? eventRaw.Source ?? '';
+    const source =
+      typeof sourceRaw === 'string'
+        ? sourceRaw
+        : sourceRaw == null
+          ? ''
+          : String(sourceRaw);
+    const authIndex =
+      (eventRaw.auth_index ??
+        eventRaw.authIndex ??
+        eventRaw.AuthIndex ??
+        null) as UsageDetail['auth_index'];
+    const failed = eventRaw.failed === true || eventRaw.Failed === true;
+    const latencyMs =
+      eventRaw.latency_ms ?? eventRaw.latencyMs ?? eventRaw.LatencyMS;
+    const modelRaw = eventRaw.model ?? eventRaw.Model ?? '';
+    const modelName =
+      typeof modelRaw === 'string' ? modelRaw : String(modelRaw ?? '');
+    const timestampMs = parseTimestampMs(timestamp);
+
+    const detail: UsageDetail = {
+      timestamp,
+      source: normalizeUsageSourceId(source),
+      auth_index: authIndex,
+      tokens: tokensRaw as UsageDetail['tokens'],
+      failed,
+      __modelName: modelName,
+      __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
+    };
+    if (!(latencyMs == null || latencyMs === '')) {
+      detail.latency_ms = toFiniteNumber(latencyMs);
+    }
+    details.push(detail);
+  });
+  return details;
 }
 
 export type TokenCategory = 'input' | 'output' | 'cached' | 'reasoning';
