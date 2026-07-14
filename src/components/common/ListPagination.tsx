@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useId, useMemo, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import styles from './ListPagination.module.scss';
@@ -10,6 +10,7 @@ interface ListPaginationProps {
   disabled?: boolean;
   onPageChange: (page: number) => void;
   className?: string;
+  pageInfo?: ReactNode;
 }
 
 /** Build page items with ellipsis for large ranges, e.g. 1 … 4 5 6 … 20 */
@@ -44,15 +45,12 @@ export function ListPagination({
   totalCount,
   disabled = false,
   onPageChange,
-  className = ''
+  className = '',
+  pageInfo,
 }: ListPaginationProps) {
   const { t } = useTranslation();
   const jumpInputId = useId();
-  const [draftPage, setDraftPage] = useState(String(currentPage));
-
-  useEffect(() => {
-    setDraftPage(String(currentPage));
-  }, [currentPage]);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
 
   const pageItems = useMemo(
     () => buildPageItems(currentPage, totalPages),
@@ -66,13 +64,14 @@ export function ListPagination({
   const clampPage = (page: number) => Math.max(1, Math.min(totalPages, page));
 
   const commitJump = () => {
-    const parsed = Number.parseInt(draftPage, 10);
+    const input = jumpInputRef.current;
+    const parsed = Number.parseInt(input?.value ?? '', 10);
     if (!Number.isFinite(parsed)) {
-      setDraftPage(String(currentPage));
+      if (input) input.value = String(currentPage);
       return;
     }
     const nextPage = clampPage(parsed);
-    setDraftPage(String(nextPage));
+    if (input) input.value = String(nextPage);
     if (nextPage !== currentPage) {
       onPageChange(nextPage);
     }
@@ -142,11 +141,12 @@ export function ListPagination({
 
       <div className={styles.metaRow}>
         <div className={styles.pageInfo}>
-          {t('auth_files.pagination_info', {
-            current: currentPage,
-            total: totalPages,
-            count: totalCount
-          })}
+          {pageInfo ??
+            t('auth_files.pagination_info', {
+              current: currentPage,
+              total: totalPages,
+              count: totalCount,
+            })}
         </div>
 
         <form className={styles.pageJump} onSubmit={handleSubmit}>
@@ -154,15 +154,16 @@ export function ListPagination({
             {t('auth_files.pagination_jump_label')}
           </label>
           <input
+            key={currentPage}
+            ref={jumpInputRef}
             id={jumpInputId}
             className={styles.pageJumpInput}
             type="number"
             min={1}
             max={totalPages}
             inputMode="numeric"
-            value={draftPage}
+            defaultValue={currentPage}
             disabled={disabled}
-            onChange={(event) => setDraftPage(event.target.value)}
             onBlur={() => {
               if (!disabled) commitJump();
             }}

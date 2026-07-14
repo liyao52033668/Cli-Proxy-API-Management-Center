@@ -13,7 +13,16 @@ import { create } from 'zustand';
 export const USAGE_STATS_STALE_TIME_MS = 60_000;
 const USAGE_EVENTS_PAGE_SIZE = 500;
 
-export type UsageTimeRange = 'all' | '4h' | '8h' | '12h' | '24h' | 'today' | '7d' | '30d' | 'custom';
+export type UsageTimeRange =
+  | 'all'
+  | '4h'
+  | '8h'
+  | '12h'
+  | '24h'
+  | 'today'
+  | '7d'
+  | '30d'
+  | 'custom';
 
 export interface LoadUsageStatsOptions {
   force?: boolean;
@@ -21,6 +30,7 @@ export interface LoadUsageStatsOptions {
   range?: UsageTimeRange;
   start?: string;
   end?: string;
+  includeDetails?: boolean;
 }
 
 interface UsageStatsState {
@@ -42,8 +52,12 @@ let activeRequest: Promise<void> | null = null;
 let activeRequestKey: string | null = null;
 let activeRequestController: AbortController | null = null;
 
-const buildQueryKey = (range: UsageTimeRange, start?: string, end?: string): string =>
-  `${range}:${start ?? ''}:${end ?? ''}`;
+const buildQueryKey = (
+  range: UsageTimeRange,
+  start?: string,
+  end?: string,
+  includeDetails = true
+): string => `${range}:${start ?? ''}:${end ?? ''}:${includeDetails ? 'details' : 'overview'}`;
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error
@@ -69,13 +83,20 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
       range = 'all',
       start,
       end,
+      includeDetails = true,
     } = options;
 
     const { lastRefreshedAt, loading, usage, lastQueryKey } = get();
     const now = Date.now();
-    const queryKey = buildQueryKey(range, start, end);
+    const queryKey = buildQueryKey(range, start, end, includeDetails);
 
-    if (!force && usage && lastRefreshedAt && lastQueryKey === queryKey && now - lastRefreshedAt < staleTimeMs) {
+    if (
+      !force &&
+      usage &&
+      lastRefreshedAt &&
+      lastQueryKey === queryKey &&
+      now - lastRefreshedAt < staleTimeMs
+    ) {
       return;
     }
 
@@ -98,28 +119,23 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
           return;
         }
 
-        // Prefer paginated events for request/credential detail UIs. Overview no
-        // longer ships per-request details to keep egress bounded.
-        let usageDetails: UsageDetail[] = [];
-        try {
-          const eventsResponse = await usageApi.getUsageEvents(range, start, end, {
-            page: 1,
-            pageSize: USAGE_EVENTS_PAGE_SIZE,
-          });
-          if (activeRequestController !== controller) {
-            return;
-          }
-          usageDetails = collectUsageDetailsFromEvents(eventsResponse);
-        } catch {
-          // Events are best-effort; fall back to overview details below.
-        }
+        const rawUsage =
+          response?.usage ?? (response as unknown as Record<string, unknown>)['Usage'] ?? response;
+        let usageDetails: UsageDetail[] = collectUsageDetails(rawUsage);
 
-        if (!usageDetails.length) {
-          const rawUsage =
-            response?.usage ??
-            ((response as unknown as Record<string, unknown>)['Usage']) ??
-            response;
-          usageDetails = collectUsageDetails(rawUsage);
+        if (includeDetails) {
+          try {
+            const eventsResponse = await usageApi.getUsageEvents(range, start, end, {
+              page: 1,
+              pageSize: USAGE_EVENTS_PAGE_SIZE,
+            });
+            if (activeRequestController !== controller) {
+              return;
+            }
+            usageDetails = collectUsageDetailsFromEvents(eventsResponse);
+          } catch {
+            // Keep overview details when the optional event request fails.
+          }
         }
 
         const keyStats =
@@ -145,7 +161,9 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
             error: message,
           });
         }
-        throw new Error(message);
+        const nextError = new Error(message);
+        (nextError as Error & { cause: unknown }).cause = error;
+        throw nextError;
       } finally {
         if (activeRequestController === controller) {
           activeRequest = null;

@@ -931,6 +931,10 @@
   border-radius: $radius-md;
 }
 
+.usagePagination {
+  margin-top: $spacing-sm;
+}
+
 .requestEventsTimestamp {
   white-space: nowrap;
   min-width: 160px;

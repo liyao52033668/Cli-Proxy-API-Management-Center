@@ -123,14 +123,21 @@ export interface UsageKeyCount {
   cost?: number;
 }
 
+export interface UsageCredentialCount extends UsageKeyCount {
+  source: string;
+  auth_index: string;
+}
+
 export interface UsageKeyStats {
   by_source?: Record<string, UsageKeyCount>;
   by_auth_index?: Record<string, UsageKeyCount>;
+  credentials?: UsageCredentialCount[];
   // Compatibility with Go encoding/json field names when tags are absent.
   bySource?: Record<string, UsageKeyCount>;
   byAuthIndex?: Record<string, UsageKeyCount>;
   BySource?: Record<string, UsageKeyCount>;
   ByAuthIndex?: Record<string, UsageKeyCount>;
+  Credentials?: UsageCredentialCount[];
 }
 
 export interface UsageOverviewResponse {
@@ -167,7 +174,12 @@ export interface UsageEvent {
   isDelete?: boolean;
   failed: boolean;
   latency_ms: number;
-  tokens: UsageEventTokens;
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_tokens?: number;
+  total_tokens?: number;
+  tokens?: UsageEventTokens;
 }
 
 export interface UsageSourceFilterOption {
@@ -369,13 +381,23 @@ export interface AuthSessionResponse {
   authenticated: boolean;
 }
 
-export type UsageTimeRange = 'all' | '4h' | '8h' | '12h' | '24h' | 'today' | '7d' | '30d' | 'custom';
+export type UsageTimeRange =
+  | 'all'
+  | '4h'
+  | '8h'
+  | '12h'
+  | '24h'
+  | 'today'
+  | '7d'
+  | '30d'
+  | 'custom';
 
 export interface FetchUsageEventsOptions {
   page?: number;
   pageSize?: number;
   model?: string;
   source?: string;
+  authIndex?: string;
   result?: string;
 }
 
@@ -394,7 +416,14 @@ export const usageApi = {
   /**
    * 导出数据库驱动的使用统计快照
    */
-  exportUsage: () => apiClient.get<UsageExportPayload>('/usage/export', { timeout: USAGE_TIMEOUT_MS }),
+  exportUsage: (range: UsageTimeRange, start?: string, end?: string) => {
+    const params = new URLSearchParams({ range });
+    if (start) params.set('start_time', start);
+    if (end) params.set('end_time', end);
+    return apiClient.get<UsageExportPayload>(`/usage/export?${params.toString()}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
+  },
 
   /**
    * 导入数据库驱动的使用统计快照
@@ -411,10 +440,9 @@ export const usageApi = {
     if (start) params.set('start_time', start);
     if (end) params.set('end_time', end);
     const query = params.toString();
-    return apiClient.get<UsageOverviewResponse>(
-      `/usage/db/overview${query ? `?${query}` : ''}`,
-      { timeout: USAGE_TIMEOUT_MS }
-    );
+    return apiClient.get<UsageOverviewResponse>(`/usage/db/overview${query ? `?${query}` : ''}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
   },
 
   /**
@@ -426,39 +454,49 @@ export const usageApi = {
     if (start) params.set('start_time', start);
     if (end) params.set('end_time', end);
     const query = params.toString();
-    return apiClient.get<UsageAnalysisResponse>(
-      `/usage/db/analysis${query ? `?${query}` : ''}`,
-      { timeout: USAGE_TIMEOUT_MS }
-    );
+    return apiClient.get<UsageAnalysisResponse>(`/usage/db/analysis${query ? `?${query}` : ''}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
   },
 
   /**
    * 获取使用事件列表（keeper API）
    */
-  getUsageEvents: (range: UsageTimeRange, start?: string, end?: string, options?: FetchUsageEventsOptions) => {
+  getUsageEvents: (
+    range: UsageTimeRange,
+    start?: string,
+    end?: string,
+    options?: FetchUsageEventsOptions
+  ) => {
     const params = new URLSearchParams();
     params.set('range', range);
     if (start) params.set('start_time', start);
     if (end) params.set('end_time', end);
     if (options?.page && options.page > 0) params.set('page', String(Math.floor(options.page)));
-    if (options?.pageSize && options.pageSize > 0) params.set('page_size', String(Math.floor(options.pageSize)));
+    if (options?.pageSize && options.pageSize > 0)
+      params.set('page_size', String(Math.floor(options.pageSize)));
     if (options?.model?.trim()) params.set('model', options.model.trim());
     if (options?.source?.trim()) params.set('source', options.source.trim());
+    if (options?.authIndex?.trim()) params.set('auth_index', options.authIndex.trim());
     if (options?.result?.trim()) params.set('result', options.result.trim());
     const query = params.toString();
-    return apiClient.get<UsageEventsResponse>(
-      `/usage/db/events${query ? `?${query}` : ''}`,
-      { timeout: USAGE_TIMEOUT_MS }
-    );
+    return apiClient.get<UsageEventsResponse>(`/usage/db/events${query ? `?${query}` : ''}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
   },
 
   /**
    * 获取模型过滤选项（keeper API）
    */
-  getUsageEventModelFilters: () =>
-    apiClient.get<UsageEventModelFilterOptionsResponse>('/usage/db/filter-options', {
-      timeout: USAGE_TIMEOUT_MS,
-    }),
+  getUsageEventModelFilters: (range: UsageTimeRange = 'all', start?: string, end?: string) => {
+    const params = new URLSearchParams({ range });
+    if (start) params.set('start_time', start);
+    if (end) params.set('end_time', end);
+    return apiClient.get<UsageEventModelFilterOptionsResponse>(
+      `/usage/db/filter-options?${params.toString()}`,
+      { timeout: USAGE_TIMEOUT_MS }
+    );
+  },
 
   /**
    * 获取来源过滤选项（keeper API）
@@ -481,12 +519,12 @@ export const usageApi = {
     const params = new URLSearchParams();
     if (options?.authType) params.set('auth_type', String(options.authType));
     if (options?.page && options.page > 0) params.set('page', String(Math.floor(options.page)));
-    if (options?.pageSize && options.pageSize > 0) params.set('page_size', String(Math.floor(options.pageSize)));
+    if (options?.pageSize && options.pageSize > 0)
+      params.set('page_size', String(Math.floor(options.pageSize)));
     const query = params.toString();
-    return apiClient.get<UsageIdentitiesPageResponse>(
-      `/usage/db${query ? `?${query}` : ''}`,
-      { timeout: USAGE_TIMEOUT_MS }
-    );
+    return apiClient.get<UsageIdentitiesPageResponse>(`/usage/db${query ? `?${query}` : ''}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
   },
 
   /**
@@ -523,14 +561,18 @@ export const usageApi = {
    * 获取配额刷新任务（keeper API）
    */
   getUsageQuotaRefreshTask: (taskId: string) =>
-    apiClient.get<UsageQuotaRefreshTaskResponse>(`/api/v1/quota/refresh/${encodeURIComponent(taskId)}`, {
-      timeout: USAGE_TIMEOUT_MS,
-    }),
+    apiClient.get<UsageQuotaRefreshTaskResponse>(
+      `/api/v1/quota/refresh/${encodeURIComponent(taskId)}`,
+      {
+        timeout: USAGE_TIMEOUT_MS,
+      }
+    ),
 
   /**
    * 获取使用的模型列表（keeper API）
    */
-  getUsedModels: () => apiClient.get<UsedModelsResponse>('/api/v1/models/used', { timeout: USAGE_TIMEOUT_MS }),
+  getUsedModels: () =>
+    apiClient.get<UsedModelsResponse>('/api/v1/models/used', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
    * 获取定价信息（management API）
@@ -559,17 +601,20 @@ export const usageApi = {
   /**
    * 触发同步（keeper API）
    */
-  triggerSync: () => apiClient.post<StatusResponse>('/api/v1/sync', {}, { timeout: USAGE_TIMEOUT_MS }),
+  triggerSync: () =>
+    apiClient.post<StatusResponse>('/api/v1/sync', {}, { timeout: USAGE_TIMEOUT_MS }),
 
   /**
    * 检查更新（keeper API）
    */
-  checkForUpdates: () => apiClient.get<UpdateCheckResponse>('/api/v1/update/check', { timeout: USAGE_TIMEOUT_MS }),
+  checkForUpdates: () =>
+    apiClient.get<UpdateCheckResponse>('/api/v1/update/check', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
    * 获取会话（keeper API）
    */
-  getSession: () => apiClient.get<AuthSessionResponse>('/api/v1/auth/session', { timeout: USAGE_TIMEOUT_MS }),
+  getSession: () =>
+    apiClient.get<AuthSessionResponse>('/api/v1/auth/session', { timeout: USAGE_TIMEOUT_MS }),
 
   /**
    * 登录（keeper API）

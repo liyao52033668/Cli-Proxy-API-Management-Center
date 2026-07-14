@@ -15,7 +15,7 @@ import {
   UsageChart,
   useChartData,
   useSparklines,
-  useUsageData
+  useUsageData,
 } from '@/components/usage';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -23,12 +23,7 @@ import { providersApi } from '@/services/api';
 import type { UsageTimeRange } from '@/services/api/usage';
 import { useConfigStore, useThemeStore } from '@/stores';
 import type { OpenAIProviderConfig } from '@/types';
-import {
-  filterUsageByTimeRange,
-  getApiStats,
-  getModelNamesFromUsage,
-  getModelStats
-} from '@/utils/usage';
+import { getApiStats, getModelNamesFromUsage, getModelStats } from '@/utils/usage';
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -38,7 +33,7 @@ import {
   LineElement,
   PointElement,
   Title,
-  Tooltip
+  Tooltip,
 } from 'chart.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -71,17 +66,28 @@ const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: UsageTimeRange; labelKey: strin
   { value: '7d', labelKey: 'usage_stats.range_7d' },
   { value: '30d', labelKey: 'usage_stats.range_30d' },
 ];
-const HOUR_WINDOW_BY_TIME_RANGE: Record<Exclude<UsageTimeRange, 'all' | 'today' | 'custom'>, number> = {
+const HOUR_WINDOW_BY_TIME_RANGE: Record<
+  Exclude<UsageTimeRange, 'all' | 'today' | 'custom'>,
+  number
+> = {
   '4h': 4,
   '8h': 8,
   '12h': 12,
   '24h': 24,
   '7d': 7 * 24,
-  '30d': 30 * 24
+  '30d': 30 * 24,
 };
 
 const isUsageTimeRange = (value: unknown): value is UsageTimeRange =>
-  value === '4h' || value === '8h' || value === '12h' || value === '24h' || value === 'today' || value === '7d' || value === '30d' || value === 'all' || value === 'custom';
+  value === '4h' ||
+  value === '8h' ||
+  value === '12h' ||
+  value === '24h' ||
+  value === 'today' ||
+  value === '7d' ||
+  value === '30d' ||
+  value === 'all' ||
+  value === 'custom';
 
 const normalizeChartLines = (value: unknown, maxLines = MAX_CHART_LINES): string[] => {
   if (!Array.isArray(value)) {
@@ -136,7 +142,9 @@ export function UsagePage() {
     providers: OpenAIProviderConfig[];
   } | null>(null);
 
-  // Data hook
+  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
+  const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
+
   const {
     usage,
     loading,
@@ -151,14 +159,10 @@ export function UsagePage() {
     handleImportChange,
     importInputRef,
     exporting,
-    importing
-  } = useUsageData();
+    importing,
+  } = useUsageData({ range: timeRange });
 
   useHeaderRefresh(loadUsage);
-
-  // Chart lines state
-  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
-  const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,35 +188,34 @@ export function UsagePage() {
   const openaiProvidersForUsage =
     openaiProviderState && openaiProviderState.source === openaiCompatibilityConfig
       ? openaiProviderState.providers
-      : openaiCompatibilityConfig ?? [];
+      : (openaiCompatibilityConfig ?? []);
 
   const timeRangeOptions = useMemo(
     () =>
       TIME_RANGE_OPTIONS.map((opt) => ({
         value: opt.value,
-        label: t(opt.labelKey)
+        label: t(opt.labelKey),
       })),
     [t]
   );
 
-  const filteredUsageSnapshot = useMemo(
-    () => (usage?.usage ? filterUsageByTimeRange(usage.usage, timeRange) : null),
-    [usage, timeRange]
-  );
-
-  const filteredUsage = useMemo(() => {
-    if (!usage || !filteredUsageSnapshot) return null;
-    return {
-      ...usage,
-      usage: filteredUsageSnapshot,
-    };
-  }, [usage, filteredUsageSnapshot]);
+  const filteredUsageSnapshot = usage?.usage ?? null;
+  const filteredUsage = usage;
 
   const hourWindowHours =
-    timeRange === 'all' || timeRange === 'today' || timeRange === 'custom' ? undefined : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
+    timeRange === 'all' || timeRange === 'today' || timeRange === 'custom'
+      ? undefined
+      : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
 
   const preferredPeriod: 'hour' | 'day' = useMemo(() => {
-    if (timeRange === '4h' || timeRange === '8h' || timeRange === '12h' || timeRange === '24h' || timeRange === 'today'|| timeRange === 'all') {
+    if (
+      timeRange === '4h' ||
+      timeRange === '8h' ||
+      timeRange === '12h' ||
+      timeRange === '24h' ||
+      timeRange === 'today' ||
+      timeRange === 'all'
+    ) {
       return 'hour';
     }
     return 'day';
@@ -245,13 +248,8 @@ export function UsagePage() {
   }, [timeRange]);
 
   // Sparklines hook - updated to use new API response structure
-  const {
-    requestsSparkline,
-    tokensSparkline,
-    rpmSparkline,
-    tpmSparkline,
-    costSparkline
-  } = useSparklines({ usage: filteredUsage, loading, preferredPeriod });
+  const { requestsSparkline, tokensSparkline, rpmSparkline, tpmSparkline, costSparkline } =
+    useSparklines({ usage: filteredUsage, loading, preferredPeriod });
 
   // Chart data hook - updated to use new API response structure
   const {
@@ -262,8 +260,15 @@ export function UsagePage() {
     requestsChartData,
     tokensChartData,
     requestsChartOptions,
-    tokensChartOptions
-  } = useChartData({ usage: filteredUsage, chartLines, isDark, isMobile, hourWindowHours, preferredPeriod });
+    tokensChartOptions,
+  } = useChartData({
+    usage: filteredUsage,
+    chartLines,
+    isDark,
+    isMobile,
+    hourWindowHours,
+    preferredPeriod,
+  });
 
   // Derived data
   const modelNames = useMemo(() => getModelNamesFromUsage(usage?.usage), [usage]);
@@ -323,7 +328,7 @@ export function UsagePage() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => void loadUsage().catch(() => { })}
+            onClick={() => void loadUsage().catch(() => {})}
             disabled={loading || exporting || importing}
           >
             {loading ? t('common.loading') : t('usage_stats.refresh')}
@@ -350,18 +355,22 @@ export function UsagePage() {
         usage={filteredUsageSnapshot}
         loading={loading}
         modelPrices={modelPrices}
-        nowMs={Date.now()}
+        nowMs={lastRefreshedAt?.getTime() ?? 0}
         sparklines={{
           requests: requestsSparkline,
           tokens: tokensSparkline,
           rpm: rpmSparkline,
           tpm: tpmSparkline,
-          cost: costSparkline
+          cost: costSparkline,
         }}
       />
 
       {/* Service Health */}
-      <ServiceHealthCard usage={usage?.usage || null} serviceHealth={usage?.service_health} loading={loading} />
+      <ServiceHealthCard
+        usage={usage?.usage || null}
+        serviceHealth={usage?.service_health}
+        loading={loading}
+      />
 
       {/* Chart Line Selection */}
       <ChartLineSelector
@@ -423,8 +432,8 @@ export function UsagePage() {
       </div>
 
       <RequestEventsDetailsCard
-        usage={filteredUsageSnapshot}
-        loading={loading}
+        key={timeRange}
+        timeRange={timeRange}
         geminiKeys={config?.geminiApiKeys || []}
         claudeConfigs={config?.claudeApiKeys || []}
         codexConfigs={config?.codexApiKeys || []}

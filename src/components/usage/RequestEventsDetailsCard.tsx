@@ -1,37 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ListPagination } from '@/components/common/ListPagination';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
-import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
+import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
+import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
-import { parseTimestampMs } from '@/utils/timestamp';
-import { useUsageStatsStore } from '@/stores/useUsageStatsStore';
-import {
-  collectUsageDetails,
-  extractLatencyMs,
-  extractTotalTokens,
-  formatDurationMs,
-  LATENCY_SOURCE_FIELD,
-  normalizeAuthIndex,
-} from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
+import { formatDurationMs, LATENCY_SOURCE_FIELD, normalizeAuthIndex } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
 
 const ALL_FILTER = '__all__';
-const MAX_RENDERED_EVENTS = 500;
+const PAGE_SIZE = 20;
 
 type RequestEventRow = {
   id: string;
   timestamp: string;
-  timestampMs: number;
   timestampLabel: string;
   model: string;
-  sourceKey: string;
   sourceRaw: string;
   source: string;
   sourceType: string;
@@ -46,20 +37,13 @@ type RequestEventRow = {
 };
 
 export interface RequestEventsDetailsCardProps {
-  usage: unknown;
-  loading: boolean;
+  timeRange: UsageTimeRange;
   geminiKeys: GeminiKeyConfig[];
   claudeConfigs: ProviderKeyConfig[];
   codexConfigs: ProviderKeyConfig[];
   vertexConfigs: ProviderKeyConfig[];
   openaiProviders: OpenAIProviderConfig[];
 }
-
-const toNumber = (value: unknown): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return parsed;
-};
 
 const encodeCsv = (value: string | number): string => {
   const text = String(value ?? '');
@@ -69,8 +53,7 @@ const encodeCsv = (value: string | number): string => {
 };
 
 export function RequestEventsDetailsCard({
-  usage,
-  loading,
+  timeRange,
   geminiKeys,
   claudeConfigs,
   codexConfigs,
@@ -78,16 +61,25 @@ export function RequestEventsDetailsCard({
   openaiProviders,
 }: RequestEventsDetailsCardProps) {
   const { t, i18n } = useTranslation();
-  const storedUsageDetails = useUsageStatsStore((state) => state.usageDetails);
+  const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const [events, setEvents] = useState<UsageEvent[]>([]);
+  const [modelNames, setModelNames] = useState<string[]>([]);
+  const [modelFilter, setModelFilter] = useState(ALL_FILTER);
+  const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
+  const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
+  const queryIdentity = `${timeRange}::${modelFilter}::${sourceFilter}::${authIndexFilter}`;
+  const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const page = pageState.queryIdentity === queryIdentity ? pageState.page : 1;
+  const queryKey = `${queryIdentity}::${page}`;
+  const [loadedQueryKey, setLoadedQueryKey] = useState('');
+  const eventsLoading = loadedQueryKey !== queryKey;
+  const setPage = (nextPage: number) => setPageState({ queryIdentity, page: nextPage });
   const latencyHint = t('usage_stats.latency_unit_hint', {
     field: LATENCY_SOURCE_FIELD,
     unit: t('usage_stats.duration_unit_ms'),
   });
-
-  const [modelFilter, setModelFilter] = useState(ALL_FILTER);
-  const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
-  const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
-  const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +106,58 @@ export function RequestEventsDetailsCard({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    usageApi
+      .getUsageEventModelFilters(timeRange)
+      .then((response) => {
+        if (cancelled) return;
+        const payload = response as unknown as { models?: string[]; Models?: string[] };
+        setModelNames(payload.models || payload.Models || []);
+      })
+      .catch(() => {
+        if (!cancelled) setModelNames([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [timeRange]);
+
+  useEffect(() => {
+    let cancelled = false;
+    usageApi
+      .getUsageEvents(timeRange, undefined, undefined, {
+        page,
+        pageSize: PAGE_SIZE,
+        model: modelFilter === ALL_FILTER ? undefined : modelFilter,
+        source: sourceFilter === ALL_FILTER ? undefined : sourceFilter,
+        authIndex: authIndexFilter === ALL_FILTER ? undefined : authIndexFilter,
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const nextTotalPages = Math.max(1, Number(response.total_pages) || 1);
+        setTotalCount(Number(response.total_count) || 0);
+        setTotalPages(nextTotalPages);
+        if (page > nextTotalPages) {
+          setPageState({ queryIdentity, page: nextTotalPages });
+          return;
+        }
+        setEvents(Array.isArray(response.events) ? response.events : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEvents([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedQueryKey(queryKey);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authIndexFilter, modelFilter, page, queryIdentity, queryKey, sourceFilter, timeRange]);
+
   const sourceInfoMap = useMemo(
     () =>
       buildSourceInfoMap({
@@ -126,186 +170,83 @@ export function RequestEventsDetailsCard({
     [claudeConfigs, codexConfigs, geminiKeys, openaiProviders, vertexConfigs]
   );
 
-  const rows = useMemo<RequestEventRow[]>(() => {
-    const details =
-      Array.isArray(storedUsageDetails) && storedUsageDetails.length > 0
-        ? storedUsageDetails
-        : collectUsageDetails(usage);
-
-    const baseRows = details
-      .map((detail, index) => {
-        const timestamp = detail.timestamp;
-        const timestampMs =
-          typeof detail.__timestampMs === 'number' && detail.__timestampMs > 0
-            ? detail.__timestampMs
-            : parseTimestampMs(timestamp);
-        const date = Number.isNaN(timestampMs) ? null : new Date(timestampMs);
-        const sourceRaw = String(detail.source ?? '').trim();
-        const authIndexRaw = detail.auth_index as unknown;
-        const authIndex =
-          authIndexRaw === null || authIndexRaw === undefined || authIndexRaw === ''
-            ? '-'
-            : String(authIndexRaw);
+  const rows = useMemo<RequestEventRow[]>(
+    () =>
+      events.map((event, index) => {
+        const sourceRaw = String(event.source_raw || event.source || '').trim();
+        const authIndex = normalizeAuthIndex(event.auth_index) || '-';
         const sourceInfo = resolveSourceDisplay(
           sourceRaw,
-          authIndexRaw,
+          event.auth_index,
           sourceInfoMap,
           authFileMap
         );
-        const source = sourceInfo.displayName;
-        const sourceKey = sourceInfo.identityKey ?? `source:${sourceRaw || source}`;
-        const sourceType = sourceInfo.type;
-        const model = String(detail.__modelName ?? '').trim() || '-';
-        const inputTokens = Math.max(toNumber(detail.tokens?.input_tokens), 0);
-        const outputTokens = Math.max(toNumber(detail.tokens?.output_tokens), 0);
-        const reasoningTokens = Math.max(toNumber(detail.tokens?.reasoning_tokens), 0);
-        const cachedTokens = Math.max(
-          Math.max(toNumber(detail.tokens?.cached_tokens), 0),
-          Math.max(toNumber(detail.tokens?.cache_tokens), 0)
-        );
-        const totalTokens = Math.max(
-          toNumber(detail.tokens?.total_tokens),
-          extractTotalTokens(detail)
-        );
-        const latencyMs = extractLatencyMs(detail);
-
+        const date = new Date(event.timestamp);
+        const tokens = event.tokens;
         return {
-          id: `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
-          timestamp,
-          timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
-          timestampLabel: date ? date.toLocaleString(i18n.language) : timestamp || '-',
-          model,
-          sourceKey,
-          sourceRaw: sourceRaw || '-',
-          source,
-          sourceType,
+          id: String(event.id ?? `${event.timestamp}-${index}`),
+          timestamp: event.timestamp,
+          timestampLabel: Number.isNaN(date.getTime())
+            ? event.timestamp || '-'
+            : date.toLocaleString(i18n.language),
+          model: event.model || '-',
+          sourceRaw,
+          source: sourceInfo.displayName,
+          sourceType: sourceInfo.type,
           authIndex,
-          failed: detail.failed === true,
-          latencyMs,
-          inputTokens,
-          outputTokens,
-          reasoningTokens,
-          cachedTokens,
-          totalTokens,
+          failed: event.failed === true,
+          latencyMs: Number.isFinite(Number(event.latency_ms)) ? Number(event.latency_ms) : null,
+          inputTokens: Math.max(Number(tokens?.input_tokens ?? event.input_tokens) || 0, 0),
+          outputTokens: Math.max(Number(tokens?.output_tokens ?? event.output_tokens) || 0, 0),
+          reasoningTokens: Math.max(
+            Number(tokens?.reasoning_tokens ?? event.reasoning_tokens) || 0,
+            0
+          ),
+          cachedTokens: Math.max(Number(tokens?.cached_tokens ?? event.cached_tokens) || 0, 0),
+          totalTokens: Math.max(Number(tokens?.total_tokens ?? event.total_tokens) || 0, 0),
         };
-      });
-
-    const sourceLabelKeyMap = new Map<string, Set<string>>();
-    baseRows.forEach((row) => {
-      const keys = sourceLabelKeyMap.get(row.source) ?? new Set<string>();
-      keys.add(row.sourceKey);
-      sourceLabelKeyMap.set(row.source, keys);
-    });
-
-    const buildDisambiguatedSourceLabel = (row: RequestEventRow) => {
-      const labelKeyCount = sourceLabelKeyMap.get(row.source)?.size ?? 0;
-      if (labelKeyCount <= 1) {
-        return row.source;
-      }
-
-      if (row.authIndex !== '-') {
-        return `${row.source} · ${row.authIndex}`;
-      }
-
-      if (row.sourceRaw !== '-' && row.sourceRaw !== row.source) {
-        return `${row.source} · ${row.sourceRaw}`;
-      }
-
-      if (row.sourceType) {
-        return `${row.source} · ${row.sourceType}`;
-      }
-
-      return `${row.source} · ${row.sourceKey}`;
-    };
-
-    return baseRows
-      .map((row) => ({
-        ...row,
-        source: buildDisambiguatedSourceLabel(row),
-      }))
-      .sort((a, b) => b.timestampMs - a.timestampMs);
-  }, [authFileMap, i18n.language, sourceInfoMap, storedUsageDetails, usage]);
+      }),
+    [authFileMap, events, i18n.language, sourceInfoMap]
+  );
 
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
-
   const modelOptions = useMemo(
     () => [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(new Set(rows.map((row) => row.model))).map((model) => ({
-        value: model,
-        label: model,
-      })),
+      ...modelNames.map((model) => ({ value: model, label: model })),
     ],
-    [rows, t]
+    [modelNames, t]
   );
-
   const sourceOptions = useMemo(() => {
-    const optionMap = new Map<string, string>();
+    const options = new Map<string, string>();
     rows.forEach((row) => {
-      if (!optionMap.has(row.sourceKey)) {
-        optionMap.set(row.sourceKey, row.source);
-      }
+      if (row.sourceRaw) options.set(row.sourceRaw, row.source);
     });
-
+    if (sourceFilter !== ALL_FILTER && !options.has(sourceFilter)) {
+      options.set(sourceFilter, sourceFilter);
+    }
     return [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(optionMap.entries()).map(([value, label]) => ({
-        value,
-        label,
-      })),
+      ...Array.from(options, ([value, label]) => ({ value, label })),
     ];
-  }, [rows, t]);
-
-  const authIndexOptions = useMemo(
-    () => [
+  }, [rows, sourceFilter, t]);
+  const authIndexOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    authFileMap.forEach((info, authIndex) => options.set(authIndex, info.name || authIndex));
+    rows.forEach((row) => {
+      if (row.authIndex !== '-') options.set(row.authIndex, row.authIndex);
+    });
+    if (authIndexFilter !== ALL_FILTER && !options.has(authIndexFilter)) {
+      options.set(authIndexFilter, authIndexFilter);
+    }
+    return [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(new Set(rows.map((row) => row.authIndex))).map((authIndex) => ({
-        value: authIndex,
-        label: authIndex,
-      })),
-    ],
-    [rows, t]
-  );
-
-  const modelOptionSet = useMemo(
-    () => new Set(modelOptions.map((option) => option.value)),
-    [modelOptions]
-  );
-  const sourceOptionSet = useMemo(
-    () => new Set(sourceOptions.map((option) => option.value)),
-    [sourceOptions]
-  );
-  const authIndexOptionSet = useMemo(
-    () => new Set(authIndexOptions.map((option) => option.value)),
-    [authIndexOptions]
-  );
-
-  const effectiveModelFilter = modelOptionSet.has(modelFilter) ? modelFilter : ALL_FILTER;
-  const effectiveSourceFilter = sourceOptionSet.has(sourceFilter) ? sourceFilter : ALL_FILTER;
-  const effectiveAuthIndexFilter = authIndexOptionSet.has(authIndexFilter)
-    ? authIndexFilter
-    : ALL_FILTER;
-
-  const filteredRows = useMemo(
-    () =>
-      rows.filter((row) => {
-        const modelMatched =
-          effectiveModelFilter === ALL_FILTER || row.model === effectiveModelFilter;
-        const sourceMatched =
-          effectiveSourceFilter === ALL_FILTER || row.sourceKey === effectiveSourceFilter;
-        const authIndexMatched =
-          effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
-        return modelMatched && sourceMatched && authIndexMatched;
-      }),
-    [effectiveAuthIndexFilter, effectiveModelFilter, effectiveSourceFilter, rows]
-  );
-
-  const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
+      ...Array.from(options, ([value, label]) => ({ value, label })),
+    ];
+  }, [authFileMap, authIndexFilter, rows, t]);
 
   const hasActiveFilters =
-    effectiveModelFilter !== ALL_FILTER ||
-    effectiveSourceFilter !== ALL_FILTER ||
-    effectiveAuthIndexFilter !== ALL_FILTER;
+    modelFilter !== ALL_FILTER || sourceFilter !== ALL_FILTER || authIndexFilter !== ALL_FILTER;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
@@ -314,8 +255,7 @@ export function RequestEventsDetailsCard({
   };
 
   const handleExportCsv = () => {
-    if (!filteredRows.length) return;
-
+    if (!rows.length) return;
     const csvHeader = [
       'timestamp',
       'model',
@@ -330,8 +270,7 @@ export function RequestEventsDetailsCard({
       'cached_tokens',
       'total_tokens',
     ];
-
-    const csvRows = filteredRows.map((row) =>
+    const csvRows = rows.map((row) =>
       [
         row.timestamp,
         row.model,
@@ -349,19 +288,18 @@ export function RequestEventsDetailsCard({
         .map((value) => encodeCsv(value))
         .join(',')
     );
-
-    const content = [csvHeader.join(','), ...csvRows].join('\n');
     const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
     downloadBlob({
       filename: `usage-events-${fileTime}.csv`,
-      blob: new Blob([content], { type: 'text/csv;charset=utf-8' }),
+      blob: new Blob([[csvHeader.join(','), ...csvRows].join('\n')], {
+        type: 'text/csv;charset=utf-8',
+      }),
     });
   };
 
   const handleExportJson = () => {
-    if (!filteredRows.length) return;
-
-    const payload = filteredRows.map((row) => ({
+    if (!rows.length) return;
+    const payload = rows.map((row) => ({
       timestamp: row.timestamp,
       model: row.model,
       source: row.source,
@@ -377,12 +315,12 @@ export function RequestEventsDetailsCard({
         total_tokens: row.totalTokens,
       },
     }));
-
-    const content = JSON.stringify(payload, null, 2);
     const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
     downloadBlob({
       filename: `usage-events-${fileTime}.json`,
-      blob: new Blob([content], { type: 'application/json;charset=utf-8' }),
+      blob: new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      }),
     });
   };
 
@@ -399,20 +337,10 @@ export function RequestEventsDetailsCard({
           >
             {t('usage_stats.clear_filters')}
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-          >
+          <Button variant="secondary" size="sm" onClick={handleExportCsv} disabled={!rows.length}>
             {t('usage_stats.export_csv')}
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportJson}
-            disabled={filteredRows.length === 0}
-          >
+          <Button variant="secondary" size="sm" onClick={handleExportJson} disabled={!rows.length}>
             {t('usage_stats.export_json')}
           </Button>
         </div>
@@ -424,7 +352,7 @@ export function RequestEventsDetailsCard({
             {t('usage_stats.request_events_filter_model')}
           </span>
           <Select
-            value={effectiveModelFilter}
+            value={modelFilter}
             options={modelOptions}
             onChange={setModelFilter}
             className={styles.requestEventsSelect}
@@ -437,7 +365,7 @@ export function RequestEventsDetailsCard({
             {t('usage_stats.request_events_filter_source')}
           </span>
           <Select
-            value={effectiveSourceFilter}
+            value={sourceFilter}
             options={sourceOptions}
             onChange={setSourceFilter}
             className={styles.requestEventsSelect}
@@ -450,7 +378,7 @@ export function RequestEventsDetailsCard({
             {t('usage_stats.request_events_filter_auth_index')}
           </span>
           <Select
-            value={effectiveAuthIndexFilter}
+            value={authIndexFilter}
             options={authIndexOptions}
             onChange={setAuthIndexFilter}
             className={styles.requestEventsSelect}
@@ -460,33 +388,27 @@ export function RequestEventsDetailsCard({
         </div>
       </div>
 
-      {loading && rows.length === 0 ? (
+      {eventsLoading ? (
         <div className={styles.hint}>{t('common.loading')}</div>
       ) : rows.length === 0 ? (
         <EmptyState
-          title={t('usage_stats.request_events_empty_title')}
-          description={t('usage_stats.request_events_empty_desc')}
-        />
-      ) : filteredRows.length === 0 ? (
-        <EmptyState
-          title={t('usage_stats.request_events_no_result_title')}
-          description={t('usage_stats.request_events_no_result_desc')}
+          title={
+            hasActiveFilters
+              ? t('usage_stats.request_events_no_result_title')
+              : t('usage_stats.request_events_empty_title')
+          }
+          description={
+            hasActiveFilters
+              ? t('usage_stats.request_events_no_result_desc')
+              : t('usage_stats.request_events_empty_desc')
+          }
         />
       ) : (
         <>
           <div className={styles.requestEventsMeta}>
-            <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
+            <span>{t('usage_stats.request_events_count', { count: totalCount })}</span>
             {hasLatencyData && <span className={styles.requestEventsLimitHint}>{latencyHint}</span>}
-            {filteredRows.length > MAX_RENDERED_EVENTS && (
-              <span className={styles.requestEventsLimitHint}>
-                {t('usage_stats.request_events_limit_hint', {
-                  shown: MAX_RENDERED_EVENTS,
-                  total: filteredRows.length,
-                })}
-              </span>
-            )}
           </div>
-
           <div className={styles.requestEventsTableWrapper}>
             <table className={styles.table}>
               <thead>
@@ -505,7 +427,7 @@ export function RequestEventsDetailsCard({
                 </tr>
               </thead>
               <tbody>
-                {renderedRows.map((row) => (
+                {rows.map((row) => (
                   <tr key={row.id}>
                     <td title={row.timestamp} className={styles.requestEventsTimestamp}>
                       {row.timestampLabel}
@@ -544,6 +466,15 @@ export function RequestEventsDetailsCard({
               </tbody>
             </table>
           </div>
+          <ListPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            disabled={eventsLoading}
+            onPageChange={setPage}
+            className={styles.usagePagination}
+            pageInfo={`${page} / ${totalPages} · ${totalCount}`}
+          />
         </>
       )}
     </Card>

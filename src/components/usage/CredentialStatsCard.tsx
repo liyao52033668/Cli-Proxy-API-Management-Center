@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ListPagination } from '@/components/common/ListPagination';
 import { Card } from '@/components/ui/Card';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
@@ -46,6 +47,8 @@ interface CredentialRow {
 type SortKey = 'credential' | 'requests' | 'tokens' | 'successRate' | 'cost';
 type SortDir = 'asc' | 'desc';
 
+const PAGE_SIZE = 20;
+
 export function CredentialStatsCard({
   usage,
   loading,
@@ -61,6 +64,7 @@ export function CredentialStatsCard({
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [sortKey, setSortKey] = useState<SortKey>('requests');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [pageState, setPageState] = useState({ keyStats, page: 1 });
   const hasPrices = Object.keys(modelPrices).length > 0;
 
   useEffect(() => {
@@ -142,34 +146,48 @@ export function CredentialStatsCard({
     };
 
     const hasServerKeyStats = (stats: KeyStats): boolean =>
-      Object.keys(stats.byAuthIndex).length > 0 || Object.keys(stats.bySource).length > 0;
+      (stats.credentials?.length ?? 0) > 0 ||
+      Object.keys(stats.byAuthIndex).length > 0 ||
+      Object.keys(stats.bySource).length > 0;
 
     if (hasServerKeyStats(keyStats)) {
-      // Prefer auth_index aggregates when present; source-only is fallback when
-      // auth indices were never recorded for the selected window.
-      const authEntries = Object.entries(keyStats.byAuthIndex);
-      if (authEntries.length > 0) {
-        authEntries.forEach(([authIndex, bucket]) => {
+      const credentials = keyStats.credentials ?? [];
+      if (credentials.length > 0) {
+        credentials.forEach((credential) => {
           upsert(
-            '',
-            authIndex,
-            Number(bucket.success) || 0,
-            Number(bucket.failure) || 0,
-            Number(bucket.tokens) || 0,
-            Number(bucket.cost) || 0
+            credential.source,
+            credential.authIndex,
+            Number(credential.success) || 0,
+            Number(credential.failure) || 0,
+            Number(credential.tokens) || 0,
+            Number(credential.cost) || 0
           );
         });
       } else {
-        Object.entries(keyStats.bySource).forEach(([source, bucket]) => {
-          upsert(
-            source,
-            null,
-            Number(bucket.success) || 0,
-            Number(bucket.failure) || 0,
-            Number(bucket.tokens) || 0,
-            Number(bucket.cost) || 0
-          );
-        });
+        const authEntries = Object.entries(keyStats.byAuthIndex);
+        if (authEntries.length > 0) {
+          authEntries.forEach(([authIndex, bucket]) => {
+            upsert(
+              '',
+              authIndex,
+              Number(bucket.success) || 0,
+              Number(bucket.failure) || 0,
+              Number(bucket.tokens) || 0,
+              Number(bucket.cost) || 0
+            );
+          });
+        } else {
+          Object.entries(keyStats.bySource).forEach(([source, bucket]) => {
+            upsert(
+              source,
+              null,
+              Number(bucket.success) || 0,
+              Number(bucket.failure) || 0,
+              Number(bucket.tokens) || 0,
+              Number(bucket.cost) || 0
+            );
+          });
+        }
       }
       return Array.from(rowMap.values());
     }
@@ -192,9 +210,11 @@ export function CredentialStatsCard({
 
   const effectiveSortKey: SortKey = hasPrices || sortKey !== 'cost' ? sortKey : 'requests';
   const effectiveSortDir: SortDir = hasPrices || sortKey !== 'cost' ? sortDir : 'desc';
+  const setPage = (page: number) => setPageState({ keyStats, page });
 
   const handleSort = (key: SortKey) => {
     if (key === 'cost' && !hasPrices) return;
+    setPage(1);
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -225,122 +245,135 @@ export function CredentialStatsCard({
     return list;
   }, [effectiveSortDir, effectiveSortKey, rows]);
 
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const page = pageState.keyStats === keyStats ? Math.min(pageState.page, totalPages) : 1;
+  const pagedRows = useMemo(
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [page, sorted]
+  );
+
   const arrow = (key: SortKey) =>
     effectiveSortKey === key ? (effectiveSortDir === 'asc' ? ' ▲' : ' ▼') : '';
   const ariaSort = (key: SortKey): 'none' | 'ascending' | 'descending' =>
-    effectiveSortKey === key
-      ? effectiveSortDir === 'asc'
-        ? 'ascending'
-        : 'descending'
-      : 'none';
+    effectiveSortKey === key ? (effectiveSortDir === 'asc' ? 'ascending' : 'descending') : 'none';
 
   return (
     <Card title={t('usage_stats.credential_stats')} className={styles.detailsFixedCard}>
       {loading ? (
         <div className={styles.hint}>{t('common.loading')}</div>
       ) : sorted.length > 0 ? (
-        <div className={styles.detailsScroll}>
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.sortableHeader} aria-sort={ariaSort('credential')}>
-                    <button
-                      type="button"
-                      className={styles.sortHeaderButton}
-                      onClick={() => handleSort('credential')}
-                    >
-                      {t('usage_stats.credential_name')}
-                      {arrow('credential')}
-                    </button>
-                  </th>
-                  <th className={styles.sortableHeader} aria-sort={ariaSort('requests')}>
-                    <button
-                      type="button"
-                      className={styles.sortHeaderButton}
-                      onClick={() => handleSort('requests')}
-                    >
-                      {t('usage_stats.requests_count')}
-                      {arrow('requests')}
-                    </button>
-                  </th>
-                  <th className={styles.sortableHeader} aria-sort={ariaSort('tokens')}>
-                    <button
-                      type="button"
-                      className={styles.sortHeaderButton}
-                      onClick={() => handleSort('tokens')}
-                    >
-                      {t('usage_stats.tokens_count')}
-                      {arrow('tokens')}
-                    </button>
-                  </th>
-                  <th className={styles.sortableHeader} aria-sort={ariaSort('successRate')}>
-                    <button
-                      type="button"
-                      className={styles.sortHeaderButton}
-                      onClick={() => handleSort('successRate')}
-                    >
-                      {t('usage_stats.success_rate')}
-                      {arrow('successRate')}
-                    </button>
-                  </th>
-                  {hasPrices && (
-                    <th className={styles.sortableHeader} aria-sort={ariaSort('cost')}>
+        <>
+          <div className={styles.detailsScroll}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.sortableHeader} aria-sort={ariaSort('credential')}>
                       <button
                         type="button"
                         className={styles.sortHeaderButton}
-                        onClick={() => handleSort('cost')}
+                        onClick={() => handleSort('credential')}
                       >
-                        {t('usage_stats.total_cost')}
-                        {arrow('cost')}
+                        {t('usage_stats.credential_name')}
+                        {arrow('credential')}
                       </button>
                     </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((row) => (
-                  <tr key={row.key}>
-                    <td className={styles.modelCell}>
-                      <span>{row.displayName}</span>
-                      {row.type && <span className={styles.credentialType}>{row.type}</span>}
-                    </td>
-                    <td>
-                      <span className={styles.requestCountCell}>
-                        <span>{formatCompactNumber(row.total)}</span>
-                        <span className={styles.requestBreakdown}>
-                          (
-                          <span className={styles.statSuccess}>
-                            {row.success.toLocaleString()}
-                          </span>{' '}
-                          <span className={styles.statFailure}>
-                            {row.failure.toLocaleString()}
-                          </span>
-                          )
-                        </span>
-                      </span>
-                    </td>
-                    <td>{formatCompactNumber(row.tokens)}</td>
-                    <td>
-                      <span
-                        className={
-                          row.successRate >= 95
-                            ? styles.statSuccess
-                            : row.successRate >= 80
-                              ? styles.statNeutral
-                              : styles.statFailure
-                        }
+                    <th className={styles.sortableHeader} aria-sort={ariaSort('requests')}>
+                      <button
+                        type="button"
+                        className={styles.sortHeaderButton}
+                        onClick={() => handleSort('requests')}
                       >
-                        {row.successRate.toFixed(1)}%
-                      </span>
-                    </td>
-                    {hasPrices && <td>{row.cost > 0 ? formatUsd(row.cost) : '--'}</td>}
+                        {t('usage_stats.requests_count')}
+                        {arrow('requests')}
+                      </button>
+                    </th>
+                    <th className={styles.sortableHeader} aria-sort={ariaSort('tokens')}>
+                      <button
+                        type="button"
+                        className={styles.sortHeaderButton}
+                        onClick={() => handleSort('tokens')}
+                      >
+                        {t('usage_stats.tokens_count')}
+                        {arrow('tokens')}
+                      </button>
+                    </th>
+                    <th className={styles.sortableHeader} aria-sort={ariaSort('successRate')}>
+                      <button
+                        type="button"
+                        className={styles.sortHeaderButton}
+                        onClick={() => handleSort('successRate')}
+                      >
+                        {t('usage_stats.success_rate')}
+                        {arrow('successRate')}
+                      </button>
+                    </th>
+                    {hasPrices && (
+                      <th className={styles.sortableHeader} aria-sort={ariaSort('cost')}>
+                        <button
+                          type="button"
+                          className={styles.sortHeaderButton}
+                          onClick={() => handleSort('cost')}
+                        >
+                          {t('usage_stats.total_cost')}
+                          {arrow('cost')}
+                        </button>
+                      </th>
+                    )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pagedRows.map((row) => (
+                    <tr key={row.key}>
+                      <td className={styles.modelCell}>
+                        <span>{row.displayName}</span>
+                        {row.type && <span className={styles.credentialType}>{row.type}</span>}
+                      </td>
+                      <td>
+                        <span className={styles.requestCountCell}>
+                          <span>{formatCompactNumber(row.total)}</span>
+                          <span className={styles.requestBreakdown}>
+                            (
+                            <span className={styles.statSuccess}>
+                              {row.success.toLocaleString()}
+                            </span>{' '}
+                            <span className={styles.statFailure}>
+                              {row.failure.toLocaleString()}
+                            </span>
+                            )
+                          </span>
+                        </span>
+                      </td>
+                      <td>{formatCompactNumber(row.tokens)}</td>
+                      <td>
+                        <span
+                          className={
+                            row.successRate >= 95
+                              ? styles.statSuccess
+                              : row.successRate >= 80
+                                ? styles.statNeutral
+                                : styles.statFailure
+                          }
+                        >
+                          {row.successRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      {hasPrices && <td>{row.cost > 0 ? formatUsd(row.cost) : '--'}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+          <ListPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={sorted.length}
+            onPageChange={setPage}
+            className={styles.usagePagination}
+            pageInfo={`${page} / ${totalPages} · ${sorted.length}`}
+          />
+        </>
       ) : (
         <div className={styles.hint}>{t('usage_stats.no_data')}</div>
       )}

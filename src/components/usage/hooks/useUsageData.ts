@@ -1,5 +1,10 @@
 import { ApiError } from '@/services/api/client';
-import { usageApi, type UsageOverviewResponse, type UsageSnapshot, type UsageTimeRange } from '@/services/api/usage';
+import {
+  usageApi,
+  type UsageOverviewResponse,
+  type UsageSnapshot,
+  type UsageTimeRange,
+} from '@/services/api/usage';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
 import { downloadBlob } from '@/utils/download';
 import type { ModelPrice } from '@/utils/usage';
@@ -37,28 +42,38 @@ export interface UseUsageDataOptions {
   enabled?: boolean;
 }
 
-export const normalizeUsageOverviewRange = (value: string): UsageTimeRange => (
-  value === '4h' || value === '8h' || value === '12h' || value === '24h' || value === 'today' || value === '7d' || value === '30d' || value === 'all' || value === 'custom'
+export const normalizeUsageOverviewRange = (value: string): UsageTimeRange =>
+  value === '4h' ||
+  value === '8h' ||
+  value === '12h' ||
+  value === '24h' ||
+  value === 'today' ||
+  value === '7d' ||
+  value === '30d' ||
+  value === 'all' ||
+  value === 'custom'
     ? value
-    : 'all'
-);
+    : 'all';
 
 const toCustomDateParam = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim();
   return trimmed && /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 };
 
-const normalizeSeriesKeys = (series: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+const normalizeSeriesKeys = (
+  series: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined => {
   if (!series) return undefined;
   const rawModels = series['Models'] ?? series['models'];
-  const models = rawModels && typeof rawModels === 'object' && !Array.isArray(rawModels)
-    ? Object.fromEntries(
-      Object.entries(rawModels as Record<string, unknown>).map(([model, modelSeries]) => [
-        model,
-        normalizeSeriesKeys(modelSeries as Record<string, unknown>) ?? {}
-      ])
-    )
-    : undefined;
+  const models =
+    rawModels && typeof rawModels === 'object' && !Array.isArray(rawModels)
+      ? Object.fromEntries(
+          Object.entries(rawModels as Record<string, unknown>).map(([model, modelSeries]) => [
+            model,
+            normalizeSeriesKeys(modelSeries as Record<string, unknown>) ?? {},
+          ])
+        )
+      : undefined;
 
   return {
     requests: series['Requests'] ?? series['requests'],
@@ -108,7 +123,8 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
   const resolvedRange = normalizeUsageOverviewRange(range);
   const requestStart = resolvedRange === 'custom' ? toCustomDateParam(customStart) : undefined;
   const requestEnd = resolvedRange === 'custom' ? toCustomDateParam(customEnd) : undefined;
-  const customRangeReady = resolvedRange !== 'custom' || (requestStart !== undefined && requestEnd !== undefined);
+  const customRangeReady =
+    resolvedRange !== 'custom' || (requestStart !== undefined && requestEnd !== undefined);
 
   const loadUsage = useCallback(async () => {
     if (!customRangeReady) return;
@@ -119,6 +135,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
+        includeDetails: false,
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -138,6 +155,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
+        includeDetails: false,
       }),
       usageApi.getPricing().then((response) => {
         const prices = Object.fromEntries(
@@ -157,12 +175,20 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         onAuthRequired?.();
       }
     });
-  }, [customRangeReady, enabled, loadUsageStats, onAuthRequired, requestEnd, requestStart, resolvedRange]);
+  }, [
+    customRangeReady,
+    enabled,
+    loadUsageStats,
+    onAuthRequired,
+    requestEnd,
+    requestStart,
+    resolvedRange,
+  ]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const data = await usageApi.exportUsage();
+      const data = await usageApi.exportUsage(resolvedRange, requestStart, requestEnd);
       const exportedAt =
         typeof data?.exported_at === 'string' ? new Date(data.exported_at) : new Date();
       const safeTimestamp = Number.isNaN(exportedAt.getTime())
@@ -171,7 +197,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
       const filename = `usage-export-${safeTimestamp.replace(/[:.]/g, '-')}.json`;
       downloadBlob({
         filename,
-        blob: new Blob([JSON.stringify(data ?? {}, null, 2)], { type: 'application/json' })
+        blob: new Blob([JSON.stringify(data ?? {}, null, 2)], { type: 'application/json' }),
       });
       showNotification(t('usage_stats.export_success'), 'success');
     } catch (err: unknown) {
@@ -211,12 +237,19 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
           added: result?.added ?? 0,
           skipped: result?.skipped ?? 0,
           total: result?.total_requests ?? 0,
-          failed: result?.failed_requests ?? 0
+          failed: result?.failed_requests ?? 0,
         }),
         'success'
       );
       try {
-        await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS });
+        await loadUsageStats({
+          force: true,
+          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+          range: resolvedRange,
+          start: requestStart,
+          end: requestEnd,
+          includeDetails: false,
+        });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : '';
         showNotification(
@@ -235,76 +268,94 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     }
   };
 
-  const handleSetModelPrice = useCallback(async (model: string, price: ModelPrice) => {
-    const previousPrices = modelPrices;
-    setModelPricesState({ ...previousPrices, [model]: price });
+  const handleSetModelPrice = useCallback(
+    async (model: string, price: ModelPrice) => {
+      const previousPrices = modelPrices;
+      setModelPricesState({ ...previousPrices, [model]: price });
 
-    try {
-      await usageApi.updatePricing(model, {
-        prompt_price_per_1m: price.prompt,
-        completion_price_per_1m: price.completion,
-        cache_price_per_1m: price.cache,
-      });
-    } catch (error) {
-      setModelPricesState(previousPrices);
-      if (error instanceof ApiError && error.status === 401) {
-        onAuthRequired?.();
-        return;
+      try {
+        await usageApi.updatePricing(model, {
+          prompt_price_per_1m: price.prompt,
+          completion_price_per_1m: price.completion,
+          cache_price_per_1m: price.cache,
+        });
+      } catch (error) {
+        setModelPricesState(previousPrices);
+        if (error instanceof ApiError && error.status === 401) {
+          onAuthRequired?.();
+          return;
+        }
+        const message = error instanceof Error ? error.message : '';
+        showNotification(
+          `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
+          'error'
+        );
       }
-      const message = error instanceof Error ? error.message : '';
-      showNotification(
-        `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
-        'error'
-      );
-    }
-  }, [modelPrices, onAuthRequired, showNotification, t]);
+    },
+    [modelPrices, onAuthRequired, showNotification, t]
+  );
 
-  const handleDeleteModelPrice = useCallback(async (model: string) => {
-    const previousPrices = modelPrices;
-    const nextPrices = { ...previousPrices };
-    delete nextPrices[model];
-    setModelPricesState(nextPrices);
+  const handleDeleteModelPrice = useCallback(
+    async (model: string) => {
+      const previousPrices = modelPrices;
+      const nextPrices = { ...previousPrices };
+      delete nextPrices[model];
+      setModelPricesState(nextPrices);
 
-    try {
-      await usageApi.deletePricing(model);
-    } catch (error) {
-      setModelPricesState(previousPrices);
-      if (error instanceof ApiError && error.status === 401) {
-        onAuthRequired?.();
-        return;
+      try {
+        await usageApi.deletePricing(model);
+      } catch (error) {
+        setModelPricesState(previousPrices);
+        if (error instanceof ApiError && error.status === 401) {
+          onAuthRequired?.();
+          return;
+        }
+        const message = error instanceof Error ? error.message : '';
+        showNotification(
+          `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
+          'error'
+        );
       }
-      const message = error instanceof Error ? error.message : '';
-      showNotification(
-        `${t('notification.upload_failed')}${message ? `: ${message}` : ''}`,
-        'error'
-      );
-    }
-  }, [modelPrices, onAuthRequired, showNotification, t]);
+    },
+    [modelPrices, onAuthRequired, showNotification, t]
+  );
 
   const usage = usageSnapshot
     ? ((() => {
-      const snapshot = usageSnapshot as unknown as Record<string, unknown>;
-      const rawSeries = usageSnapshot.series ?? snapshot['Series'];
-      const rawHourlySeries = usageSnapshot.hourly_series ?? snapshot['HourlySeries'];
-      const rawDailySeries = usageSnapshot.daily_series ?? snapshot['DailySeries'];
-      const rawHealth = usageSnapshot.service_health ?? snapshot['ServiceHealth'] ?? snapshot['Health'];
+        const snapshot = usageSnapshot as unknown as Record<string, unknown>;
+        const rawSeries = usageSnapshot.series ?? snapshot['Series'];
+        const rawHourlySeries = usageSnapshot.hourly_series ?? snapshot['HourlySeries'];
+        const rawDailySeries = usageSnapshot.daily_series ?? snapshot['DailySeries'];
+        const rawHealth =
+          usageSnapshot.service_health ?? snapshot['ServiceHealth'] ?? snapshot['Health'];
 
-      return {
-        ...usageSnapshot,
-        usage: usageSnapshot.usage ?? snapshot['Usage'] ?? null,
-        summary: usageSnapshot.summary ?? snapshot['Summary'],
-        series: normalizeSeriesKeys(rawSeries as Record<string, unknown>),
-        hourly_series: normalizeSeriesKeys(rawHourlySeries as Record<string, unknown>),
-        daily_series: normalizeSeriesKeys(rawDailySeries as Record<string, unknown>),
-        service_health: rawHealth ? {
-          ...(rawHealth as Record<string, unknown>),
-          total_success: (rawHealth as Record<string, unknown>)['TotalSuccess'] ?? (rawHealth as Record<string, unknown>)['total_success'],
-          total_failure: (rawHealth as Record<string, unknown>)['TotalFailure'] ?? (rawHealth as Record<string, unknown>)['total_failure'],
-          success_rate: (rawHealth as Record<string, unknown>)['SuccessRate'] ?? (rawHealth as Record<string, unknown>)['success_rate'],
-          block_details: normalizeHealthBlocks((rawHealth as Record<string, unknown>)['BlockDetails'] as unknown[] ?? (rawHealth as Record<string, unknown>)['block_details'] as unknown[]),
-        } : undefined,
-      };
-    })() as UsageOverviewPayload)
+        return {
+          ...usageSnapshot,
+          usage: usageSnapshot.usage ?? snapshot['Usage'] ?? null,
+          summary: usageSnapshot.summary ?? snapshot['Summary'],
+          series: normalizeSeriesKeys(rawSeries as Record<string, unknown>),
+          hourly_series: normalizeSeriesKeys(rawHourlySeries as Record<string, unknown>),
+          daily_series: normalizeSeriesKeys(rawDailySeries as Record<string, unknown>),
+          service_health: rawHealth
+            ? {
+                ...(rawHealth as Record<string, unknown>),
+                total_success:
+                  (rawHealth as Record<string, unknown>)['TotalSuccess'] ??
+                  (rawHealth as Record<string, unknown>)['total_success'],
+                total_failure:
+                  (rawHealth as Record<string, unknown>)['TotalFailure'] ??
+                  (rawHealth as Record<string, unknown>)['total_failure'],
+                success_rate:
+                  (rawHealth as Record<string, unknown>)['SuccessRate'] ??
+                  (rawHealth as Record<string, unknown>)['success_rate'],
+                block_details: normalizeHealthBlocks(
+                  ((rawHealth as Record<string, unknown>)['BlockDetails'] as unknown[]) ??
+                    ((rawHealth as Record<string, unknown>)['block_details'] as unknown[])
+                ),
+              }
+            : undefined,
+        };
+      })() as UsageOverviewPayload)
     : null;
   const error = storeError || '';
   const lastRefreshedAt = lastRefreshedAtTs ? new Date(lastRefreshedAtTs) : null;
@@ -323,6 +374,6 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     handleImportChange,
     importInputRef,
     exporting,
-    importing
+    importing,
   };
 }

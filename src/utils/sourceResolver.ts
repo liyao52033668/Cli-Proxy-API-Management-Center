@@ -125,11 +125,6 @@ export function resolveSourceDisplay(
   const authIndexKey = normalizeAuthIndex(authIndex);
 
   if (authIndexKey) {
-    const matchedByAuthIndex = sourceInfoMap.byAuthIndex.get(authIndexKey);
-    if (matchedByAuthIndex) {
-      return matchedByAuthIndex;
-    }
-
     const authInfo = authFileMap.get(authIndexKey);
     if (authInfo) {
       return {
@@ -137,6 +132,11 @@ export function resolveSourceDisplay(
         type: authInfo.type,
         identityKey: `auth:${authIndexKey}`,
       };
+    }
+
+    const matchedByAuthIndex = sourceInfoMap.byAuthIndex.get(authIndexKey);
+    if (matchedByAuthIndex) {
+      return matchedByAuthIndex;
     }
   }
 
@@ -149,7 +149,7 @@ export function resolveSourceDisplay(
     return {
       displayName: formatRawSourceDisplayName(source),
       type: '',
-      identityKey: `source:${source}`,
+      identityKey: authIndexKey ? `auth:${authIndexKey}` : `source:${source}`,
     };
   }
 

@@ -30,9 +30,15 @@ export interface KeyStatBucket {
   cost?: number;
 }
 
+export interface CredentialKeyStat extends KeyStatBucket {
+  source: string;
+  authIndex: string;
+}
+
 export interface KeyStats {
   bySource: Record<string, KeyStatBucket>;
   byAuthIndex: Record<string, KeyStatBucket>;
+  credentials?: CredentialKeyStat[];
 }
 
 export interface TokenBreakdown {
@@ -175,11 +181,12 @@ export function filterUsageByTimeRange<T>(
     case '30d':
       rangeMs = USAGE_TIME_RANGE_MS[range];
       break;
-    case 'today':
+    case 'today': {
       const today = new Date(nowMs);
       today.setHours(0, 0, 0, 0);
       rangeMs = nowMs - today.getTime();
       break;
+    }
     default:
       return usageData;
   }
@@ -1922,6 +1929,28 @@ const normalizeKeyCountMap = (value: unknown): Record<string, KeyStatBucket> => 
   return result;
 };
 
+const normalizeCredentialKeyStats = (value: unknown): CredentialKeyStat[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!isRecord(raw)) return [];
+    const sourceValue = raw.source ?? raw.Source;
+    const authIndexValue = raw.auth_index ?? raw.authIndex ?? raw.AuthIndex;
+    const source = typeof sourceValue === 'string' ? sourceValue.trim() : '';
+    const authIndex = normalizeAuthIndex(authIndexValue) ?? '';
+    if (!source && !authIndex) return [];
+    return [
+      {
+        source,
+        authIndex,
+        success: toFiniteNumber(raw.success ?? raw.Success),
+        failure: toFiniteNumber(raw.failure ?? raw.Failure),
+        tokens: toFiniteNumber(raw.tokens ?? raw.Tokens),
+        cost: toFiniteNumber(raw.cost ?? raw.Cost),
+      },
+    ];
+  });
+};
+
 /**
  * Prefer server-side key_stats from overview. Falls back to null when absent.
  */
@@ -1940,10 +1969,15 @@ export function parseKeyStatsFromOverview(usageData: unknown): KeyStats | null {
   const byAuthIndex = normalizeKeyCountMap(
     raw.by_auth_index ?? raw.byAuthIndex ?? raw.ByAuthIndex
   );
-  if (Object.keys(bySource).length === 0 && Object.keys(byAuthIndex).length === 0) {
+  const credentials = normalizeCredentialKeyStats(raw.credentials ?? raw.Credentials);
+  if (
+    Object.keys(bySource).length === 0 &&
+    Object.keys(byAuthIndex).length === 0 &&
+    credentials.length === 0
+  ) {
     return null;
   }
-  return { bySource, byAuthIndex };
+  return { bySource, byAuthIndex, credentials };
 }
 
 /**
