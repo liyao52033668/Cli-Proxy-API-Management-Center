@@ -163,24 +163,19 @@ const applyModelPricesToSeries = (
   return { ...series, cost, models };
 };
 
-const hasCompleteSeriesPricing = (
+const hasPricedSeriesUsage = (
   series: UsageOverviewSeries | undefined,
   modelPrices: Record<string, ModelPrice>
-): boolean => {
-  const models = series?.models ?? {};
-  let hasChargeableUsage = false;
-  for (const [model, modelSeries] of Object.entries(models)) {
+): boolean =>
+  Object.entries(series?.models ?? {}).some(([model, modelSeries]) => {
+    if (!modelPrices[model]) return false;
     const tokenCount = [
       ...Object.values(modelSeries.input_tokens ?? {}),
       ...Object.values(modelSeries.output_tokens ?? {}),
       ...Object.values(modelSeries.cached_tokens ?? {}),
     ].reduce((sum, value) => sum + Math.max(Number(value) || 0, 0), 0);
-    if (tokenCount <= 0) continue;
-    hasChargeableUsage = true;
-    if (!modelPrices[model]) return false;
-  }
-  return hasChargeableUsage;
-};
+    return tokenCount > 0;
+  });
 
 const normalizeHealthBlocks = (blocks: unknown[] | undefined): unknown[] | undefined => {
   if (!blocks || !Array.isArray(blocks)) return undefined;
@@ -436,7 +431,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     const summary = normalizeSummary(
       (usageSnapshot.summary ?? snapshot['Summary']) as Record<string, unknown> | undefined
     );
-    const hasCompletePricing = hasCompleteSeriesPricing(series, modelPrices);
+    const hasPricedUsage = hasPricedSeriesUsage(series, modelPrices);
     const totalCost = Object.values(series?.cost ?? {}).reduce((sum, value) => sum + value, 0);
 
     return {
@@ -445,8 +440,8 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
       summary: summary
         ? {
             ...summary,
-            total_cost: hasCompletePricing ? totalCost : 0,
-            cost_available: hasCompletePricing,
+            total_cost: hasPricedUsage ? totalCost : 0,
+            cost_available: hasPricedUsage,
           }
         : undefined,
       series,

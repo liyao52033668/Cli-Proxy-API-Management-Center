@@ -147,6 +147,11 @@ export interface UsageKeyCount {
 export interface UsageCredentialCount extends UsageKeyCount {
   source: string;
   auth_index: string;
+  model?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_tokens?: number;
 }
 
 export interface UsageKeyStats {

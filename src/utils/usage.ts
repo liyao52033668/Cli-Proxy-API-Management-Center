@@ -34,6 +34,11 @@ export interface KeyStatBucket {
 export interface CredentialKeyStat extends KeyStatBucket {
   source: string;
   authIndex: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cachedTokens?: number;
 }
 
 export interface KeyStats {
@@ -906,8 +911,29 @@ export function getModelNamesFromUsage(usageData: unknown): string[] {
 }
 
 /**
- * 计算成本数据
+ * Calculate usage cost from model pricing.
  */
+export function calculateTokenCost(
+  modelName: string,
+  inputTokensValue: number,
+  outputTokensValue: number,
+  cachedTokensValue: number,
+  modelPrices: Record<string, ModelPrice>
+): number {
+  const price = modelPrices[modelName];
+  if (!price) return 0;
+
+  const inputTokens = Math.max(Number(inputTokensValue) || 0, 0);
+  const outputTokens = Math.max(Number(outputTokensValue) || 0, 0);
+  const cachedTokens = Math.max(Number(cachedTokensValue) || 0, 0);
+  const promptTokens = Math.max(inputTokens - cachedTokens, 0);
+  const total =
+    (promptTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.prompt) || 0) +
+    (outputTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.completion) || 0) +
+    (cachedTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.cache) || 0);
+  return Number.isFinite(total) && total > 0 ? total : 0;
+}
+
 export function calculateCost(
   detail: UsageDetail,
   modelPrices: Record<string, ModelPrice>
@@ -2052,12 +2078,21 @@ const normalizeCredentialKeyStats = (value: unknown): CredentialKeyStat[] => {
     const source = typeof sourceValue === 'string' ? sourceValue.trim() : '';
     const authIndex = normalizeAuthIndex(authIndexValue) ?? '';
     if (!source && !authIndex) return [];
+    const modelValue = raw.model ?? raw.Model;
+    const model = typeof modelValue === 'string' ? modelValue.trim() : '';
     return [
       {
         source,
         authIndex,
+        model: model || undefined,
         success: toFiniteNumber(raw.success ?? raw.Success),
         failure: toFiniteNumber(raw.failure ?? raw.Failure),
+        inputTokens: toFiniteNumber(raw.input_tokens ?? raw.inputTokens ?? raw.InputTokens),
+        outputTokens: toFiniteNumber(raw.output_tokens ?? raw.outputTokens ?? raw.OutputTokens),
+        reasoningTokens: toFiniteNumber(
+          raw.reasoning_tokens ?? raw.reasoningTokens ?? raw.ReasoningTokens
+        ),
+        cachedTokens: toFiniteNumber(raw.cached_tokens ?? raw.cachedTokens ?? raw.CachedTokens),
         tokens: toFiniteNumber(raw.tokens ?? raw.Tokens),
         cost: toFiniteNumber(raw.cost ?? raw.Cost),
       },

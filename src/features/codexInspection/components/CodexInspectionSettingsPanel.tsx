@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -64,6 +64,16 @@ function toUsedThreshold(remainingThreshold: number) {
   return clampPercent(100 - remainingThreshold);
 }
 
+function resolveNextTriggerAtMs(nextTriggerAtMs: number, intervalMinutes: number, nowMs: number) {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  if (intervalMs <= 0 || nextTriggerAtMs > nowMs) {
+    return nextTriggerAtMs;
+  }
+
+  const elapsedIntervals = Math.floor((nowMs - nextTriggerAtMs) / intervalMs) + 1;
+  return nextTriggerAtMs + elapsedIntervals * intervalMs;
+}
+
 export function CodexInspectionSettingsPanel({
   settings,
   showSchedule,
@@ -74,6 +84,33 @@ export function CodexInspectionSettingsPanel({
   onSave,
 }: Props) {
   const { t } = useTranslation();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!showSchedule || !settings.schedule.enabled || !nextTriggerAtMs || nextTriggerAtMs <= 0) {
+      return undefined;
+    }
+
+    const upcomingTriggerAtMs = resolveNextTriggerAtMs(
+      nextTriggerAtMs,
+      settings.schedule.intervalMinutes,
+      nowMs
+    );
+    const delay = Math.max(1000, upcomingTriggerAtMs - Date.now() + 1000);
+    const timer = window.setTimeout(() => {
+      setNowMs(Date.now());
+    }, delay);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    nextTriggerAtMs,
+    nowMs,
+    settings.schedule.enabled,
+    settings.schedule.intervalMinutes,
+    showSchedule,
+  ]);
 
   const commitIntervalMinutes = (rawValue: string) => {
     onChange({
@@ -88,7 +125,10 @@ export function CodexInspectionSettingsPanel({
   const formattedNextTrigger =
     nextTriggerAtMs && nextTriggerAtMs > 0
       ? (() => {
-          const date = new Date(nextTriggerAtMs);
+          const displayedTriggerAtMs = settings.schedule.enabled
+            ? resolveNextTriggerAtMs(nextTriggerAtMs, settings.schedule.intervalMinutes, nowMs)
+            : nextTriggerAtMs;
+          const date = new Date(displayedTriggerAtMs);
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');

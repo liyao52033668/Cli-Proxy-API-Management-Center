@@ -10,6 +10,7 @@ import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver
 import { useUsageStatsStore } from '@/stores/useUsageStatsStore';
 import {
   calculateCost,
+  calculateTokenCost,
   collectUsageDetails,
   extractTotalTokens,
   formatCompactNumber,
@@ -153,53 +154,71 @@ export function CredentialStatsCard({
 
     if (hasServerKeyStats(keyStats)) {
       const credentials = keyStats.credentials ?? [];
+      let hasCompactCostData = false;
       if (credentials.length > 0) {
         credentials.forEach((credential) => {
+          const serverCost = Number(credential.cost) || 0;
+          const compactCost = credential.model
+            ? calculateTokenCost(
+                credential.model,
+                Number(credential.inputTokens) || 0,
+                Number(credential.outputTokens) || 0,
+                Number(credential.cachedTokens) || 0,
+                modelPrices
+              )
+            : serverCost;
+          hasCompactCostData = hasCompactCostData || Boolean(credential.model) || serverCost > 0;
           upsert(
             credential.source,
             credential.authIndex,
             Number(credential.success) || 0,
             Number(credential.failure) || 0,
             Number(credential.tokens) || 0,
-            usageDetails.length > 0 ? 0 : Number(credential.cost) || 0
+            compactCost
           );
         });
       } else {
         const authEntries = Object.entries(keyStats.byAuthIndex);
         if (authEntries.length > 0) {
           authEntries.forEach(([authIndex, bucket]) => {
+            const serverCost = Number(bucket.cost) || 0;
+            hasCompactCostData = hasCompactCostData || serverCost > 0;
             upsert(
               '',
               authIndex,
               Number(bucket.success) || 0,
               Number(bucket.failure) || 0,
               Number(bucket.tokens) || 0,
-              usageDetails.length > 0 ? 0 : Number(bucket.cost) || 0
+              serverCost
             );
           });
         } else {
           Object.entries(keyStats.bySource).forEach(([source, bucket]) => {
+            const serverCost = Number(bucket.cost) || 0;
+            hasCompactCostData = hasCompactCostData || serverCost > 0;
             upsert(
               source,
               null,
               Number(bucket.success) || 0,
               Number(bucket.failure) || 0,
               Number(bucket.tokens) || 0,
-              usageDetails.length > 0 ? 0 : Number(bucket.cost) || 0
+              serverCost
             );
           });
         }
       }
-      usageDetails.forEach((detail) => {
-        upsert(
-          detail.source ?? '',
-          detail.auth_index,
-          0,
-          0,
-          0,
-          calculateCost(detail, modelPrices)
-        );
-      });
+      if (!hasCompactCostData) {
+        usageDetails.forEach((detail) => {
+          upsert(
+            detail.source ?? '',
+            detail.auth_index,
+            0,
+            0,
+            0,
+            calculateCost(detail, modelPrices)
+          );
+        });
+      }
       return Array.from(rowMap.values());
     }
 
