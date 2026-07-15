@@ -135,7 +135,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
-        includeDetails: false,
+        includeDetails: true,
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -155,7 +155,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
-        includeDetails: false,
+        includeDetails: true,
       }),
       usageApi.getPricing().then((response) => {
         const prices = Object.fromEntries(
@@ -248,7 +248,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
           range: resolvedRange,
           start: requestStart,
           end: requestEnd,
-          includeDetails: false,
+          includeDetails: true,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : '';

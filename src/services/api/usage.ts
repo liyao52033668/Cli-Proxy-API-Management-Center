@@ -71,6 +71,14 @@ export interface UsageSnapshot {
   apis: Record<string, UsageApiSnapshot>;
 }
 
+export interface InMemoryUsageResponse {
+  usage: UsageSnapshot;
+  failed_requests: number;
+  event_cache?: UsageEventCacheInfo;
+  key_stats?: UsageKeyStats;
+  service_health?: UsageOverviewServiceHealth;
+}
+
 export interface UsageOverviewSummary {
   request_count: number;
   token_count: number;
@@ -188,12 +196,28 @@ export interface UsageSourceFilterOption {
   displayName?: string;
 }
 
+export interface UsageEventCacheInfo {
+  retained_count: number;
+  max_events: number;
+  estimated_bytes: number;
+  max_bytes: number;
+  max_age_seconds: number;
+  max_event_bytes: number;
+  oldest_timestamp?: string;
+  newest_timestamp?: string;
+  has_older_events: boolean;
+  evicted_total: number;
+  oversized_dropped_total: number;
+}
+
 export interface UsageEventsResponse {
   events: UsageEvent[];
+  models?: string[];
   total_count: number;
   page: number;
   page_size: number;
   total_pages: number;
+  cache?: UsageEventCacheInfo;
 }
 
 export interface UsageEventModelFilterOptionsResponse {
@@ -411,7 +435,14 @@ export const usageApi = {
   /**
    * 获取使用统计原始数据（兼容旧接口）
    */
-  getUsage: () => apiClient.get<Record<string, unknown>>('/usage', { timeout: USAGE_TIMEOUT_MS }),
+  getUsage: (range: UsageTimeRange = 'all', start?: string, end?: string) => {
+    const params = new URLSearchParams({ range });
+    if (start) params.set('start_time', start);
+    if (end) params.set('end_time', end);
+    return apiClient.get<InMemoryUsageResponse>(`/usage?${params.toString()}`, {
+      timeout: USAGE_TIMEOUT_MS,
+    });
+  },
 
   /**
    * 导出数据库驱动的使用统计快照
@@ -466,7 +497,8 @@ export const usageApi = {
     range: UsageTimeRange,
     start?: string,
     end?: string,
-    options?: FetchUsageEventsOptions
+    options?: FetchUsageEventsOptions,
+    source: 'memory' | 'history' = 'memory'
   ) => {
     const params = new URLSearchParams();
     params.set('range', range);
@@ -480,7 +512,8 @@ export const usageApi = {
     if (options?.authIndex?.trim()) params.set('auth_index', options.authIndex.trim());
     if (options?.result?.trim()) params.set('result', options.result.trim());
     const query = params.toString();
-    return apiClient.get<UsageEventsResponse>(`/usage/db/events${query ? `?${query}` : ''}`, {
+    const path = source === 'history' ? '/usage/db/events/history' : '/usage/db/events';
+    return apiClient.get<UsageEventsResponse>(`${path}${query ? `?${query}` : ''}`, {
       timeout: USAGE_TIMEOUT_MS,
     });
   },

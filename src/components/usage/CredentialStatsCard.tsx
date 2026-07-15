@@ -61,6 +61,7 @@ export function CredentialStatsCard({
 }: CredentialStatsCardProps) {
   const { t } = useTranslation();
   const keyStats = useUsageStatsStore((state) => state.keyStats);
+  const usageDetails = useUsageStatsStore((state) => state.usageDetails);
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [sortKey, setSortKey] = useState<SortKey>('requests');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -160,7 +161,7 @@ export function CredentialStatsCard({
             Number(credential.success) || 0,
             Number(credential.failure) || 0,
             Number(credential.tokens) || 0,
-            Number(credential.cost) || 0
+            usageDetails.length > 0 ? 0 : Number(credential.cost) || 0
           );
         });
       } else {
@@ -173,7 +174,7 @@ export function CredentialStatsCard({
               Number(bucket.success) || 0,
               Number(bucket.failure) || 0,
               Number(bucket.tokens) || 0,
-              Number(bucket.cost) || 0
+              usageDetails.length > 0 ? 0 : Number(bucket.cost) || 0
             );
           });
         } else {
@@ -184,11 +185,21 @@ export function CredentialStatsCard({
               Number(bucket.success) || 0,
               Number(bucket.failure) || 0,
               Number(bucket.tokens) || 0,
-              Number(bucket.cost) || 0
+              usageDetails.length > 0 ? 0 : Number(bucket.cost) || 0
             );
           });
         }
       }
+      usageDetails.forEach((detail) => {
+        upsert(
+          detail.source ?? '',
+          detail.auth_index,
+          0,
+          0,
+          0,
+          calculateCost(detail, modelPrices)
+        );
+      });
       return Array.from(rowMap.values());
     }
 
@@ -206,7 +217,7 @@ export function CredentialStatsCard({
     });
 
     return Array.from(rowMap.values());
-  }, [authFileMap, keyStats, modelPrices, sourceInfoMap, usage]);
+  }, [authFileMap, keyStats, modelPrices, sourceInfoMap, usage, usageDetails]);
 
   const effectiveSortKey: SortKey = hasPrices || sortKey !== 'cost' ? sortKey : 'requests';
   const effectiveSortDir: SortDir = hasPrices || sortKey !== 'cost' ? sortDir : 'desc';

@@ -6,7 +6,12 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
-import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
+import {
+  usageApi,
+  type UsageEvent,
+  type UsageEventCacheInfo,
+  type UsageTimeRange,
+} from '@/services/api/usage';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
@@ -64,10 +69,12 @@ export function RequestEventsDetailsCard({
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [modelNames, setModelNames] = useState<string[]>([]);
+  const [cacheInfo, setCacheInfo] = useState<UsageEventCacheInfo | null>(null);
+  const [eventSource, setEventSource] = useState<'memory' | 'history'>('memory');
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
-  const queryIdentity = `${timeRange}::${modelFilter}::${sourceFilter}::${authIndexFilter}`;
+  const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}::${authIndexFilter}`;
   const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -107,6 +114,7 @@ export function RequestEventsDetailsCard({
   }, []);
 
   useEffect(() => {
+    if (eventSource === 'history') return;
     let cancelled = false;
     usageApi
       .getUsageEventModelFilters(timeRange)
@@ -121,23 +129,33 @@ export function RequestEventsDetailsCard({
     return () => {
       cancelled = true;
     };
-  }, [timeRange]);
+  }, [eventSource, timeRange]);
 
   useEffect(() => {
     let cancelled = false;
     usageApi
-      .getUsageEvents(timeRange, undefined, undefined, {
-        page,
-        pageSize: PAGE_SIZE,
-        model: modelFilter === ALL_FILTER ? undefined : modelFilter,
-        source: sourceFilter === ALL_FILTER ? undefined : sourceFilter,
-        authIndex: authIndexFilter === ALL_FILTER ? undefined : authIndexFilter,
-      })
+      .getUsageEvents(
+        timeRange,
+        undefined,
+        undefined,
+        {
+          page,
+          pageSize: PAGE_SIZE,
+          model: modelFilter === ALL_FILTER ? undefined : modelFilter,
+          source: sourceFilter === ALL_FILTER ? undefined : sourceFilter,
+          authIndex: authIndexFilter === ALL_FILTER ? undefined : authIndexFilter,
+        },
+        eventSource
+      )
       .then((response) => {
         if (cancelled) return;
         const nextTotalPages = Math.max(1, Number(response.total_pages) || 1);
         setTotalCount(Number(response.total_count) || 0);
         setTotalPages(nextTotalPages);
+        setCacheInfo(response.cache || null);
+        if (eventSource === 'history' && Array.isArray(response.models)) {
+          setModelNames(response.models);
+        }
         if (page > nextTotalPages) {
           setPageState({ queryIdentity, page: nextTotalPages });
           return;
@@ -149,6 +167,7 @@ export function RequestEventsDetailsCard({
         setEvents([]);
         setTotalCount(0);
         setTotalPages(1);
+        setCacheInfo(null);
       })
       .finally(() => {
         if (!cancelled) setLoadedQueryKey(queryKey);
@@ -156,7 +175,16 @@ export function RequestEventsDetailsCard({
     return () => {
       cancelled = true;
     };
-  }, [authIndexFilter, modelFilter, page, queryIdentity, queryKey, sourceFilter, timeRange]);
+  }, [
+    authIndexFilter,
+    eventSource,
+    modelFilter,
+    page,
+    queryIdentity,
+    queryKey,
+    sourceFilter,
+    timeRange,
+  ]);
 
   const sourceInfoMap = useMemo(
     () =>
@@ -254,6 +282,14 @@ export function RequestEventsDetailsCard({
     setAuthIndexFilter(ALL_FILTER);
   };
 
+  const handleToggleEventSource = () => {
+    setEventSource((current) => (current === 'memory' ? 'history' : 'memory'));
+    setModelNames([]);
+    setModelFilter(ALL_FILTER);
+    setSourceFilter(ALL_FILTER);
+    setAuthIndexFilter(ALL_FILTER);
+  };
+
   const handleExportCsv = () => {
     if (!rows.length) return;
     const csvHeader = [
@@ -329,6 +365,11 @@ export function RequestEventsDetailsCard({
       title={t('usage_stats.request_events_title')}
       extra={
         <div className={styles.requestEventsActions}>
+          <Button variant="secondary" size="sm" onClick={handleToggleEventSource}>
+            {eventSource === 'history'
+              ? t('usage_stats.request_events_recent')
+              : t('usage_stats.request_events_history')}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -387,6 +428,17 @@ export function RequestEventsDetailsCard({
           />
         </div>
       </div>
+
+      {eventSource === 'history' ? (
+        <div className={styles.hint}>{t('usage_stats.request_events_history_hint')}</div>
+      ) : cacheInfo ? (
+        <div className={styles.hint}>
+          {t('usage_stats.request_events_cache_hint', {
+            count: cacheInfo.retained_count,
+            max: cacheInfo.max_events,
+          })}
+        </div>
+      ) : null}
 
       {eventsLoading ? (
         <div className={styles.hint}>{t('common.loading')}</div>
