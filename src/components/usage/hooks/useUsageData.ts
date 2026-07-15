@@ -2,13 +2,15 @@ import { ApiError } from '@/services/api/client';
 import {
   usageApi,
   type UsageOverviewResponse,
+  type UsageOverviewSeries,
+  type UsageOverviewSummary,
   type UsageSnapshot,
   type UsageTimeRange,
 } from '@/services/api/usage';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
 import { downloadBlob } from '@/utils/download';
 import type { ModelPrice } from '@/utils/usage';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type UsagePayload = Partial<UsageSnapshot>;
@@ -62,7 +64,7 @@ const toCustomDateParam = (value: string | undefined): string | undefined => {
 
 const normalizeSeriesKeys = (
   series: Record<string, unknown> | undefined
-): Record<string, unknown> | undefined => {
+): UsageOverviewSeries | undefined => {
   if (!series) return undefined;
   const rawModels = series['Models'] ?? series['models'];
   const models =
@@ -70,23 +72,114 @@ const normalizeSeriesKeys = (
       ? Object.fromEntries(
           Object.entries(rawModels as Record<string, unknown>).map(([model, modelSeries]) => [
             model,
-            normalizeSeriesKeys(modelSeries as Record<string, unknown>) ?? {},
+            normalizeSeriesKeys(modelSeries as Record<string, unknown>) ?? emptyUsageSeries(),
           ])
         )
       : undefined;
 
   return {
-    requests: series['Requests'] ?? series['requests'],
-    tokens: series['Tokens'] ?? series['tokens'],
-    rpm: series['RPM'] ?? series['rpm'],
-    tpm: series['TPM'] ?? series['tpm'],
-    cost: series['Cost'] ?? series['cost'],
-    input_tokens: series['InputTokens'] ?? series['input_tokens'],
-    output_tokens: series['OutputTokens'] ?? series['output_tokens'],
-    cached_tokens: series['CachedTokens'] ?? series['cached_tokens'],
-    reasoning_tokens: series['ReasoningTokens'] ?? series['reasoning_tokens'],
+    requests: (series['Requests'] ?? series['requests'] ?? {}) as Record<string, number>,
+    tokens: (series['Tokens'] ?? series['tokens'] ?? {}) as Record<string, number>,
+    rpm: (series['RPM'] ?? series['rpm'] ?? {}) as Record<string, number>,
+    tpm: (series['TPM'] ?? series['tpm'] ?? {}) as Record<string, number>,
+    cost: (series['Cost'] ?? series['cost'] ?? {}) as Record<string, number>,
+    input_tokens: (series['InputTokens'] ?? series['input_tokens'] ?? {}) as Record<string, number>,
+    output_tokens: (series['OutputTokens'] ?? series['output_tokens'] ?? {}) as Record<
+      string,
+      number
+    >,
+    cached_tokens: (series['CachedTokens'] ?? series['cached_tokens'] ?? {}) as Record<
+      string,
+      number
+    >,
+    reasoning_tokens: (series['ReasoningTokens'] ?? series['reasoning_tokens'] ?? {}) as Record<
+      string,
+      number
+    >,
     models,
   };
+};
+
+const emptyUsageSeries = (): UsageOverviewSeries => ({
+  requests: {},
+  tokens: {},
+  rpm: {},
+  tpm: {},
+  cost: {},
+  input_tokens: {},
+  output_tokens: {},
+  cached_tokens: {},
+  reasoning_tokens: {},
+  models: {},
+});
+
+const normalizeSummary = (
+  summary: Record<string, unknown> | undefined
+): UsageOverviewSummary | undefined => {
+  if (!summary) return undefined;
+  return {
+    request_count: Number(summary['RequestCount'] ?? summary['request_count'] ?? 0),
+    token_count: Number(summary['TokenCount'] ?? summary['token_count'] ?? 0),
+    window_minutes: Number(summary['WindowMinutes'] ?? summary['window_minutes'] ?? 0),
+    rpm: Number(summary['RPM'] ?? summary['rpm'] ?? 0),
+    tpm: Number(summary['TPM'] ?? summary['tpm'] ?? 0),
+    total_cost: Number(summary['TotalCost'] ?? summary['total_cost'] ?? 0),
+    cost_available: Boolean(summary['CostAvailable'] ?? summary['cost_available'] ?? false),
+    cached_tokens: Number(summary['CachedTokens'] ?? summary['cached_tokens'] ?? 0),
+    reasoning_tokens: Number(summary['ReasoningTokens'] ?? summary['reasoning_tokens'] ?? 0),
+  };
+};
+
+const applyModelPricesToSeries = (
+  series: UsageOverviewSeries | undefined,
+  modelPrices: Record<string, ModelPrice>
+): UsageOverviewSeries | undefined => {
+  if (!series || !series.models || Object.keys(modelPrices).length === 0) return series;
+  const cost: Record<string, number> = {};
+  const models = Object.fromEntries(
+    Object.entries(series.models).map(([model, modelSeries]) => {
+      const price = modelPrices[model];
+      const modelCost: Record<string, number> = {};
+      const labels = new Set([
+        ...Object.keys(modelSeries.input_tokens ?? {}),
+        ...Object.keys(modelSeries.output_tokens ?? {}),
+        ...Object.keys(modelSeries.cached_tokens ?? {}),
+      ]);
+      labels.forEach((label) => {
+        const inputTokens = Math.max(Number(modelSeries.input_tokens?.[label] ?? 0), 0);
+        const outputTokens = Math.max(Number(modelSeries.output_tokens?.[label] ?? 0), 0);
+        const cachedTokens = Math.max(Number(modelSeries.cached_tokens?.[label] ?? 0), 0);
+        const value = price
+          ? (Math.max(inputTokens - cachedTokens, 0) / 1_000_000) * price.prompt +
+            (outputTokens / 1_000_000) * price.completion +
+            (cachedTokens / 1_000_000) * price.cache
+          : 0;
+        modelCost[label] = value;
+        cost[label] = (cost[label] ?? 0) + value;
+      });
+      return [model, { ...modelSeries, cost: modelCost }];
+    })
+  );
+  return { ...series, cost, models };
+};
+
+const hasCompleteSeriesPricing = (
+  series: UsageOverviewSeries | undefined,
+  modelPrices: Record<string, ModelPrice>
+): boolean => {
+  const models = series?.models ?? {};
+  let hasChargeableUsage = false;
+  for (const [model, modelSeries] of Object.entries(models)) {
+    const tokenCount = [
+      ...Object.values(modelSeries.input_tokens ?? {}),
+      ...Object.values(modelSeries.output_tokens ?? {}),
+      ...Object.values(modelSeries.cached_tokens ?? {}),
+    ].reduce((sum, value) => sum + Math.max(Number(value) || 0, 0), 0);
+    if (tokenCount <= 0) continue;
+    hasChargeableUsage = true;
+    if (!modelPrices[model]) return false;
+  }
+  return hasChargeableUsage;
 };
 
 const normalizeHealthBlocks = (blocks: unknown[] | undefined): unknown[] | undefined => {
@@ -135,7 +228,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
-        includeDetails: true,
+        includeDetails: false,
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -155,7 +248,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
         range: resolvedRange,
         start: requestStart,
         end: requestEnd,
-        includeDetails: true,
+        includeDetails: false,
       }),
       usageApi.getPricing().then((response) => {
         const prices = Object.fromEntries(
@@ -248,7 +341,7 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
           range: resolvedRange,
           start: requestStart,
           end: requestEnd,
-          includeDetails: true,
+          includeDetails: false,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : '';
@@ -320,43 +413,65 @@ export function useUsageData(options: UseUsageDataOptions = {}): UseUsageDataRet
     [modelPrices, onAuthRequired, showNotification, t]
   );
 
-  const usage = usageSnapshot
-    ? ((() => {
-        const snapshot = usageSnapshot as unknown as Record<string, unknown>;
-        const rawSeries = usageSnapshot.series ?? snapshot['Series'];
-        const rawHourlySeries = usageSnapshot.hourly_series ?? snapshot['HourlySeries'];
-        const rawDailySeries = usageSnapshot.daily_series ?? snapshot['DailySeries'];
-        const rawHealth =
-          usageSnapshot.service_health ?? snapshot['ServiceHealth'] ?? snapshot['Health'];
+  const usage = useMemo(() => {
+    if (!usageSnapshot) return null;
+    const snapshot = usageSnapshot as unknown as Record<string, unknown>;
+    const rawSeries = usageSnapshot.series ?? snapshot['Series'];
+    const rawHourlySeries = usageSnapshot.hourly_series ?? snapshot['HourlySeries'];
+    const rawDailySeries = usageSnapshot.daily_series ?? snapshot['DailySeries'];
+    const rawHealth =
+      usageSnapshot.service_health ?? snapshot['ServiceHealth'] ?? snapshot['Health'];
+    const series = applyModelPricesToSeries(
+      normalizeSeriesKeys(rawSeries as Record<string, unknown>),
+      modelPrices
+    );
+    const hourlySeries = applyModelPricesToSeries(
+      normalizeSeriesKeys(rawHourlySeries as Record<string, unknown>),
+      modelPrices
+    );
+    const dailySeries = applyModelPricesToSeries(
+      normalizeSeriesKeys(rawDailySeries as Record<string, unknown>),
+      modelPrices
+    );
+    const summary = normalizeSummary(
+      (usageSnapshot.summary ?? snapshot['Summary']) as Record<string, unknown> | undefined
+    );
+    const hasCompletePricing = hasCompleteSeriesPricing(series, modelPrices);
+    const totalCost = Object.values(series?.cost ?? {}).reduce((sum, value) => sum + value, 0);
 
-        return {
-          ...usageSnapshot,
-          usage: usageSnapshot.usage ?? snapshot['Usage'] ?? null,
-          summary: usageSnapshot.summary ?? snapshot['Summary'],
-          series: normalizeSeriesKeys(rawSeries as Record<string, unknown>),
-          hourly_series: normalizeSeriesKeys(rawHourlySeries as Record<string, unknown>),
-          daily_series: normalizeSeriesKeys(rawDailySeries as Record<string, unknown>),
-          service_health: rawHealth
-            ? {
-                ...(rawHealth as Record<string, unknown>),
-                total_success:
-                  (rawHealth as Record<string, unknown>)['TotalSuccess'] ??
-                  (rawHealth as Record<string, unknown>)['total_success'],
-                total_failure:
-                  (rawHealth as Record<string, unknown>)['TotalFailure'] ??
-                  (rawHealth as Record<string, unknown>)['total_failure'],
-                success_rate:
-                  (rawHealth as Record<string, unknown>)['SuccessRate'] ??
-                  (rawHealth as Record<string, unknown>)['success_rate'],
-                block_details: normalizeHealthBlocks(
-                  ((rawHealth as Record<string, unknown>)['BlockDetails'] as unknown[]) ??
-                    ((rawHealth as Record<string, unknown>)['block_details'] as unknown[])
-                ),
-              }
-            : undefined,
-        };
-      })() as UsageOverviewPayload)
-    : null;
+    return {
+      ...usageSnapshot,
+      usage: usageSnapshot.usage ?? snapshot['Usage'] ?? null,
+      summary: summary
+        ? {
+            ...summary,
+            total_cost: hasCompletePricing ? totalCost : 0,
+            cost_available: hasCompletePricing,
+          }
+        : undefined,
+      series,
+      hourly_series: hourlySeries,
+      daily_series: dailySeries,
+      service_health: rawHealth
+        ? {
+            ...(rawHealth as Record<string, unknown>),
+            total_success:
+              (rawHealth as Record<string, unknown>)['TotalSuccess'] ??
+              (rawHealth as Record<string, unknown>)['total_success'],
+            total_failure:
+              (rawHealth as Record<string, unknown>)['TotalFailure'] ??
+              (rawHealth as Record<string, unknown>)['total_failure'],
+            success_rate:
+              (rawHealth as Record<string, unknown>)['SuccessRate'] ??
+              (rawHealth as Record<string, unknown>)['success_rate'],
+            block_details: normalizeHealthBlocks(
+              ((rawHealth as Record<string, unknown>)['BlockDetails'] as unknown[]) ??
+                ((rawHealth as Record<string, unknown>)['block_details'] as unknown[])
+            ),
+          }
+        : undefined,
+    } as UsageOverviewPayload;
+  }, [modelPrices, usageSnapshot]);
   const error = storeError || '';
   const lastRefreshedAt = lastRefreshedAtTs ? new Date(lastRefreshedAtTs) : null;
 

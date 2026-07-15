@@ -18,8 +18,9 @@ import {
 export {
   calculateLatencyStatsFromDetails,
   extractLatencyMs,
-  formatDurationMs, LATENCY_SOURCE_FIELD,
-  LATENCY_SOURCE_UNIT
+  formatDurationMs,
+  LATENCY_SOURCE_FIELD,
+  LATENCY_SOURCE_UNIT,
 } from './usage/latency';
 export type { DurationFormatOptions, LatencyStats } from './usage/latency';
 
@@ -110,7 +111,16 @@ export interface ModelStatsSummary {
   latencySampleCount: number;
 }
 
-export type UsageTimeRange = 'all' | '4h' | '8h' | '12h' | '24h' | 'today' | '7d' | '30d' | 'custom';
+export type UsageTimeRange =
+  | 'all'
+  | '4h'
+  | '8h'
+  | '12h'
+  | '24h'
+  | 'today'
+  | '7d'
+  | '30d'
+  | 'custom';
 
 const TOKENS_PER_PRICE_UNIT = 1_000_000;
 const MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices-v2';
@@ -131,8 +141,11 @@ const getApisRecord = (usageData: unknown): Record<string, unknown> | null => {
   const usageRecord = isRecord(usageData) ? usageData : null;
   if (!usageRecord) return null;
 
-  const innerUsage = usageRecord.apis ? usageRecord : (usageRecord.usage as Record<string, unknown>) ?? (usageRecord['Usage'] as Record<string, unknown>);
-  const apisRaw = innerUsage ? innerUsage.apis ?? innerUsage['apis'] : null;
+  const innerUsage = usageRecord.apis
+    ? usageRecord
+    : ((usageRecord.usage as Record<string, unknown>) ??
+      (usageRecord['Usage'] as Record<string, unknown>));
+  const apisRaw = innerUsage ? (innerUsage.apis ?? innerUsage['apis']) : null;
   return isRecord(apisRaw) ? apisRaw : null;
 };
 
@@ -194,9 +207,10 @@ export function filterUsageByTimeRange<T>(
   const windowStart = nowMs - rangeMs;
   const totalSummary = createUsageSummary();
 
-  const usesDetailWindow = range === '4h' || range === '8h' || range === '12h' || range === '24h' || range === 'today';
-  const requestsByDay = usageRecord.requests_by_day as Record<string, number> ?? {};
-  const tokensByDay = usageRecord.tokens_by_day as Record<string, number> ?? {};
+  const usesDetailWindow =
+    range === '4h' || range === '8h' || range === '12h' || range === '24h' || range === 'today';
+  const requestsByDay = (usageRecord.requests_by_day as Record<string, number>) ?? {};
+  const tokensByDay = (usageRecord.tokens_by_day as Record<string, number>) ?? {};
 
   let hasAggregatedData = false;
 
@@ -268,8 +282,9 @@ export function filterUsageByTimeRange<T>(
           } else {
             const modelKeyRequests = 'Requests';
             const modelKeyTokens = 'Tokens';
-            const modelTimeRequests = modelEntry[modelKeyRequests] as Record<string, number> ?? {};
-            const modelTimeTokens = modelEntry[modelKeyTokens] as Record<string, number> ?? {};
+            const modelTimeRequests =
+              (modelEntry[modelKeyRequests] as Record<string, number>) ?? {};
+            const modelTimeTokens = (modelEntry[modelKeyTokens] as Record<string, number>) ?? {};
 
             Object.entries(modelTimeRequests).forEach(([dateStr, count]) => {
               const timestamp = parseTimestampMs(dateStr);
@@ -647,11 +662,10 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
         details.push({
           timestamp,
           source: normalizeSource(detailRaw.source),
-          auth_index:
-            (detailRaw?.auth_index ??
-              detailRaw?.authIndex ??
-              detailRaw?.AuthIndex ??
-              null) as UsageDetail['auth_index'],
+          auth_index: (detailRaw?.auth_index ??
+            detailRaw?.authIndex ??
+            detailRaw?.AuthIndex ??
+            null) as UsageDetail['auth_index'],
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
@@ -724,11 +738,10 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
         details.push({
           timestamp,
           source: normalizeSource(detailRaw.source),
-          auth_index:
-            (detailRaw?.auth_index ??
-              detailRaw?.authIndex ??
-              detailRaw?.AuthIndex ??
-              null) as UsageDetail['auth_index'],
+          auth_index: (detailRaw?.auth_index ??
+            detailRaw?.authIndex ??
+            detailRaw?.AuthIndex ??
+            null) as UsageDetail['auth_index'],
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
@@ -773,7 +786,35 @@ export function extractTotalTokens(detail: unknown): number {
  * 计算耗时统计
  */
 export function calculateLatencyStats(usageData: unknown): LatencyStats {
-  return calculateLatencyStatsFromDetails(collectUsageDetails(usageData));
+  const details = collectUsageDetails(usageData);
+  if (details.length > 0) {
+    return calculateLatencyStatsFromDetails(details);
+  }
+
+  const accumulator = createLatencyAccumulator();
+  const apis = getApisRecord(usageData);
+  if (!apis) return finalizeLatencyStats(accumulator);
+
+  Object.values(apis).forEach((apiData) => {
+    if (!isRecord(apiData) || !isRecord(apiData.models)) return;
+    Object.values(apiData.models).forEach((modelData) => {
+      if (!isRecord(modelData)) return;
+      const totalMs = Number(modelData.total_latency_ms);
+      const sampleCount = Number(modelData.latency_sample_count);
+      if (
+        !Number.isFinite(totalMs) ||
+        totalMs < 0 ||
+        !Number.isFinite(sampleCount) ||
+        sampleCount <= 0
+      ) {
+        return;
+      }
+      accumulator.totalMs += totalMs;
+      accumulator.sampleCount += sampleCount;
+    });
+  });
+
+  return finalizeLatencyStats(accumulator);
 }
 
 /**
@@ -900,6 +941,30 @@ export function calculateCost(
   return Number.isFinite(total) && total > 0 ? total : 0;
 }
 
+const hasAggregateTokenFields = (modelData: Record<string, unknown>): boolean =>
+  typeof modelData.input_tokens === 'number' ||
+  typeof modelData.output_tokens === 'number' ||
+  typeof modelData.cached_tokens === 'number';
+
+const calculateAggregateModelCost = (
+  modelData: Record<string, unknown>,
+  modelName: string,
+  modelPrices: Record<string, ModelPrice>
+): number => {
+  const price = modelPrices[modelName];
+  if (!price) return 0;
+
+  const inputTokens = Math.max(Number(modelData.input_tokens) || 0, 0);
+  const outputTokens = Math.max(Number(modelData.output_tokens) || 0, 0);
+  const cachedTokens = Math.max(Number(modelData.cached_tokens) || 0, 0);
+  const promptTokens = Math.max(inputTokens - cachedTokens, 0);
+  const total =
+    (promptTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.prompt) || 0) +
+    (outputTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.completion) || 0) +
+    (cachedTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.cache) || 0);
+  return Number.isFinite(total) && total > 0 ? total : 0;
+};
+
 /**
  * 计算总成本
  */
@@ -907,11 +972,27 @@ export function calculateTotalCost(
   usageData: unknown,
   modelPrices: Record<string, ModelPrice>
 ): number {
-  const details = collectUsageDetails(usageData);
-  if (!details.length || !Object.keys(modelPrices).length) {
-    return 0;
+  if (!Object.keys(modelPrices).length) return 0;
+
+  const apis = getApisRecord(usageData);
+  if (apis) {
+    let total = 0;
+    let hasAggregateData = false;
+    Object.values(apis).forEach((apiData) => {
+      if (!isRecord(apiData) || !isRecord(apiData.models)) return;
+      Object.entries(apiData.models).forEach(([modelName, modelData]) => {
+        if (!isRecord(modelData) || !hasAggregateTokenFields(modelData)) return;
+        hasAggregateData = true;
+        total += calculateAggregateModelCost(modelData, modelName, modelPrices);
+      });
+    });
+    if (hasAggregateData) return total;
   }
-  return details.reduce((sum, detail) => sum + calculateCost(detail, modelPrices), 0);
+
+  return collectUsageDetails(usageData).reduce(
+    (sum, detail) => sum + calculateCost(detail, modelPrices),
+    0
+  );
 }
 
 /**
@@ -1002,8 +1083,11 @@ export function getApiStats(
         failureCount += Number(modelData.failure_count) || 0;
       }
 
-      const price = modelPrices[modelName];
-      if (details.length > 0 && (!hasExplicitCounts || price)) {
+      const hasAggregateTokens = hasAggregateTokenFields(modelData);
+      if (hasAggregateTokens) {
+        totalCost += calculateAggregateModelCost(modelData, modelName, modelPrices);
+      }
+      if (details.length > 0 && (!hasExplicitCounts || !hasAggregateTokens)) {
         details.forEach((detail) => {
           const detailRecord = isRecord(detail) ? detail : null;
           if (!hasExplicitCounts) {
@@ -1014,7 +1098,7 @@ export function getApiStats(
             }
           }
 
-          if (price && detailRecord) {
+          if (!hasAggregateTokens && detailRecord) {
             totalCost += calculateCost(
               { ...(detailRecord as unknown as UsageDetail), __modelName: modelName },
               modelPrices
@@ -1099,8 +1183,6 @@ export function getModelStats(
 
       const details = Array.isArray(modelData.details) ? modelData.details : [];
 
-      const price = modelPrices[modelName];
-
       const hasExplicitCounts =
         typeof modelData.success_count === 'number' || typeof modelData.failure_count === 'number';
       if (hasExplicitCounts) {
@@ -1108,10 +1190,25 @@ export function getModelStats(
         existing.failureCount += Number(modelData.failure_count) || 0;
       }
 
+      const hasAggregateTokens = hasAggregateTokenFields(modelData);
+      if (hasAggregateTokens) {
+        existing.cost += calculateAggregateModelCost(modelData, modelName, modelPrices);
+      }
+      const totalLatencyMs = Number(modelData.total_latency_ms);
+      const latencySampleCount = Number(modelData.latency_sample_count);
+      const hasAggregateLatency =
+        Number.isFinite(totalLatencyMs) &&
+        totalLatencyMs >= 0 &&
+        Number.isFinite(latencySampleCount) &&
+        latencySampleCount > 0;
+      if (hasAggregateLatency) {
+        existing.latency.totalMs += totalLatencyMs;
+        existing.latency.sampleCount += latencySampleCount;
+      }
+
       if (details.length > 0) {
         details.forEach((detail) => {
           const detailRecord = isRecord(detail) ? detail : null;
-          const latencyMs = extractLatencyMs(detailRecord);
           if (!hasExplicitCounts) {
             if (detailRecord?.failed === true) {
               existing.failureCount += 1;
@@ -1120,9 +1217,11 @@ export function getModelStats(
             }
           }
 
-          addLatencySample(existing.latency, latencyMs);
+          if (!hasAggregateLatency) {
+            addLatencySample(existing.latency, extractLatencyMs(detailRecord));
+          }
 
-          if (price && detailRecord) {
+          if (!hasAggregateTokens && detailRecord) {
             existing.cost += calculateCost(
               { ...(detailRecord as unknown as UsageDetail), __modelName: modelName },
               modelPrices
@@ -1217,9 +1316,12 @@ export function buildHourlySeriesByModel(
 
   const usageRecord = isRecord(usageData) ? usageData : null;
   if (usageRecord) {
-    const innerUsage = usageRecord.usage as Record<string, unknown> ?? usageRecord['Usage'] as Record<string, unknown> ?? usageRecord;
+    const innerUsage =
+      (usageRecord.usage as Record<string, unknown>) ??
+      (usageRecord['Usage'] as Record<string, unknown>) ??
+      usageRecord;
     const dataKey = metric === 'tokens' ? 'tokens_by_hour' : 'requests_by_hour';
-    const hourlyData = innerUsage ? innerUsage[dataKey] as Record<string, number> : null;
+    const hourlyData = innerUsage ? (innerUsage[dataKey] as Record<string, number>) : null;
 
     if (hourlyData) {
       dataByModel.set('all', new Array(labels.length).fill(0));
@@ -1241,13 +1343,16 @@ export function buildHourlySeriesByModel(
       });
     }
 
-    const models = innerUsage ? (innerUsage.models as Record<string, unknown> ?? innerUsage['Models'] as Record<string, unknown>) : null;
+    const models = innerUsage
+      ? ((innerUsage.models as Record<string, unknown>) ??
+        (innerUsage['Models'] as Record<string, unknown>))
+      : null;
     if (models) {
       Object.entries(models).forEach(([modelName, modelData]) => {
         if (!isRecord(modelData)) return;
 
         const modelKey = metric === 'tokens' ? 'Tokens' : 'Requests';
-        const modelTimeData = modelData[modelKey] as Record<string, number>;
+        const modelTimeData = (modelData[metric] ?? modelData[modelKey]) as Record<string, number>;
 
         if (!modelTimeData) return;
 
@@ -1335,9 +1440,12 @@ export function buildDailySeriesByModel(
 } {
   const usageRecord = isRecord(usageData) ? usageData : null;
   if (usageRecord) {
-    const innerUsage = usageRecord.usage as Record<string, unknown> ?? usageRecord['Usage'] as Record<string, unknown> ?? usageRecord;
+    const innerUsage =
+      (usageRecord.usage as Record<string, unknown>) ??
+      (usageRecord['Usage'] as Record<string, unknown>) ??
+      usageRecord;
     const dataKey = metric === 'tokens' ? 'tokens_by_day' : 'requests_by_day';
-    const dailyData = innerUsage ? innerUsage[dataKey] as Record<string, number> : null;
+    const dailyData = innerUsage ? (innerUsage[dataKey] as Record<string, number>) : null;
 
     const labelsSet = new Set<string>();
     const dataByModel = new Map<string, number[]>();
@@ -1351,13 +1459,16 @@ export function buildDailySeriesByModel(
       dataByModel.set('all', []);
     }
 
-    const models = innerUsage ? (innerUsage.models as Record<string, unknown> ?? innerUsage['Models'] as Record<string, unknown>) : null;
+    const models = innerUsage
+      ? ((innerUsage.models as Record<string, unknown>) ??
+        (innerUsage['Models'] as Record<string, unknown>))
+      : null;
     if (models) {
       Object.entries(models).forEach(([modelName, modelData]) => {
         if (!isRecord(modelData)) return;
 
         const modelKey = metric === 'tokens' ? 'Tokens' : 'Requests';
-        const modelDayData = modelData[modelKey] as Record<string, number>;
+        const modelDayData = (modelData[metric] ?? modelData[modelKey]) as Record<string, number>;
 
         if (!modelDayData) return;
 
@@ -1382,7 +1493,10 @@ export function buildDailySeriesByModel(
           const modelData = (models as Record<string, unknown>)[modelName];
           if (isRecord(modelData)) {
             const modelKey = metric === 'tokens' ? 'Tokens' : 'Requests';
-            const modelDayData = modelData[modelKey] as Record<string, number> ?? {};
+            const modelDayData = (modelData[metric] ?? modelData[modelKey] ?? {}) as Record<
+              string,
+              number
+            >;
             const filledSeries = labels.map((label) => modelDayData[label] || 0);
             dataByModel.set(modelName, filledSeries);
           }
@@ -1441,9 +1555,9 @@ export interface ChartDataset {
   data: number[];
   borderColor: string;
   backgroundColor:
-  | string
-  | CanvasGradient
-  | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
+    | string
+    | CanvasGradient
+    | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
   pointBackgroundColor?: string;
   pointBorderColor?: string;
   fill: boolean;
@@ -1956,19 +2070,11 @@ const normalizeCredentialKeyStats = (value: unknown): CredentialKeyStat[] => {
  */
 export function parseKeyStatsFromOverview(usageData: unknown): KeyStats | null {
   if (!isRecord(usageData)) return null;
-  const raw =
-    usageData.key_stats ??
-    usageData.KeyStats ??
-    usageData.keyStats ??
-    null;
+  const raw = usageData.key_stats ?? usageData.KeyStats ?? usageData.keyStats ?? null;
   if (!isRecord(raw)) return null;
 
-  const bySource = normalizeKeyCountMap(
-    raw.by_source ?? raw.bySource ?? raw.BySource
-  );
-  const byAuthIndex = normalizeKeyCountMap(
-    raw.by_auth_index ?? raw.byAuthIndex ?? raw.ByAuthIndex
-  );
+  const bySource = normalizeKeyCountMap(raw.by_source ?? raw.bySource ?? raw.BySource);
+  const byAuthIndex = normalizeKeyCountMap(raw.by_auth_index ?? raw.byAuthIndex ?? raw.ByAuthIndex);
   const credentials = normalizeCredentialKeyStats(raw.credentials ?? raw.Credentials);
   if (
     Object.keys(bySource).length === 0 &&
@@ -2007,30 +2113,22 @@ export function collectUsageDetailsFromEvents(eventsData: unknown): UsageDetail[
         : {
             input_tokens: eventRaw.input_tokens ?? eventRaw.InputTokens ?? 0,
             output_tokens: eventRaw.output_tokens ?? eventRaw.OutputTokens ?? 0,
-            reasoning_tokens:
-              eventRaw.reasoning_tokens ?? eventRaw.ReasoningTokens ?? 0,
+            reasoning_tokens: eventRaw.reasoning_tokens ?? eventRaw.ReasoningTokens ?? 0,
             cached_tokens: eventRaw.cached_tokens ?? eventRaw.CachedTokens ?? 0,
             total_tokens: eventRaw.total_tokens ?? eventRaw.TotalTokens ?? 0,
           };
 
     const sourceRaw = eventRaw.source ?? eventRaw.Source ?? '';
     const source =
-      typeof sourceRaw === 'string'
-        ? sourceRaw
-        : sourceRaw == null
-          ? ''
-          : String(sourceRaw);
-    const authIndex =
-      (eventRaw.auth_index ??
-        eventRaw.authIndex ??
-        eventRaw.AuthIndex ??
-        null) as UsageDetail['auth_index'];
+      typeof sourceRaw === 'string' ? sourceRaw : sourceRaw == null ? '' : String(sourceRaw);
+    const authIndex = (eventRaw.auth_index ??
+      eventRaw.authIndex ??
+      eventRaw.AuthIndex ??
+      null) as UsageDetail['auth_index'];
     const failed = eventRaw.failed === true || eventRaw.Failed === true;
-    const latencyMs =
-      eventRaw.latency_ms ?? eventRaw.latencyMs ?? eventRaw.LatencyMS;
+    const latencyMs = eventRaw.latency_ms ?? eventRaw.latencyMs ?? eventRaw.LatencyMS;
     const modelRaw = eventRaw.model ?? eventRaw.Model ?? '';
-    const modelName =
-      typeof modelRaw === 'string' ? modelRaw : String(modelRaw ?? '');
+    const modelName = typeof modelRaw === 'string' ? modelRaw : String(modelRaw ?? '');
     const timestampMs = parseTimestampMs(timestamp);
 
     const detail: UsageDetail = {
@@ -2059,7 +2157,7 @@ export interface TokenBreakdownSeries {
 }
 
 /**
- * 按 token 类别构建小时级别的堆叠序列
+ * Build the hourly stacked series by token category.
  */
 export function buildHourlyTokenBreakdown(
   usageData: unknown,
@@ -2097,40 +2195,54 @@ export function buildHourlyTokenBreakdown(
 
   const usageRecord = isRecord(usageData) ? usageData : null;
   if (usageRecord) {
-    const innerSeries = usageRecord.series as Record<string, unknown> ?? usageRecord['Series'] as Record<string, unknown>;
+    const innerSeries =
+      (usageRecord.series as Record<string, unknown>) ??
+      (usageRecord['Series'] as Record<string, unknown>);
 
     if (innerSeries) {
-      const inputTokens = innerSeries.InputTokens as Record<string, number> ?? innerSeries.input_tokens as Record<string, number> ?? {};
-      const outputTokens = innerSeries.OutputTokens as Record<string, number> ?? innerSeries.output_tokens as Record<string, number> ?? {};
-      const cachedTokens = innerSeries.CachedTokens as Record<string, number> ?? innerSeries.cached_tokens as Record<string, number> ?? {};
-      const reasoningTokens = innerSeries.ReasoningTokens as Record<string, number> ?? innerSeries.reasoning_tokens as Record<string, number> ?? {};
+      const inputTokens =
+        (innerSeries.InputTokens as Record<string, number>) ??
+        (innerSeries.input_tokens as Record<string, number>) ??
+        {};
+      const outputTokens =
+        (innerSeries.OutputTokens as Record<string, number>) ??
+        (innerSeries.output_tokens as Record<string, number>) ??
+        {};
+      const cachedTokens =
+        (innerSeries.CachedTokens as Record<string, number>) ??
+        (innerSeries.cached_tokens as Record<string, number>) ??
+        {};
+      const reasoningTokens =
+        (innerSeries.ReasoningTokens as Record<string, number>) ??
+        (innerSeries.reasoning_tokens as Record<string, number>) ??
+        {};
+      const seriesKeys = Array.from(
+        new Set([
+          ...Object.keys(inputTokens),
+          ...Object.keys(outputTokens),
+          ...Object.keys(cachedTokens),
+          ...Object.keys(reasoningTokens),
+        ])
+      )
+        .sort()
+        .slice(-resolvedHourWindow);
 
-      const allKeys = new Set([...Object.keys(inputTokens), ...Object.keys(outputTokens), ...Object.keys(cachedTokens), ...Object.keys(reasoningTokens)]);
-
-      let hasHourlyData = false;
-
-      allKeys.forEach((timestampStr) => {
-        const timestamp = parseTimestampMs(timestampStr);
-        if (!Number.isFinite(timestamp)) return;
-
-        const normalized = new Date(timestamp);
-        normalized.setMinutes(0, 0, 0);
-        const label = formatHourLabel(normalized);
-        const bucketIndex = labelToIndex.get(label);
-
-        if (bucketIndex !== undefined) {
-          dataByCategory.input[bucketIndex] += inputTokens[timestampStr] || 0;
-          dataByCategory.output[bucketIndex] += outputTokens[timestampStr] || 0;
-          dataByCategory.cached[bucketIndex] += cachedTokens[timestampStr] || 0;
-          dataByCategory.reasoning[bucketIndex] += reasoningTokens[timestampStr] || 0;
-          hasHourlyData = true;
-        }
-      });
-
-      if (hasHourlyData) {
-        return { labels, dataByCategory, hasData: true };
+      if (seriesKeys.length > 0) {
+        const seriesData: Record<TokenCategory, number[]> = {
+          input: seriesKeys.map((key) => inputTokens[key] || 0),
+          output: seriesKeys.map((key) => outputTokens[key] || 0),
+          cached: seriesKeys.map((key) => cachedTokens[key] || 0),
+          reasoning: seriesKeys.map((key) => reasoningTokens[key] || 0),
+        };
+        const hasSeriesData = Object.values(seriesData).some((values) =>
+          values.some((value) => value > 0)
+        );
+        const seriesLabels = seriesKeys.map((key) => {
+          const timestamp = parseTimestampMs(key);
+          return Number.isFinite(timestamp) ? formatHourLabel(new Date(timestamp)) : key;
+        });
+        return { labels: seriesLabels, dataByCategory: seriesData, hasData: hasSeriesData };
       }
-
     }
   }
 
@@ -2171,20 +2283,39 @@ export function buildHourlyTokenBreakdown(
 }
 
 /**
- * 按 token 类别构建日级别的堆叠序列
+ * Build the daily stacked series by token category.
  */
 export function buildDailyTokenBreakdown(usageData: unknown): TokenBreakdownSeries {
   const usageRecord = isRecord(usageData) ? usageData : null;
   if (usageRecord) {
-    const innerSeries = usageRecord.series as Record<string, unknown> ?? usageRecord['Series'] as Record<string, unknown>;
+    const innerSeries =
+      (usageRecord.series as Record<string, unknown>) ??
+      (usageRecord['Series'] as Record<string, unknown>);
 
     if (innerSeries) {
-      const inputTokens = innerSeries.InputTokens as Record<string, number> ?? innerSeries.input_tokens as Record<string, number> ?? {};
-      const outputTokens = innerSeries.OutputTokens as Record<string, number> ?? innerSeries.output_tokens as Record<string, number> ?? {};
-      const cachedTokens = innerSeries.CachedTokens as Record<string, number> ?? innerSeries.cached_tokens as Record<string, number> ?? {};
-      const reasoningTokens = innerSeries.ReasoningTokens as Record<string, number> ?? innerSeries.reasoning_tokens as Record<string, number> ?? {};
+      const inputTokens =
+        (innerSeries.InputTokens as Record<string, number>) ??
+        (innerSeries.input_tokens as Record<string, number>) ??
+        {};
+      const outputTokens =
+        (innerSeries.OutputTokens as Record<string, number>) ??
+        (innerSeries.output_tokens as Record<string, number>) ??
+        {};
+      const cachedTokens =
+        (innerSeries.CachedTokens as Record<string, number>) ??
+        (innerSeries.cached_tokens as Record<string, number>) ??
+        {};
+      const reasoningTokens =
+        (innerSeries.ReasoningTokens as Record<string, number>) ??
+        (innerSeries.reasoning_tokens as Record<string, number>) ??
+        {};
 
-      const allKeys = new Set([...Object.keys(inputTokens), ...Object.keys(outputTokens), ...Object.keys(cachedTokens), ...Object.keys(reasoningTokens)]);
+      const allKeys = new Set([
+        ...Object.keys(inputTokens),
+        ...Object.keys(outputTokens),
+        ...Object.keys(cachedTokens),
+        ...Object.keys(reasoningTokens),
+      ]);
 
       if (allKeys.size > 0) {
         const labels = Array.from(allKeys).sort();
@@ -2251,7 +2382,7 @@ export interface CostSeries {
 }
 
 /**
- * 按小时构建费用时间序列
+ * Build the hourly cost series.
  */
 export function buildHourlyCostSeries(
   usageData: unknown,
@@ -2263,6 +2394,26 @@ export function buildHourlyCostSeries(
     Number.isFinite(hourWindow) && hourWindow > 0
       ? Math.min(Math.max(Math.floor(hourWindow), 1), 24 * 31)
       : 24;
+  const usageRecord = isRecord(usageData) ? usageData : null;
+  const innerSeries = usageRecord
+    ? ((usageRecord.series as Record<string, unknown>) ??
+      (usageRecord['Series'] as Record<string, unknown>))
+    : null;
+  const costByHour = innerSeries
+    ? ((innerSeries.Cost as Record<string, number>) ?? (innerSeries.cost as Record<string, number>))
+    : null;
+  if (costByHour) {
+    const keys = Object.keys(costByHour).sort().slice(-resolvedHourWindow);
+    if (keys.length > 0) {
+      const data = keys.map((key) => costByHour[key] || 0);
+      const labels = keys.map((key) => {
+        const timestamp = parseTimestampMs(key);
+        return Number.isFinite(timestamp) ? formatHourLabel(new Date(timestamp)) : key;
+      });
+      return { labels, data, hasData: data.some((value) => value > 0) };
+    }
+  }
+
   const now = new Date();
   const currentHour = new Date(now);
   currentHour.setMinutes(0, 0, 0);
@@ -2305,12 +2456,28 @@ export function buildHourlyCostSeries(
 }
 
 /**
- * 按天构建费用时间序列
+ * Build the daily cost series.
  */
 export function buildDailyCostSeries(
   usageData: unknown,
   modelPrices: Record<string, ModelPrice>
 ): CostSeries {
+  const usageRecord = isRecord(usageData) ? usageData : null;
+  const innerSeries = usageRecord
+    ? ((usageRecord.series as Record<string, unknown>) ??
+      (usageRecord['Series'] as Record<string, unknown>))
+    : null;
+  const costByDay = innerSeries
+    ? ((innerSeries.Cost as Record<string, number>) ?? (innerSeries.cost as Record<string, number>))
+    : null;
+  if (costByDay) {
+    const labels = Object.keys(costByDay).sort();
+    if (labels.length > 0) {
+      const data = labels.map((label) => costByDay[label] || 0);
+      return { labels, data, hasData: data.some((value) => value > 0) };
+    }
+  }
+
   const details = collectUsageDetails(usageData);
   const dayMap: Record<string, number> = {};
   let hasData = false;

@@ -10,17 +10,15 @@ import {
 } from '@/components/ui/icons';
 import {
   LATENCY_SOURCE_FIELD,
-  calculateLatencyStatsFromDetails,
-  calculateCost,
+  calculateLatencyStats,
   formatCompactNumber,
   formatDurationMs,
   formatPerMinuteValue,
   formatUsd,
-  collectUsageDetails,
-  extractTotalTokens,
   type ModelPrice,
 } from '@/utils/usage';
 import { sparklineOptions } from '@/utils/usage/chartConfig';
+import type { UsageOverviewSummary } from '@/services/api/usage';
 import type { UsagePayload } from './hooks/useUsageData';
 import type { SparklineBundle } from './hooks/useSparklines';
 import styles from '@/pages/UsagePage.module.scss';
@@ -39,6 +37,7 @@ interface StatCardData {
 
 export interface StatCardsProps {
   usage: UsagePayload | null;
+  summary?: UsageOverviewSummary;
   loading: boolean;
   modelPrices: Record<string, ModelPrice>;
   nowMs: number;
@@ -51,84 +50,34 @@ export interface StatCardsProps {
   };
 }
 
-export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: StatCardsProps) {
+export function StatCards({ usage, summary, loading, sparklines }: StatCardsProps) {
   const { t } = useTranslation();
   const latencyHint = t('usage_stats.latency_unit_hint', {
     field: LATENCY_SOURCE_FIELD,
     unit: t('usage_stats.duration_unit_ms'),
   });
 
-  const hasPrices = Object.keys(modelPrices).length > 0;
-
-  const { tokenBreakdown, rateStats, totalCost, latencyStats } = useMemo(() => {
-    const empty = {
-      tokenBreakdown: { cachedTokens: 0, reasoningTokens: 0 },
-      rateStats: { rpm: 0, tpm: 0, windowMinutes: 30, requestCount: 0, tokenCount: 0 },
-      totalCost: 0,
-      latencyStats: {
-        averageMs: null as number | null,
-        totalMs: null as number | null,
-        sampleCount: 0,
+  const { tokenBreakdown, rateStats, totalCost, latencyStats } = useMemo(
+    () => ({
+      tokenBreakdown: {
+        cachedTokens: summary?.cached_tokens ?? 0,
+        reasoningTokens: summary?.reasoning_tokens ?? 0,
       },
-    };
-
-    if (!usage) return empty;
-    const details = collectUsageDetails(usage);
-    if (!details.length) return empty;
-
-    const latencyStats = calculateLatencyStatsFromDetails(details);
-
-    let cachedTokens = 0;
-    let reasoningTokens = 0;
-    let totalCost = 0;
-
-    const now = nowMs;
-    const windowMinutes = 30;
-    const windowStart = now - windowMinutes * 60 * 1000;
-    let requestCount = 0;
-    let tokenCount = 0;
-    const hasValidNow = Number.isFinite(now) && now > 0;
-
-    details.forEach((detail) => {
-      const tokens = detail.tokens;
-      cachedTokens += Math.max(
-        typeof tokens.cached_tokens === 'number' ? Math.max(tokens.cached_tokens, 0) : 0,
-        typeof tokens.cache_tokens === 'number' ? Math.max(tokens.cache_tokens, 0) : 0
-      );
-      if (typeof tokens.reasoning_tokens === 'number') {
-        reasoningTokens += tokens.reasoning_tokens;
-      }
-
-      const timestamp = detail.__timestampMs ?? 0;
-      if (
-        hasValidNow &&
-        Number.isFinite(timestamp) &&
-        timestamp >= windowStart &&
-        timestamp <= now
-      ) {
-        requestCount += 1;
-        tokenCount += extractTotalTokens(detail);
-      }
-
-      if (hasPrices) {
-        totalCost += calculateCost(detail, modelPrices);
-      }
-    });
-
-    const denominator = windowMinutes > 0 ? windowMinutes : 1;
-    return {
-      tokenBreakdown: { cachedTokens, reasoningTokens },
       rateStats: {
-        rpm: requestCount / denominator,
-        tpm: tokenCount / denominator,
-        windowMinutes,
-        requestCount,
-        tokenCount,
+        rpm: summary?.rpm ?? 0,
+        tpm: summary?.tpm ?? 0,
+        windowMinutes: summary?.window_minutes ?? 30,
+        requestCount: summary?.request_count ?? 0,
+        tokenCount: summary?.token_count ?? 0,
       },
-      totalCost,
-      latencyStats,
-    };
-  }, [hasPrices, modelPrices, nowMs, usage]);
+      totalCost: summary?.total_cost ?? 0,
+      latencyStats: usage
+        ? calculateLatencyStats(usage)
+        : { averageMs: null, totalMs: null, sampleCount: 0 },
+    }),
+    [summary, usage]
+  );
+  const costAvailable = summary?.cost_available === true;
 
   const statsCards: StatCardData[] = [
     {
@@ -220,21 +169,21 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: '#f59e0b',
       accentSoft: 'rgba(245, 158, 11, 0.18)',
       accentBorder: 'rgba(245, 158, 11, 0.32)',
-      value: loading ? '-' : hasPrices ? formatUsd(totalCost) : '--',
+      value: loading ? '-' : costAvailable ? formatUsd(totalCost) : '--',
       meta: (
         <>
           <span className={styles.statMetaItem}>
             {t('usage_stats.total_tokens')}:{' '}
             {loading ? '-' : formatCompactNumber(usage?.total_tokens ?? 0)}
           </span>
-          {!hasPrices && (
+          {!costAvailable && (
             <span className={`${styles.statMetaItem} ${styles.statSubtle}`}>
               {t('usage_stats.cost_need_price')}
             </span>
           )}
         </>
       ),
-      trend: hasPrices ? sparklines.cost : null,
+      trend: costAvailable ? sparklines.cost : null,
     },
   ];
 

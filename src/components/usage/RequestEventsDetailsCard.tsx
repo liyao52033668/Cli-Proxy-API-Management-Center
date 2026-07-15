@@ -6,12 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
-import {
-  usageApi,
-  type UsageEvent,
-  type UsageEventCacheInfo,
-  type UsageTimeRange,
-} from '@/services/api/usage';
+import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
@@ -69,7 +64,6 @@ export function RequestEventsDetailsCard({
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [modelNames, setModelNames] = useState<string[]>([]);
-  const [cacheInfo, setCacheInfo] = useState<UsageEventCacheInfo | null>(null);
   const [eventSource, setEventSource] = useState<'memory' | 'history'>('memory');
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
@@ -152,7 +146,6 @@ export function RequestEventsDetailsCard({
         const nextTotalPages = Math.max(1, Number(response.total_pages) || 1);
         setTotalCount(Number(response.total_count) || 0);
         setTotalPages(nextTotalPages);
-        setCacheInfo(response.cache || null);
         if (eventSource === 'history' && Array.isArray(response.models)) {
           setModelNames(response.models);
         }
@@ -167,7 +160,6 @@ export function RequestEventsDetailsCard({
         setEvents([]);
         setTotalCount(0);
         setTotalPages(1);
-        setCacheInfo(null);
       })
       .finally(() => {
         if (!cancelled) setLoadedQueryKey(queryKey);
@@ -429,7 +421,7 @@ export function RequestEventsDetailsCard({
         </div>
       </div>
 
-      {eventSource === 'history' ? (
+      {/* {eventSource === 'history' ? (
         <div className={styles.hint}>{t('usage_stats.request_events_history_hint')}</div>
       ) : cacheInfo ? (
         <div className={styles.hint}>
@@ -438,7 +430,7 @@ export function RequestEventsDetailsCard({
             max: cacheInfo.max_events,
           })}
         </div>
-      ) : null}
+      ) : null} */}
 
       {eventsLoading ? (
         <div className={styles.hint}>{t('common.loading')}</div>

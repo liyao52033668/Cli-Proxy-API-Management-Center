@@ -11,7 +11,7 @@ import {
 import { create } from 'zustand';
 
 export const USAGE_STATS_STALE_TIME_MS = 60_000;
-const USAGE_EVENTS_PAGE_SIZE = 1000;
+const USAGE_EVENTS_PAGE_SIZE = 20;
 
 export type UsageTimeRange =
   | 'all'
@@ -117,8 +117,14 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
         const memoryResponse = await usageApi.getUsage(range, start, end);
         const response: UsageOverviewResponse = {
           usage: memoryResponse.usage,
+          summary: memoryResponse.summary,
+          series: memoryResponse.series,
+          hourly_series: memoryResponse.hourly_series,
+          daily_series: memoryResponse.daily_series,
           key_stats: memoryResponse.key_stats,
           service_health: memoryResponse.service_health,
+          range_start: memoryResponse.range_start,
+          range_end: memoryResponse.range_end,
         };
         if (activeRequestController !== controller) {
           return;

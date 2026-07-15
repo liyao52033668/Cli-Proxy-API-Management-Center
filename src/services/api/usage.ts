@@ -47,6 +47,12 @@ export interface UsageModelSnapshot {
   success_count: number;
   failure_count: number;
   total_tokens: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_tokens?: number;
+  total_latency_ms?: number;
+  latency_sample_count?: number;
   details?: UsageDetail[];
 }
 
@@ -74,9 +80,16 @@ export interface UsageSnapshot {
 export interface InMemoryUsageResponse {
   usage: UsageSnapshot;
   failed_requests: number;
+  summary?: UsageOverviewSummary;
+  series?: UsageOverviewSeries;
+  hourly_series?: UsageOverviewSeries;
+  daily_series?: UsageOverviewSeries;
   event_cache?: UsageEventCacheInfo;
   key_stats?: UsageKeyStats;
   service_health?: UsageOverviewServiceHealth;
+  range_start?: string;
+  range_end?: string;
+  bucket_by_day?: boolean;
 }
 
 export interface UsageOverviewSummary {

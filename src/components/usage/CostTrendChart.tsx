@@ -8,14 +8,16 @@ import {
   buildHourlyCostSeries,
   buildDailyCostSeries,
   formatUsd,
-  type ModelPrice
+  type ModelPrice,
 } from '@/utils/usage';
 import { buildChartOptions, getHourChartMinWidth } from '@/utils/usage/chartConfig';
-import type { UsagePayload } from './hooks/useUsageData';
+import type { UsageOverviewPayload, UsagePayload } from './hooks/useUsageData';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface CostTrendChartProps {
   usage: UsagePayload | null;
+  hourlySeries?: UsageOverviewPayload['hourly_series'];
+  dailySeries?: UsageOverviewPayload['daily_series'];
   loading: boolean;
   isDark: boolean;
   isMobile: boolean;
@@ -39,11 +41,13 @@ function buildGradient(ctx: ScriptableContext<'line'>) {
 
 export function CostTrendChart({
   usage,
+  hourlySeries,
+  dailySeries,
   loading,
   isDark,
   isMobile,
   modelPrices,
-  hourWindowHours
+  hourWindowHours,
 }: CostTrendChartProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<'hour' | 'day'>('hour');
@@ -54,10 +58,14 @@ export function CostTrendChart({
       return { chartData: { labels: [], datasets: [] }, chartOptions: {}, hasData: false };
     }
 
+    const dataWithSeries = {
+      ...usage,
+      series: period === 'hour' ? hourlySeries : dailySeries,
+    };
     const series =
       period === 'hour'
-        ? buildHourlyCostSeries(usage, modelPrices, hourWindowHours)
-        : buildDailyCostSeries(usage, modelPrices);
+        ? buildHourlyCostSeries(dataWithSeries, modelPrices, hourWindowHours)
+        : buildDailyCostSeries(dataWithSeries, modelPrices);
 
     const data = {
       labels: series.labels,
@@ -70,9 +78,9 @@ export function CostTrendChart({
           pointBackgroundColor: COST_COLOR,
           pointBorderColor: COST_COLOR,
           fill: true,
-          tension: 0.35
-        }
-      ]
+          tension: 0.35,
+        },
+      ],
     };
 
     const baseOptions = buildChartOptions({ period, labels: series.labels, isDark, isMobile });
@@ -83,15 +91,28 @@ export function CostTrendChart({
         y: {
           ...baseOptions.scales?.y,
           ticks: {
-            ...(baseOptions.scales?.y && 'ticks' in baseOptions.scales.y ? baseOptions.scales.y.ticks : {}),
-            callback: (value: string | number) => formatUsd(Number(value))
-          }
-        }
-      }
+            ...(baseOptions.scales?.y && 'ticks' in baseOptions.scales.y
+              ? baseOptions.scales.y.ticks
+              : {}),
+            callback: (value: string | number) => formatUsd(Number(value)),
+          },
+        },
+      },
     };
 
     return { chartData: data, chartOptions: options, hasData: series.hasData };
-  }, [usage, period, isDark, isMobile, modelPrices, hasPrices, hourWindowHours, t]);
+  }, [
+    usage,
+    hourlySeries,
+    dailySeries,
+    period,
+    isDark,
+    isMobile,
+    modelPrices,
+    hasPrices,
+    hourWindowHours,
+    t,
+  ]);
 
   return (
     <Card

@@ -2,7 +2,7 @@ import type { UsageOverviewSeries } from '@/services/api/usage';
 import { buildChartData, type ChartData } from '@/utils/usage';
 import { buildChartOptions } from '@/utils/usage/chartConfig';
 import type { ChartOptions } from 'chart.js';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { UsageOverviewPayload } from './useUsageData';
 
 const buildChartUsageFromOverview = (usage: UsageOverviewPayload, source?: UsageOverviewSeries) => {
@@ -13,12 +13,12 @@ const buildChartUsageFromOverview = (usage: UsageOverviewPayload, source?: Usage
     tokens_by_hour: source.tokens,
     requests_by_day: source.requests,
     tokens_by_day: source.tokens,
-    models: Object.fromEntries(Object.entries(source.models ?? {}).map(([model, series]) => [model, {
-      Requests: series.requests,
-      Tokens: series.tokens,
-      requests: series.requests,
-      tokens: series.tokens,
-    }])),
+    models: Object.fromEntries(
+      Object.entries(source.models ?? {}).map(([model, series]) => [
+        model,
+        { requests: series.requests, tokens: series.tokens },
+      ])
+    ),
   };
 };
 
@@ -48,26 +48,58 @@ export function useChartData({
   isDark,
   isMobile,
   hourWindowHours,
-  preferredPeriod = 'hour'
+  preferredPeriod = 'hour',
 }: UseChartDataOptions): UseChartDataReturn {
-  const [requestsPeriod, setRequestsPeriod] = useState<'hour' | 'day'>(preferredPeriod);
-  const [tokensPeriod, setTokensPeriod] = useState<'hour' | 'day'>(preferredPeriod);
-
-  useEffect(() => {
-    setRequestsPeriod(preferredPeriod);
-    setTokensPeriod(preferredPeriod);
-  }, [preferredPeriod]);
+  const [requestsPeriodState, setRequestsPeriodState] = useState({
+    preferred: preferredPeriod,
+    value: preferredPeriod,
+  });
+  const [tokensPeriodState, setTokensPeriodState] = useState({
+    preferred: preferredPeriod,
+    value: preferredPeriod,
+  });
+  const requestsPeriod =
+    requestsPeriodState.preferred === preferredPeriod ? requestsPeriodState.value : preferredPeriod;
+  const tokensPeriod =
+    tokensPeriodState.preferred === preferredPeriod ? tokensPeriodState.value : preferredPeriod;
+  const setRequestsPeriod = useCallback(
+    (period: 'hour' | 'day') =>
+      setRequestsPeriodState({ preferred: preferredPeriod, value: period }),
+    [preferredPeriod]
+  );
+  const setTokensPeriod = useCallback(
+    (period: 'hour' | 'day') => setTokensPeriodState({ preferred: preferredPeriod, value: period }),
+    [preferredPeriod]
+  );
 
   const requestsChartData = useMemo(() => {
     if (!usage) return { labels: [], datasets: [] };
-    const source = requestsPeriod === 'hour' ? (usage.hourly_series ?? usage.series) : (usage.daily_series ?? usage.series);
-    return buildChartData(buildChartUsageFromOverview(usage, source), requestsPeriod, 'requests', chartLines, { hourWindowHours });
+    const source =
+      requestsPeriod === 'hour'
+        ? (usage.hourly_series ?? usage.series)
+        : (usage.daily_series ?? usage.series);
+    return buildChartData(
+      buildChartUsageFromOverview(usage, source),
+      requestsPeriod,
+      'requests',
+      chartLines,
+      { hourWindowHours }
+    );
   }, [usage, requestsPeriod, chartLines, hourWindowHours]);
 
   const tokensChartData = useMemo(() => {
     if (!usage) return { labels: [], datasets: [] };
-    const source = tokensPeriod === 'hour' ? (usage.hourly_series ?? usage.series) : (usage.daily_series ?? usage.series);
-    return buildChartData(buildChartUsageFromOverview(usage, source), tokensPeriod, 'tokens', chartLines, { hourWindowHours });
+    const source =
+      tokensPeriod === 'hour'
+        ? (usage.hourly_series ?? usage.series)
+        : (usage.daily_series ?? usage.series);
+    return buildChartData(
+      buildChartUsageFromOverview(usage, source),
+      tokensPeriod,
+      'tokens',
+      chartLines,
+      { hourWindowHours }
+    );
   }, [usage, tokensPeriod, chartLines, hourWindowHours]);
 
   const requestsChartOptions = useMemo(
@@ -76,7 +108,7 @@ export function useChartData({
         period: requestsPeriod,
         labels: requestsChartData.labels,
         isDark,
-        isMobile
+        isMobile,
       }),
     [requestsPeriod, requestsChartData.labels, isDark, isMobile]
   );
@@ -87,7 +119,7 @@ export function useChartData({
         period: tokensPeriod,
         labels: tokensChartData.labels,
         isDark,
-        isMobile
+        isMobile,
       }),
     [tokensPeriod, tokensChartData.labels, isDark, isMobile]
   );
@@ -100,6 +132,6 @@ export function useChartData({
     requestsChartData,
     tokensChartData,
     requestsChartOptions,
-    tokensChartOptions
+    tokensChartOptions,
   };
 }
