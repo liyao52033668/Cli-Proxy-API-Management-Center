@@ -91,6 +91,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
   const quotaStatus = quota?.status ?? 'idle';
   const quotaErrorMessage = resolveQuotaErrorMessage(
     t,
+    i18nPrefix,
     quota?.errorStatus,
     quota?.error || t('common.unknown_error')
   );
@@ -154,10 +155,13 @@ export function QuotaCard<TState extends QuotaStatusState>({
 
 const resolveQuotaErrorMessage = (
   t: TFunction,
+  i18nPrefix: string,
   status: number | undefined,
   fallback: string
 ): string => {
   if (status === 404) return t('common.quota_update_required');
-  if (status === 403) return t('common.quota_check_credential');
+  if (status === 403 && i18nPrefix !== 'xai_quota') {
+    return t('common.quota_check_credential');
+  }
   return fallback;
 };
