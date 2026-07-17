@@ -3,24 +3,43 @@ import type { CodexInspectionSettings, CodexInspectionSnapshot } from './types';
 const SETTINGS_KEY = 'codex-inspection.local.settings';
 const SNAPSHOT_KEY = 'codex-inspection.local.snapshot';
 
-function normalizeSettings(settings: CodexInspectionSettings, fallback: CodexInspectionSettings): CodexInspectionSettings {
-  const { usedPercentThreshold: legacyThreshold, schedule, ...rest } = settings;
+function normalizeSettings(
+  settings: CodexInspectionSettings,
+  fallback: CodexInspectionSettings
+): CodexInspectionSettings {
+  const {
+    usedPercentThreshold: legacyThreshold,
+    schedule: legacySchedule,
+    schedules,
+    ...rest
+  } = settings;
+  const targetType = settings.targetType.trim().toLowerCase() || fallback.targetType;
+  const normalizedSchedules = Object.fromEntries(
+    Object.entries(schedules ?? {}).map(([provider, schedule]) => [
+      provider.trim().toLowerCase(),
+      schedule,
+    ])
+  );
+  if (!normalizedSchedules[targetType]) {
+    normalizedSchedules[targetType] = {
+      ...(fallback.schedules[targetType] ?? fallback.schedules[fallback.targetType]),
+      ...legacySchedule,
+    };
+  }
 
   return {
     ...fallback,
     ...rest,
+    targetType,
     fiveHourUsedPercentThreshold:
       typeof settings.fiveHourUsedPercentThreshold === 'number'
         ? settings.fiveHourUsedPercentThreshold
-        : legacyThreshold ?? fallback.fiveHourUsedPercentThreshold,
+        : (legacyThreshold ?? fallback.fiveHourUsedPercentThreshold),
     weeklyUsedPercentThreshold:
       typeof settings.weeklyUsedPercentThreshold === 'number'
         ? settings.weeklyUsedPercentThreshold
-        : legacyThreshold ?? fallback.weeklyUsedPercentThreshold,
-    schedule: {
-      ...fallback.schedule,
-      ...schedule,
-    },
+        : (legacyThreshold ?? fallback.weeklyUsedPercentThreshold),
+    schedules: normalizedSchedules,
   };
 }
 
@@ -37,7 +56,9 @@ export function saveLocalSettings(settings: CodexInspectionSettings) {
   window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-export function loadLocalSnapshot(fallback?: CodexInspectionSettings): CodexInspectionSnapshot | null {
+export function loadLocalSnapshot(
+  fallback?: CodexInspectionSettings
+): CodexInspectionSnapshot | null {
   try {
     const raw = window.localStorage.getItem(SNAPSHOT_KEY);
     if (!raw) {

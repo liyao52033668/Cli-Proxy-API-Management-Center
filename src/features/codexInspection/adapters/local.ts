@@ -35,7 +35,9 @@ const fallbackSettings: CodexInspectionSettings = {
   sampleSize: 0,
   fiveHourUsedPercentThreshold: 85,
   weeklyUsedPercentThreshold: 85,
-  schedule: { enabled: false, mode: 'interval', intervalMinutes: 60 },
+  schedules: {
+    codex: { enabled: false, mode: 'interval', intervalMinutes: 60 },
+  },
 };
 
 function createEmptySnapshot(settings: CodexInspectionSettings): CodexInspectionSnapshot {

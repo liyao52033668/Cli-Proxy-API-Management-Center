@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -64,6 +64,12 @@ const statusCodeActionOptions: CodexInspectionAction[] = [
   'delete',
 ];
 
+const defaultSchedule = {
+  enabled: false,
+  mode: 'interval' as const,
+  intervalMinutes: 60,
+};
+
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, value));
 }
@@ -99,11 +105,13 @@ export function CodexInspectionSettingsPanel({
 }: Props) {
   const { t } = useTranslation();
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const newStatusCodeInputRef = useRef<HTMLInputElement>(null);
   const [newStatusCodes, setNewStatusCodes] = useState<Record<string, string>>({});
   const [newStatusActions, setNewStatusActions] = useState<Record<string, CodexInspectionAction>>(
     {}
   );
   const provider = settings.targetType.trim().toLowerCase();
+  const providerSchedule = settings.schedules[provider] ?? defaultSchedule;
   const newStatusCode = newStatusCodes[provider] ?? '';
   const newStatusAction = newStatusActions[provider] ?? 'reauth';
   const providerStatusCodeActions = settings.statusCodeActions?.[provider] ?? {};
@@ -125,13 +133,13 @@ export function CodexInspectionSettingsPanel({
   };
 
   useEffect(() => {
-    if (!showSchedule || !settings.schedule.enabled || !nextTriggerAtMs || nextTriggerAtMs <= 0) {
+    if (!showSchedule || !providerSchedule.enabled || !nextTriggerAtMs || nextTriggerAtMs <= 0) {
       return undefined;
     }
 
     const upcomingTriggerAtMs = resolveNextTriggerAtMs(
       nextTriggerAtMs,
-      settings.schedule.intervalMinutes,
+      providerSchedule.intervalMinutes,
       nowMs
     );
     const delay = Math.max(1000, upcomingTriggerAtMs - Date.now() + 1000);
@@ -145,8 +153,8 @@ export function CodexInspectionSettingsPanel({
   }, [
     nextTriggerAtMs,
     nowMs,
-    settings.schedule.enabled,
-    settings.schedule.intervalMinutes,
+    providerSchedule.enabled,
+    providerSchedule.intervalMinutes,
     showSchedule,
   ]);
 
@@ -171,23 +179,31 @@ export function CodexInspectionSettingsPanel({
       [String(parsedNewStatusCode)]: newStatusAction,
     });
     setNewStatusCodes((current) => ({ ...current, [provider]: '' }));
+    window.requestAnimationFrame(() => newStatusCodeInputRef.current?.focus());
+  };
+
+  const updateProviderSchedule = (nextSchedule: typeof providerSchedule) => {
+    onChange({
+      ...settings,
+      schedules: {
+        ...settings.schedules,
+        [provider]: nextSchedule,
+      },
+    });
   };
 
   const commitIntervalMinutes = (rawValue: string) => {
-    onChange({
-      ...settings,
-      schedule: {
-        ...settings.schedule,
-        intervalMinutes: Math.max(1, Number(rawValue) || 1),
-      },
+    updateProviderSchedule({
+      ...providerSchedule,
+      intervalMinutes: Math.max(1, Number(rawValue) || 1),
     });
   };
 
   const formattedNextTrigger =
     nextTriggerAtMs && nextTriggerAtMs > 0
       ? (() => {
-          const displayedTriggerAtMs = settings.schedule.enabled
-            ? resolveNextTriggerAtMs(nextTriggerAtMs, settings.schedule.intervalMinutes, nowMs)
+          const displayedTriggerAtMs = providerSchedule.enabled
+            ? resolveNextTriggerAtMs(nextTriggerAtMs, providerSchedule.intervalMinutes, nowMs)
             : nextTriggerAtMs;
           const date = new Date(displayedTriggerAtMs);
           const year = date.getFullYear();
@@ -356,22 +372,23 @@ export function CodexInspectionSettingsPanel({
           </div>
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              display: 'flex',
               gap: 10,
+              flexWrap: 'wrap',
               alignItems: 'end',
             }}
           >
-            <label style={fieldStyle}>
+            <label style={{ ...fieldStyle, flex: '1 1 180px' }}>
               <span>{t('codex_inspection.status_code', { defaultValue: 'HTTP status code' })}</span>
               <input
+                ref={newStatusCodeInputRef}
                 style={inputStyle}
                 type="number"
                 min={400}
                 max={599}
                 value={newStatusCode}
                 disabled={disabled}
-                placeholder="401"
+                placeholder="请输入400–599的http状态码"
                 onChange={(event) =>
                   setNewStatusCodes((current) => ({
                     ...current,
@@ -386,7 +403,7 @@ export function CodexInspectionSettingsPanel({
                 }}
               />
             </label>
-            <label style={fieldStyle}>
+            <label style={{ ...fieldStyle, flex: '2 1 240px' }}>
               <span>
                 {t('codex_inspection.classification', { defaultValue: 'Classification' })}
               </span>
@@ -411,6 +428,7 @@ export function CodexInspectionSettingsPanel({
             <Button
               size="sm"
               variant="secondary"
+              style={{ minWidth: 120, flex: '0 0 auto' }}
               disabled={disabled || !canAddStatusCode}
               onClick={addStatusCodeAction}
             >
@@ -423,15 +441,41 @@ export function CodexInspectionSettingsPanel({
                 <div
                   key={statusCode}
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    display: 'flex',
                     gap: 10,
                     alignItems: 'center',
+                    flexWrap: 'wrap',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border-primary, #d0d0d0)',
+                    background: 'var(--bg-tertiary, #f7f7f7)',
                   }}
                 >
-                  <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{statusCode}</div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      minWidth: 140,
+                      flex: '0 1 180px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: '3px 7px',
+                        borderRadius: 6,
+                        background: 'var(--bg-secondary, #fff)',
+                        color: 'var(--text-secondary, #666)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      HTTP
+                    </span>
+                    <code style={{ fontSize: 16, fontWeight: 700 }}>{statusCode}</code>
+                  </div>
                   <select
-                    style={inputStyle}
+                    style={{ ...inputStyle, minWidth: 200, flex: '1 1 240px' }}
                     value={action}
                     disabled={disabled}
                     onChange={(event) =>
@@ -450,6 +494,7 @@ export function CodexInspectionSettingsPanel({
                   <Button
                     size="sm"
                     variant="danger"
+                    style={{ minWidth: 88, flex: '0 0 auto' }}
                     disabled={disabled}
                     onClick={() => {
                       const nextProviderActions = { ...providerStatusCodeActions };
@@ -486,12 +531,12 @@ export function CodexInspectionSettingsPanel({
                 <input
                   style={checkboxStyle}
                   type="checkbox"
-                  checked={settings.schedule.enabled}
+                  checked={providerSchedule.enabled}
                   disabled={disabled}
                   onChange={(event) =>
-                    onChange({
-                      ...settings,
-                      schedule: { ...settings.schedule, enabled: event.target.checked },
+                    updateProviderSchedule({
+                      ...providerSchedule,
+                      enabled: event.target.checked,
                     })
                   }
                 />
@@ -505,18 +550,15 @@ export function CodexInspectionSettingsPanel({
                   type="number"
                   min={1}
                   value={
-                    settings.schedule.intervalMinutes > 0 ? settings.schedule.intervalMinutes : ''
+                    providerSchedule.intervalMinutes > 0 ? providerSchedule.intervalMinutes : ''
                   }
                   disabled={disabled}
                   onChange={(event) => {
                     const { value } = event.target;
                     if (value === '') {
-                      onChange({
-                        ...settings,
-                        schedule: {
-                          ...settings.schedule,
-                          intervalMinutes: 0,
-                        },
+                      updateProviderSchedule({
+                        ...providerSchedule,
+                        intervalMinutes: 0,
                       });
                       return;
                     }
@@ -530,7 +572,7 @@ export function CodexInspectionSettingsPanel({
                 />
               </label>
             </div>
-            {settings.schedule.enabled ? (
+            {providerSchedule.enabled ? (
               <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
                 {t('codex_inspection.next_trigger_at', { defaultValue: 'Next trigger at' })}:{' '}
                 {formattedNextTrigger}

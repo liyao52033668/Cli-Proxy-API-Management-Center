@@ -33,6 +33,12 @@ const emptySummary: CodexInspectionSummary = {
   autoDeletedCount: 0,
 };
 
+const defaultSchedule = {
+  enabled: false,
+  mode: 'interval' as const,
+  intervalMinutes: 60,
+};
+
 const emptySettings: CodexInspectionSettings = {
   targetType: 'codex',
   workers: 4,
@@ -42,10 +48,8 @@ const emptySettings: CodexInspectionSettings = {
   fiveHourUsedPercentThreshold: 85,
   weeklyUsedPercentThreshold: 85,
   statusCodeActions: {},
-  schedule: {
-    enabled: false,
-    mode: 'interval',
-    intervalMinutes: 60,
+  schedules: {
+    codex: defaultSchedule,
   },
 };
 
@@ -60,7 +64,22 @@ const emptySnapshot: CodexInspectionSnapshot = {
 };
 
 function normalizeSettings(settings: CodexInspectionSettings): CodexInspectionSettings {
-  const { usedPercentThreshold: legacyThreshold, schedule, ...rest } = settings;
+  const {
+    usedPercentThreshold: legacyThreshold,
+    schedule: legacySchedule,
+    schedules,
+    ...rest
+  } = settings;
+  const targetType = settings.targetType.trim().toLowerCase() || 'codex';
+  const normalizedSchedules = Object.fromEntries(
+    Object.entries(schedules ?? {}).map(([provider, schedule]) => [
+      provider.trim().toLowerCase(),
+      { ...defaultSchedule, ...schedule },
+    ])
+  );
+  if (!normalizedSchedules[targetType]) {
+    normalizedSchedules[targetType] = { ...defaultSchedule, ...legacySchedule };
+  }
   const fiveHourUsedPercentThreshold =
     typeof settings.fiveHourUsedPercentThreshold === 'number'
       ? settings.fiveHourUsedPercentThreshold
@@ -73,12 +92,10 @@ function normalizeSettings(settings: CodexInspectionSettings): CodexInspectionSe
   return {
     ...emptySettings,
     ...rest,
+    targetType,
     fiveHourUsedPercentThreshold,
     weeklyUsedPercentThreshold,
-    schedule: {
-      ...emptySettings.schedule,
-      ...schedule,
-    },
+    schedules: normalizedSchedules,
   };
 }
 
@@ -97,7 +114,16 @@ export function CodexInspectionPage() {
 
   const applySnapshot = useCallback((nextSnapshot: CodexInspectionSnapshot) => {
     const normalizedSettings = normalizeSettings(nextSnapshot.settings);
-    setSnapshot({ ...nextSnapshot, settings: normalizedSettings });
+    const provider = normalizedSettings.targetType;
+    const nextTriggerAtMsByProvider = { ...(nextSnapshot.run.nextTriggerAtMsByProvider ?? {}) };
+    if (nextSnapshot.run.nextTriggerAtMs && !nextTriggerAtMsByProvider[provider]) {
+      nextTriggerAtMsByProvider[provider] = nextSnapshot.run.nextTriggerAtMs;
+    }
+    setSnapshot({
+      ...nextSnapshot,
+      settings: normalizedSettings,
+      run: { ...nextSnapshot.run, nextTriggerAtMsByProvider },
+    });
     setSettings(normalizedSettings);
   }, []);
 
@@ -131,7 +157,10 @@ export function CodexInspectionPage() {
   }, [refreshSnapshot]);
 
   useEffect(() => {
-    if (!snapshot.settings.schedule.enabled || snapshot.run.status !== 'running') {
+    const hasEnabledSchedule = Object.values(snapshot.settings.schedules).some(
+      (schedule) => schedule.enabled
+    );
+    if (!hasEnabledSchedule || snapshot.run.status !== 'running') {
       return undefined;
     }
 
@@ -142,7 +171,7 @@ export function CodexInspectionPage() {
     return () => {
       window.clearInterval(timer);
     };
-  }, [refreshSnapshot, snapshot.run.status, snapshot.settings.schedule.enabled]);
+  }, [refreshSnapshot, snapshot.run.status, snapshot.settings.schedules]);
 
   useHeaderRefresh(() => refreshSnapshot());
 
@@ -194,12 +223,18 @@ export function CodexInspectionPage() {
     setError('');
     setBusy(true);
     try {
+      const normalizedSettings = normalizeSettings(settings);
       const nextSettings: CodexInspectionSettings = {
-        ...normalizeSettings(settings),
-        schedule: {
-          ...settings.schedule,
-          intervalMinutes: Math.max(1, settings.schedule.intervalMinutes || 1),
-        },
+        ...normalizedSettings,
+        schedules: Object.fromEntries(
+          Object.entries(normalizedSettings.schedules).map(([provider, schedule]) => [
+            provider,
+            {
+              ...schedule,
+              intervalMinutes: Math.max(1, schedule.intervalMinutes || 1),
+            },
+          ])
+        ),
       };
       const nextSnapshot = await adapter.saveSettings(nextSettings);
       applySnapshot(nextSnapshot);
@@ -299,7 +334,9 @@ export function CodexInspectionPage() {
         settings={settings}
         providers={providers}
         showSchedule
-        nextTriggerAtMs={snapshot.run.nextTriggerAtMs}
+        nextTriggerAtMs={
+          snapshot.run.nextTriggerAtMsByProvider?.[settings.targetType.trim().toLowerCase()]
+        }
         disabled={busy}
         loading={busy}
         onChange={changeSettings}

@@ -18,8 +18,9 @@ export interface CodexInspectionSettings {
   fiveHourUsedPercentThreshold: number;
   weeklyUsedPercentThreshold: number;
   statusCodeActions?: Record<string, Record<string, CodexInspectionAction>>;
+  schedules: Record<string, CodexInspectionSchedule>;
   usedPercentThreshold?: number;
-  schedule: CodexInspectionSchedule;
+  schedule?: CodexInspectionSchedule;
 }
 
 export interface CodexInspectionSummary {
@@ -41,6 +42,7 @@ export interface CodexInspectionRunState {
   triggerType?: 'manual' | 'scheduled';
   startedAtMs?: number;
   finishedAtMs?: number;
+  nextTriggerAtMsByProvider?: Record<string, number>;
   nextTriggerAtMs?: number;
   summary: CodexInspectionSummary;
   error?: string;
