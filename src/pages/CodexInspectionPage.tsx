@@ -27,6 +27,7 @@ const emptySummary: CodexInspectionSummary = {
   disableCount: 0,
   enableCount: 0,
   reauthCount: 0,
+  failedCount: 0,
   disabledCount: 0,
   enabledCount: 0,
   autoDeletedCount: 0,
@@ -40,6 +41,7 @@ const emptySettings: CodexInspectionSettings = {
   sampleSize: 0,
   fiveHourUsedPercentThreshold: 85,
   weeklyUsedPercentThreshold: 85,
+  statusCodeActions: {},
   schedule: {
     enabled: false,
     mode: 'interval',
@@ -62,11 +64,11 @@ function normalizeSettings(settings: CodexInspectionSettings): CodexInspectionSe
   const fiveHourUsedPercentThreshold =
     typeof settings.fiveHourUsedPercentThreshold === 'number'
       ? settings.fiveHourUsedPercentThreshold
-      : legacyThreshold ?? emptySettings.fiveHourUsedPercentThreshold;
+      : (legacyThreshold ?? emptySettings.fiveHourUsedPercentThreshold);
   const weeklyUsedPercentThreshold =
     typeof settings.weeklyUsedPercentThreshold === 'number'
       ? settings.weeklyUsedPercentThreshold
-      : legacyThreshold ?? emptySettings.weeklyUsedPercentThreshold;
+      : (legacyThreshold ?? emptySettings.weeklyUsedPercentThreshold);
 
   return {
     ...emptySettings,
@@ -84,6 +86,7 @@ export function CodexInspectionPage() {
   const { t } = useTranslation();
   const [snapshot, setSnapshot] = useState<CodexInspectionSnapshot>(emptySnapshot);
   const [settings, setSettings] = useState<CodexInspectionSettings>(emptySettings);
+  const [providers, setProviders] = useState<string[]>(['codex']);
   const [selected, setSelected] = useState<string[]>([]);
   const [resultFilter, setResultFilter] = useState<CodexInspectionResultFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -102,7 +105,12 @@ export function CodexInspectionPage() {
     setError('');
     setLoading(true);
     try {
-      const nextSnapshot = await adapter.loadSnapshot();
+      const [nextSnapshot, providerOptions] = await Promise.all([
+        adapter.loadSnapshot(),
+        adapter.listProviders(),
+      ]);
+      const targetProvider = nextSnapshot.settings.targetType.trim().toLowerCase() || 'codex';
+      setProviders(Array.from(new Set([targetProvider, ...providerOptions])));
       applySnapshot(nextSnapshot);
       setSelected([]);
     } catch (err: unknown) {
@@ -142,7 +150,10 @@ export function CodexInspectionPage() {
     setError('');
     setBusy(true);
     try {
-      const nextSnapshot = await adapter.run(selected.length > 0 ? selected : undefined);
+      const nextSnapshot = await adapter.run(
+        settings.targetType,
+        selected.length > 0 ? selected : undefined
+      );
       applySnapshot(nextSnapshot);
       if (nextSnapshot.run.status === 'failed' && nextSnapshot.run.error) {
         setError(nextSnapshot.run.error);
@@ -156,7 +167,28 @@ export function CodexInspectionPage() {
     } finally {
       setBusy(false);
     }
-  }, [adapter, applySnapshot, selected, t]);
+  }, [adapter, applySnapshot, selected, settings.targetType, t]);
+
+  const changeSettings = useCallback(
+    (nextSettings: CodexInspectionSettings) => {
+      const currentProvider = settings.targetType.trim().toLowerCase();
+      const nextProvider = nextSettings.targetType.trim().toLowerCase();
+      setSettings(nextSettings);
+      if (currentProvider === nextProvider) {
+        return;
+      }
+      setSnapshot((current) => ({
+        ...current,
+        settings: nextSettings,
+        results: [],
+        actionLogs: [],
+        run: { ...current.run, summary: emptySummary },
+      }));
+      setSelected([]);
+      setResultFilter('all');
+    },
+    [settings.targetType]
+  );
 
   const saveSettings = useCallback(async () => {
     setError('');
@@ -207,7 +239,7 @@ export function CodexInspectionPage() {
             defaultValue: 'Confirm delete',
           }),
           message: t('codex_inspection.delete_confirm_message', {
-            defaultValue: 'Delete the selected Codex auth files?',
+            defaultValue: 'Delete the selected provider auth files?',
           }),
           confirmText: t('common.delete', { defaultValue: 'Delete' }),
           cancelText: t('common.cancel'),
@@ -243,7 +275,8 @@ export function CodexInspectionPage() {
     return snapshot.results.filter((item) => item.action === resultFilter);
   }, [resultFilter, snapshot.results]);
 
-  const scheduledRunActive = snapshot.run.status === 'running' && snapshot.run.triggerType === 'scheduled';
+  const scheduledRunActive =
+    snapshot.run.status === 'running' && snapshot.run.triggerType === 'scheduled';
 
   return (
     <div className={styles.container}>
@@ -264,11 +297,12 @@ export function CodexInspectionPage() {
       />
       <CodexInspectionSettingsPanel
         settings={settings}
+        providers={providers}
         showSchedule
         nextTriggerAtMs={snapshot.run.nextTriggerAtMs}
         disabled={busy}
         loading={busy}
-        onChange={setSettings}
+        onChange={changeSettings}
         onSave={saveSettings}
       />
       {loading ? <div className={styles.placeholder}>{t('common.loading')}</div> : null}

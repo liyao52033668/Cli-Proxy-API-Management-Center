@@ -2,7 +2,15 @@
  * Normalization and parsing functions for quota data.
  */
 
-import type { ClaudeUsagePayload, CodexUsagePayload, GeminiCliCodeAssistPayload, GeminiCliQuotaPayload, KimiUsagePayload, XaiBillingPayload } from '@/types';
+import type {
+  ClaudeUsagePayload,
+  CodexRateLimitResetCredit,
+  CodexUsagePayload,
+  GeminiCliCodeAssistPayload,
+  GeminiCliQuotaPayload,
+  KimiUsagePayload,
+  XaiBillingPayload,
+} from '@/types';
 import { normalizeAuthIndex } from '@/utils/usage';
 
 const GEMINI_CLI_MODEL_SUFFIX = '_vertex';
@@ -172,6 +180,69 @@ export function parseCodexUsagePayload(payload: unknown): CodexUsagePayload | nu
     return payload as CodexUsagePayload;
   }
   return null;
+}
+
+export interface CodexResetCreditsSummary {
+  availableCount: number | null;
+  credits: CodexRateLimitResetCredit[];
+  invalidPayload: boolean;
+}
+
+export function normalizeCodexResetCreditsPayload(
+  payload: unknown
+): CodexResetCreditsSummary {
+  let parsed: unknown = payload;
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (!trimmed) {
+      return { availableCount: null, credits: [], invalidPayload: true };
+    }
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      return { availableCount: null, credits: [], invalidPayload: true };
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { availableCount: null, credits: [], invalidPayload: true };
+  }
+
+  const record = parsed as Record<string, unknown>;
+  const hasAvailableCount = 'available_count' in record || 'availableCount' in record;
+  const hasCredits = Array.isArray(record.credits);
+  if (!hasAvailableCount && !hasCredits) {
+    return { availableCount: null, credits: [], invalidPayload: true };
+  }
+
+  const availableCount = normalizeNumberValue(
+    record.available_count ?? record.availableCount
+  );
+  const rawCredits = hasCredits ? record.credits as unknown[] : [];
+  const credits = rawCredits.flatMap((value, index): CodexRateLimitResetCredit[] => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+    const credit = value as Record<string, unknown>;
+    const resetType = normalizeStringValue(credit.reset_type ?? credit.resetType);
+    const status = normalizeStringValue(credit.status);
+    const expiresAt = normalizeStringValue(credit.expires_at ?? credit.expiresAt);
+    if (
+      resetType !== 'codex_rate_limits' ||
+      status?.toLowerCase() !== 'available' ||
+      !expiresAt ||
+      Number.isNaN(Date.parse(expiresAt))
+    ) {
+      return [];
+    }
+
+    return [{
+      id: normalizeStringValue(credit.id) ?? `credit-${index + 1}`,
+      status: 'available',
+      grantedAt: normalizeStringValue(credit.granted_at ?? credit.grantedAt) ?? '',
+      expiresAt,
+    }];
+  });
+
+  return { availableCount, credits, invalidPayload: false };
 }
 
 export function parseGeminiCliQuotaPayload(payload: unknown): GeminiCliQuotaPayload | null {

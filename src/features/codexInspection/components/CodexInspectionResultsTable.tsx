@@ -85,10 +85,12 @@ function renderQuota(item: CodexInspectionResultItem, t: TFunction) {
   return (
     <div style={{ display: 'grid', gap: 2 }}>
       <span>
-        {t('codex_inspection.quota_five_hour', { defaultValue: '5h' })}：{fiveHour != null ? `${fiveHour}%` : '-'}
+        {t('codex_inspection.quota_five_hour', { defaultValue: '5h' })}：
+        {fiveHour != null ? `${fiveHour}%` : '-'}
       </span>
       <span>
-        {t('codex_inspection.quota_weekly', { defaultValue: 'Weekly' })}：{weekly != null ? `${weekly}%` : '-'}
+        {t('codex_inspection.quota_weekly', { defaultValue: 'Weekly' })}：
+        {weekly != null ? `${weekly}%` : '-'}
       </span>
     </div>
   );
@@ -101,8 +103,11 @@ function renderInspectionStatus(item: CodexInspectionResultItem, t: TFunction) {
     case 'enable':
       return t('codex_inspection.action_enable', { defaultValue: 'Suggest enable' });
     case 'delete':
-    case 'reauth':
       return t('codex_inspection.action_delete', { defaultValue: 'Suggest delete' });
+    case 'reauth':
+      return t('codex_inspection.action_reauth', { defaultValue: 'Reauth required' });
+    case 'failed':
+      return t('codex_inspection.action_failed', { defaultValue: 'Inspection failed' });
     case 'keep':
     default:
       // Already-disabled accounts with no further suggestion should not look "Normal".
@@ -117,8 +122,13 @@ function renderReason(reason: string, t: TFunction) {
   if (reason === 'no issue detected') {
     return '';
   }
-  if (reason === '401 response' || reason === '402 response' || reason === '401/402 response') {
-    return t('codex_inspection.reason_unauthorized', { defaultValue: '401/402 response' });
+  if (
+    reason === '401 response' ||
+    reason === '402 response' ||
+    reason === '403 response' ||
+    reason === '401/402 response'
+  ) {
+    return t('codex_inspection.reason_unauthorized', { defaultValue: 'Authentication failed' });
   }
 
   // Backend reasons use used%; convert thresholds to remaining% for display.
@@ -137,7 +147,8 @@ function renderReason(reason: string, t: TFunction) {
   );
   if (bothRecoveredMatch) {
     return t('codex_inspection.reason_both_remaining_gt', {
-      defaultValue: '5h remaining > {{fiveHourThreshold}}% and weekly remaining > {{weeklyThreshold}}%',
+      defaultValue:
+        '5h remaining > {{fiveHourThreshold}}% and weekly remaining > {{weeklyThreshold}}%',
       fiveHourThreshold: toRemainingThreshold(bothRecoveredMatch[1]),
       weeklyThreshold: toRemainingThreshold(bothRecoveredMatch[2]),
     });
@@ -208,9 +219,20 @@ export function CodexInspectionResultsTable({
   const filters: Array<{ key: CodexInspectionResultFilter; label: string }> = [
     { key: 'all', label: t('codex_inspection.filter_all', { defaultValue: 'All' }) },
     { key: 'keep', label: t('codex_inspection.action_keep', { defaultValue: 'Keep' }) },
-    { key: 'disabled', label: t('codex_inspection.filter_disabled', { defaultValue: 'Disabled accounts' }) },
+    {
+      key: 'disabled',
+      label: t('codex_inspection.filter_disabled', { defaultValue: 'Disabled accounts' }),
+    },
     { key: 'disable', label: t('codex_inspection.action_disable', { defaultValue: 'Disable' }) },
     { key: 'enable', label: t('codex_inspection.action_enable', { defaultValue: 'Enable' }) },
+    {
+      key: 'reauth',
+      label: t('codex_inspection.action_reauth', { defaultValue: 'Reauth required' }),
+    },
+    {
+      key: 'failed',
+      label: t('codex_inspection.action_failed', { defaultValue: 'Inspection failed' }),
+    },
     { key: 'delete', label: t('codex_inspection.action_delete', { defaultValue: 'Delete' }) },
   ];
 
@@ -246,20 +268,35 @@ export function CodexInspectionResultsTable({
                   checked={allSelected}
                   disabled={disabled || items.length === 0}
                   onChange={toggleAll}
-                  ariaLabel={t('codex_inspection.select_all', { defaultValue: 'Select all results' })}
+                  ariaLabel={t('codex_inspection.select_all', {
+                    defaultValue: 'Select all results',
+                  })}
                 />
               </th>
-              <th style={headerCellStyle}>{t('codex_inspection.account_header', { defaultValue: 'Account' })}</th>
-              <th style={headerCellStyle}>{t('codex_inspection.quota_header', { defaultValue: 'Quota' })}</th>
-              <th style={headerCellStyle}>{t('codex_inspection.inspection_status_header', { defaultValue: 'Status' })}</th>
-              <th style={headerCellStyle}>{t('codex_inspection.reason_header', { defaultValue: 'Reason' })}</th>
-              <th style={headerCellStyle}>{t('codex_inspection.row_actions', { defaultValue: 'Row actions' })}</th>
+              <th style={headerCellStyle}>
+                {t('codex_inspection.account_header', { defaultValue: 'Account' })}
+              </th>
+              <th style={headerCellStyle}>
+                {t('codex_inspection.quota_header', { defaultValue: 'Quota' })}
+              </th>
+              <th style={headerCellStyle}>
+                {t('codex_inspection.inspection_status_header', { defaultValue: 'Status' })}
+              </th>
+              <th style={headerCellStyle}>
+                {t('codex_inspection.reason_header', { defaultValue: 'Reason' })}
+              </th>
+              <th style={headerCellStyle}>
+                {t('codex_inspection.row_actions', { defaultValue: 'Row actions' })}
+              </th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ ...bodyCellStyle, color: 'var(--text-secondary, #8b8b8b)' }}>
+                <td
+                  colSpan={6}
+                  style={{ ...bodyCellStyle, color: 'var(--text-secondary, #8b8b8b)' }}
+                >
                   {t('codex_inspection.no_results', { defaultValue: 'No inspection results yet.' })}
                 </td>
               </tr>
@@ -280,7 +317,12 @@ export function CodexInspectionResultsTable({
                       })}
                     />
                   </td>
-                  <td style={bodyCellStyle}>{item.displayName || item.accountId || item.fileName || '-'}</td>
+                  <td style={bodyCellStyle}>
+                    <div>{item.displayName || item.accountId || item.fileName || '-'}</div>
+                    <div style={{ color: 'var(--text-secondary, #666)', fontSize: 12 }}>
+                      {item.provider}
+                    </div>
+                  </td>
                   <td style={errorCellStyle}>{renderQuota(item, t)}</td>
                   <td style={compactCellStyle}>{renderInspectionStatus(item, t)}</td>
                   <td style={errorCellStyle} title={item.actionReason || undefined}>
@@ -292,7 +334,12 @@ export function CodexInspectionResultsTable({
                         size="sm"
                         variant="secondary"
                         disabled={disabled}
-                        onClick={() => void onExecuteSingle?.(item.disabled ? 'enable' : 'disable', item.fileName)}
+                        onClick={() =>
+                          void onExecuteSingle?.(
+                            item.disabled ? 'enable' : 'disable',
+                            item.fileName
+                          )
+                        }
                       >
                         {item.disabled
                           ? t('codex_inspection.enable_row', { defaultValue: 'Enable' })

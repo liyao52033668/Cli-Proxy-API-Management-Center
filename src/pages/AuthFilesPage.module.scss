@@ -626,6 +626,35 @@
   padding: $spacing-xs $spacing-sm;
 }
 
+.quotaCardActions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: $spacing-xs;
+}
+
+.quotaResetCreditButton {
+  flex-shrink: 0;
+}
+
+.codexResetCredits {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.codexResetCreditExpiries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.codexResetCreditExpiry {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
 .codexPlan {
   display: flex;
   align-items: center;

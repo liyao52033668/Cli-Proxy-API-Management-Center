@@ -1,5 +1,5 @@
 export type CodexInspectionMode = 'local' | 'server';
-export type CodexInspectionAction = 'keep' | 'delete' | 'disable' | 'enable' | 'reauth';
+export type CodexInspectionAction = 'keep' | 'delete' | 'disable' | 'enable' | 'reauth' | 'failed';
 export type CodexInspectionResultFilter = 'all' | 'disabled' | CodexInspectionAction;
 export type CodexInspectionRunStatus = 'idle' | 'running' | 'completed' | 'failed';
 
@@ -10,13 +10,14 @@ export interface CodexInspectionSchedule {
 }
 
 export interface CodexInspectionSettings {
-  targetType: 'codex';
+  targetType: string;
   workers: number;
   timeoutSeconds: number;
   retries: number;
   sampleSize: number;
   fiveHourUsedPercentThreshold: number;
   weeklyUsedPercentThreshold: number;
+  statusCodeActions?: Record<string, Record<string, CodexInspectionAction>>;
   usedPercentThreshold?: number;
   schedule: CodexInspectionSchedule;
 }
@@ -29,6 +30,7 @@ export interface CodexInspectionSummary {
   disableCount: number;
   enableCount: number;
   reauthCount: number;
+  failedCount: number;
   disabledCount: number;
   enabledCount: number;
   autoDeletedCount: number;

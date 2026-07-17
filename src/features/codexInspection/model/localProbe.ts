@@ -11,7 +11,10 @@ import type {
   CodexInspectionSummary,
 } from './types';
 
-function buildSummary(results: CodexInspectionResultItem[], totalFiles: number): CodexInspectionSummary {
+function buildSummary(
+  results: CodexInspectionResultItem[],
+  totalFiles: number
+): CodexInspectionSummary {
   return {
     totalFiles,
     sampledCount: results.length,
@@ -20,6 +23,7 @@ function buildSummary(results: CodexInspectionResultItem[], totalFiles: number):
     disableCount: results.filter((item) => item.action === 'disable').length,
     enableCount: results.filter((item) => item.action === 'enable').length,
     reauthCount: results.filter((item) => item.action === 'reauth').length,
+    failedCount: results.filter((item) => item.action === 'failed').length,
     disabledCount: results.filter((item) => item.disabled).length,
     enabledCount: results.filter((item) => !item.disabled).length,
     autoDeletedCount: 0,
@@ -105,7 +109,10 @@ function resolveInspectionAction(
   weeklyUsedPercent?: number
 ): Pick<CodexInspectionResultItem, 'action' | 'actionReason'> {
   // Weekly remaining below threshold → suggest delete (highest priority).
-  if (typeof weeklyUsedPercent === 'number' && weeklyUsedPercent >= settings.weeklyUsedPercentThreshold) {
+  if (
+    typeof weeklyUsedPercent === 'number' &&
+    weeklyUsedPercent >= settings.weeklyUsedPercentThreshold
+  ) {
     return {
       action: 'delete',
       actionReason: `weeklyUsedPercent >= ${settings.weeklyUsedPercentThreshold}`,
@@ -129,7 +136,10 @@ function resolveInspectionAction(
   }
 
   // 5h remaining below threshold → suggest disable.
-  if (typeof fiveHourUsedPercent === 'number' && fiveHourUsedPercent >= settings.fiveHourUsedPercentThreshold) {
+  if (
+    typeof fiveHourUsedPercent === 'number' &&
+    fiveHourUsedPercent >= settings.fiveHourUsedPercentThreshold
+  ) {
     return {
       action: 'disable',
       actionReason: `fiveHourUsedPercent >= ${settings.fiveHourUsedPercentThreshold}`,
@@ -148,7 +158,7 @@ async function inspectFile(
   const headers: Record<string, string> = {
     Authorization: 'Bearer $TOKEN$',
     'Content-Type': 'application/json',
-    'User-Agent': 'codex_cli_rs/0.76.0 (Debian 13.0.0; x86_64) WindowsTerminal'
+    'User-Agent': 'codex_cli_rs/0.76.0 (Debian 13.0.0; x86_64) WindowsTerminal',
   };
   if (accountId) {
     headers['Chatgpt-Account-Id'] = accountId;
@@ -156,11 +166,11 @@ async function inspectFile(
 
   const result = authIndex
     ? await apiCallApi.request({
-      authIndex,
-      method: 'GET',
-      url: 'https://chatgpt.com/backend-api/wham/usage',
-      header: headers
-    })
+        authIndex,
+        method: 'GET',
+        url: 'https://chatgpt.com/backend-api/wham/usage',
+        header: headers,
+      })
     : { statusCode: 0, header: {}, bodyText: '', body: null };
 
   const payload = parseCodexUsagePayload(result.body ?? result.bodyText);

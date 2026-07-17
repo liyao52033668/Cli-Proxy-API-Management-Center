@@ -33,11 +33,21 @@ export class CodexInspectionRunError extends Error {
   }
 }
 
-async function resolveCodexFileNamesForFullRun(): Promise<string[]> {
+function normalizeProvider(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+async function resolveFileNamesForProvider(provider: string): Promise<string[]> {
   try {
+    const normalizedProvider = normalizeProvider(provider);
     const { files } = await authFilesApi.list();
     return files
-      .filter((file) => String(file.type ?? file.provider ?? '').trim().toLowerCase() === 'codex')
+      .filter(
+        (file) =>
+          (normalizeProvider(file.type) || normalizeProvider(file.provider)) === normalizedProvider
+      )
       .map((file) => file.name)
       .filter((name) => typeof name === 'string' && name.trim().length > 0);
   } catch {
@@ -48,21 +58,37 @@ async function resolveCodexFileNamesForFullRun(): Promise<string[]> {
 export const codexInspectionApi = {
   getSnapshot: () => apiClient.get<CodexInspectionSnapshot>('/codex-inspection'),
 
-  run: async (fileNames?: string[]): Promise<CodexInspectionSnapshot> => {
+  listProviders: async (): Promise<string[]> => {
+    const { files } = await authFilesApi.list();
+    return Array.from(
+      new Set(
+        files
+          .map((file) => normalizeProvider(file.type) || normalizeProvider(file.provider))
+          .filter(Boolean)
+      )
+    ).sort((left, right) => left.localeCompare(right));
+  },
+
+  run: async (provider: string, fileNames?: string[]): Promise<CodexInspectionSnapshot> => {
+    const normalizedProvider = normalizeProvider(provider) || 'codex';
     if (!fileNames || fileNames.length === 0) {
-      const allCodexFileNames = await resolveCodexFileNamesForFullRun();
-      if (allCodexFileNames.length > AUTH_FILES_UPLOAD_BATCH_SIZE) {
-        return codexInspectionApi.run(allCodexFileNames);
+      const providerFileNames = await resolveFileNamesForProvider(normalizedProvider);
+      if (providerFileNames.length > AUTH_FILES_UPLOAD_BATCH_SIZE) {
+        return codexInspectionApi.run(normalizedProvider, providerFileNames);
       }
-      return apiClient.post<CodexInspectionSnapshot>('/codex-inspection/run', null, {
-        timeout: CODEX_INSPECTION_RUN_TIMEOUT_MS,
-      });
+      return apiClient.post<CodexInspectionSnapshot>(
+        '/codex-inspection/run',
+        { provider: normalizedProvider },
+        { timeout: CODEX_INSPECTION_RUN_TIMEOUT_MS }
+      );
     }
 
     if (fileNames.length <= AUTH_FILES_UPLOAD_BATCH_SIZE) {
-      return apiClient.post<CodexInspectionSnapshot>('/codex-inspection/run', { fileNames }, {
-        timeout: CODEX_INSPECTION_RUN_TIMEOUT_MS,
-      });
+      return apiClient.post<CodexInspectionSnapshot>(
+        '/codex-inspection/run',
+        { provider: normalizedProvider, fileNames },
+        { timeout: CODEX_INSPECTION_RUN_TIMEOUT_MS }
+      );
     }
 
     let lastSuccessfulSnapshot: CodexInspectionSnapshot | null = null;
@@ -72,7 +98,7 @@ export const codexInspectionApi = {
       try {
         const batchSnapshot = await apiClient.post<CodexInspectionSnapshot>(
           '/codex-inspection/run',
-          { fileNames: batchFileNames },
+          { provider: normalizedProvider, fileNames: batchFileNames },
           { timeout: CODEX_INSPECTION_RUN_TIMEOUT_MS }
         );
 

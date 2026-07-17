@@ -21,6 +21,7 @@ const emptySummary: CodexInspectionSummary = {
   disableCount: 0,
   enableCount: 0,
   reauthCount: 0,
+  failedCount: 0,
   disabledCount: 0,
   enabledCount: 0,
   autoDeletedCount: 0,
