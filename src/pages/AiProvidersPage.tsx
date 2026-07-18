@@ -64,7 +64,7 @@ export function AiProvidersPage() {
   const pageTransitionLayer = usePageTransitionLayer();
   const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.status === 'current' : true;
 
-  const { keyStats, usageDetails, loadKeyStats, refreshKeyStats } = useProviderStats({
+  const { keyStats, usageDetails, apiKeyUsage, loadKeyStats, refreshKeyStats } = useProviderStats({
     enabled: isCurrentLayer,
   });
   const usageDetailsBySource = useMemo(
@@ -430,6 +430,7 @@ export function AiProvidersPage() {
             keyStats={keyStats}
             usageDetailsBySource={usageDetailsBySource}
             usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -446,6 +447,7 @@ export function AiProvidersPage() {
             keyStats={keyStats}
             usageDetailsBySource={usageDetailsBySource}
             usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -462,6 +464,7 @@ export function AiProvidersPage() {
             keyStats={keyStats}
             usageDetailsBySource={usageDetailsBySource}
             usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -478,6 +481,7 @@ export function AiProvidersPage() {
             keyStats={keyStats}
             usageDetailsBySource={usageDetailsBySource}
             usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
@@ -504,6 +508,7 @@ export function AiProvidersPage() {
             keyStats={keyStats}
             usageDetailsBySource={usageDetailsBySource}
             usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}

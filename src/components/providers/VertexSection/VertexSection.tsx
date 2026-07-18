@@ -8,6 +8,8 @@ import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
 import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
+import { resolveStatusBarPreferApiKeyUsage } from '@/utils/apiKeyUsageLookup';
+import type { ApiKeyUsageMap } from '@/services/api';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderList } from '../ProviderList';
 import { ProviderStatusBar } from '../ProviderStatusBar';
@@ -24,6 +26,7 @@ interface VertexSectionProps {
   keyStats: KeyStats;
   usageDetailsBySource: UsageDetailsBySource;
   usageDetailsByAuthIndex: UsageDetailsByAuthIndex;
+  apiKeyUsage?: ApiKeyUsageMap | null;
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -38,6 +41,7 @@ export function VertexSection({
   keyStats,
   usageDetailsBySource,
   usageDetailsByAuthIndex,
+  apiKeyUsage,
   loading,
   disableControls,
   isSwitching,
@@ -56,20 +60,27 @@ export function VertexSection({
     configs.forEach((config, index) => {
       if (!config.apiKey) return;
       const configKey = getProviderConfigKey(config, index);
+      const fromApi = resolveStatusBarPreferApiKeyUsage({
+        usageMap: apiKeyUsage,
+        provider: 'vertex',
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+      });
       cache.set(
         configKey,
-        calculateStatusBarData(
-          collectUsageDetailsForIdentity(
-            { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
-            usageDetailsBySource,
-            usageDetailsByAuthIndex
+        fromApi ??
+          calculateStatusBarData(
+            collectUsageDetailsForIdentity(
+              { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
+              usageDetailsBySource,
+              usageDetailsByAuthIndex
+            )
           )
-        )
       );
     });
 
     return cache;
-  }, [configs, usageDetailsByAuthIndex, usageDetailsBySource]);
+  }, [apiKeyUsage, configs, usageDetailsByAuthIndex, usageDetailsBySource]);
 
   return (
     <>

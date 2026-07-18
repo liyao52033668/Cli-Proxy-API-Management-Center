@@ -1,10 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useInterval } from '@/hooks/useInterval';
+import { apiKeyUsageApi, type ApiKeyUsageMap } from '@/services/api';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
 import type { KeyStats, UsageDetail } from '@/utils/usage';
 
 const EMPTY_KEY_STATS: KeyStats = { bySource: {}, byAuthIndex: {} };
 const EMPTY_USAGE_DETAILS: UsageDetail[] = [];
+const EMPTY_API_KEY_USAGE: ApiKeyUsageMap = {};
 
 export type UseProviderStatsOptions = {
   enabled?: boolean;
@@ -18,20 +20,43 @@ export const useProviderStats = (options: UseProviderStatsOptions = {}) => {
   );
   const isLoading = useUsageStatsStore((state) => (enabled ? state.loading : false));
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
+  const [apiKeyUsage, setApiKeyUsage] = useState<ApiKeyUsageMap>(EMPTY_API_KEY_USAGE);
 
-  // 首次进入页面优先复用缓存，避免跨页面重复拉取 /usage。
+  const loadApiKeyUsage = useCallback(async () => {
+    try {
+      const data = await apiKeyUsageApi.get();
+      setApiKeyUsage(data);
+    } catch {
+      // Keep previous snapshot on transient errors.
+    }
+  }, []);
+
+  // Prefer cache on first page enter; always refresh api-key-usage for status bars.
   const loadKeyStats = useCallback(async () => {
-    await loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS });
-  }, [loadUsageStats]);
+    await Promise.all([
+      loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }),
+      loadApiKeyUsage(),
+    ]);
+  }, [loadApiKeyUsage, loadUsageStats]);
 
-  // 定时器触发时强制刷新共享 usage。
+  // Forced refresh for interval / header refresh.
   const refreshKeyStats = useCallback(async () => {
-    await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS });
-  }, [loadUsageStats]);
+    await Promise.all([
+      loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS }),
+      loadApiKeyUsage(),
+    ]);
+  }, [loadApiKeyUsage, loadUsageStats]);
 
   useInterval(() => {
     void refreshKeyStats().catch(() => {});
   }, enabled ? 240_000 : null);
 
-  return { keyStats, usageDetails, loadKeyStats, refreshKeyStats, isLoading };
+  return {
+    keyStats,
+    usageDetails,
+    apiKeyUsage: enabled ? apiKeyUsage : EMPTY_API_KEY_USAGE,
+    loadKeyStats,
+    refreshKeyStats,
+    isLoading,
+  };
 };

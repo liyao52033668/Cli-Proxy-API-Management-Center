@@ -19,6 +19,8 @@ import type { OpenAIProviderConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
 import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
+import { resolveStatusBarPreferApiKeyUsage } from '@/utils/apiKeyUsageLookup';
+import type { ApiKeyUsageMap } from '@/services/api';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderStatusBar } from '../ProviderStatusBar';
 import { CopyableModelTag } from '../CopyableModelTag';
@@ -44,6 +46,7 @@ interface OpenAISectionProps {
   keyStats: KeyStats;
   usageDetailsBySource: UsageDetailsBySource;
   usageDetailsByAuthIndex: UsageDetailsByAuthIndex;
+  apiKeyUsage?: ApiKeyUsageMap | null;
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -72,6 +75,7 @@ export function OpenAISection({
   keyStats,
   usageDetailsBySource,
   usageDetailsByAuthIndex,
+  apiKeyUsage,
   loading,
   disableControls,
   isSwitching,
@@ -362,16 +366,29 @@ export function OpenAISection({
 
     configs.forEach((provider, index) => {
       const providerKey = getOpenAIProviderKey(provider, index);
+      const providerName = String(provider.name || '')
+        .trim()
+        .toLowerCase();
+      const entries = (provider.apiKeyEntries || [])
+        .map((entry) => ({ baseUrl: provider.baseUrl, apiKey: entry.apiKey }))
+        .filter((entry) => Boolean(entry.apiKey));
+      const fromApi = resolveStatusBarPreferApiKeyUsage({
+        usageMap: apiKeyUsage,
+        provider: providerName,
+        baseUrl: provider.baseUrl,
+        entries,
+      });
       cache.set(
         providerKey,
-        calculateStatusBarData(
-          collectOpenAIProviderUsageDetails(provider, usageDetailsBySource, usageDetailsByAuthIndex)
-        )
+        fromApi ??
+          calculateStatusBarData(
+            collectOpenAIProviderUsageDetails(provider, usageDetailsBySource, usageDetailsByAuthIndex)
+          )
       );
     });
 
     return cache;
-  }, [configs, usageDetailsByAuthIndex, usageDetailsBySource]);
+  }, [apiKeyUsage, configs, usageDetailsByAuthIndex, usageDetailsBySource]);
 
   // 过滤后的配置列表
   const filteredConfigs = useMemo<IndexedOpenAIProvider[]>(() => {

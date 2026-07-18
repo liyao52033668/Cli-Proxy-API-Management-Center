@@ -278,6 +278,19 @@ export function resolveAuthFileStats(file: AuthFileItem, stats: KeyStats): KeySt
     }
   }
 
+  // Fall back to auth-files API lifetime counters when usage key stats are unavailable.
+  const fileSuccess = Number(file.success ?? file['Success'] ?? 0);
+  const fileFailed = Number(file.failed ?? file['Failed'] ?? file['failure'] ?? 0);
+  if (
+    (Number.isFinite(fileSuccess) && fileSuccess > 0) ||
+    (Number.isFinite(fileFailed) && fileFailed > 0)
+  ) {
+    return {
+      success: Number.isFinite(fileSuccess) && fileSuccess > 0 ? Math.floor(fileSuccess) : 0,
+      failure: Number.isFinite(fileFailed) && fileFailed > 0 ? Math.floor(fileFailed) : 0,
+    };
+  }
+
   return defaultStats;
 }
 

@@ -18,6 +18,14 @@ export type AuthFileType =
   | 'empty'
   | 'unknown';
 
+/** Recent 10-minute request bucket from auth-files API (`recent_requests`). */
+export interface AuthFileRecentRequestBucket {
+  time?: string;
+  success?: number;
+  failed?: number;
+  failure?: number;
+}
+
 export interface AuthFileItem {
   name: string;
   type?: AuthFileType | string;
@@ -40,6 +48,12 @@ export interface AuthFileItem {
   using_api?: boolean | string | number;
   note?: string;
   headers?: Record<string, string>;
+  /** Lifetime success count from auth runtime (auth-files API). */
+  success?: number;
+  /** Lifetime failure count from auth runtime (auth-files API). */
+  failed?: number;
+  /** Last ~200 minutes of request buckets (10 min each), oldest → newest. */
+  recent_requests?: AuthFileRecentRequestBucket[];
   [key: string]: unknown;
 }
 

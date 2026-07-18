@@ -14,6 +14,10 @@ import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
 import { resolveAuthProvider } from '@/utils/quota';
 import { calculateStatusBarData, normalizeAuthIndex, type KeyStats } from '@/utils/usage';
+import {
+  calculateStatusBarDataFromRecentRequests,
+  extractRecentRequestBuckets,
+} from '@/utils/statusBarFromRecentRequests';
 import { formatFileSize } from '@/utils/format';
 import {
   QUOTA_PROVIDER_TYPES,
@@ -108,8 +112,12 @@ export function AuthFileCard(props: AuthFileCardProps) {
 
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndexKey = normalizeAuthIndex(rawAuthIndex);
-  const statusData =
-    (authIndexKey && statusBarCache.get(authIndexKey)) || calculateStatusBarData([]);
+  // Prefer recent_requests from auth-files API; usage-event cache is bounded and may miss traffic.
+  const recentBuckets = extractRecentRequestBuckets(file);
+  const statusData: AuthFileStatusBarData =
+    recentBuckets.length > 0
+      ? calculateStatusBarDataFromRecentRequests(recentBuckets)
+      : (authIndexKey && statusBarCache.get(authIndexKey)) || calculateStatusBarData([]);
   const rawStatusMessage = getAuthFileStatusMessage(file);
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
