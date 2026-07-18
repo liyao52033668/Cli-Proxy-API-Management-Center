@@ -118,7 +118,83 @@ function renderInspectionStatus(item: CodexInspectionResultItem, t: TFunction) {
   }
 }
 
-function renderReason(reason: string, t: TFunction) {
+function renderXAIReason(reason: string, t: TFunction): string {
+  const alreadyDisabledSuffix = '; account already disabled';
+  if (reason.endsWith(alreadyDisabledSuffix)) {
+    return t('codex_inspection.xai_reason_already_disabled', {
+      defaultValue: '{{reason}}; account is already disabled',
+      reason: renderXAIReason(reason.slice(0, -alreadyDisabledSuffix.length), t),
+    });
+  }
+
+  switch (reason) {
+    case 'xAI probe succeeded':
+      return t('codex_inspection.xai_reason_probe_succeeded', {
+        defaultValue: 'Grok access is available',
+      });
+    case 'xAI probe succeeded; account remains disabled':
+      return t('codex_inspection.xai_reason_probe_succeeded_disabled', {
+        defaultValue: 'Grok access is available; account remains disabled',
+      });
+    case 'xAI free usage exhausted':
+      return t('codex_inspection.xai_reason_free_usage_exhausted', {
+        defaultValue: 'Included free usage is exhausted',
+      });
+    case 'xAI spending limit reached':
+      return t('codex_inspection.xai_reason_spending_limit', {
+        defaultValue: 'Spending limit reached',
+      });
+    case 'xAI authentication invalid':
+      return t('codex_inspection.xai_reason_auth_invalid', {
+        defaultValue: 'Grok authentication is invalid; sign in again',
+      });
+    case 'xAI chat entitlement denied':
+      return t('codex_inspection.xai_reason_entitlement_denied', {
+        defaultValue: 'This account does not have Grok chat access',
+      });
+    case 'xAI temporarily rate limited':
+      return t('codex_inspection.xai_reason_rate_limited', {
+        defaultValue: 'Temporarily rate limited; the account was not disabled',
+      });
+    case 'xAI probe model unavailable':
+      return t('codex_inspection.xai_reason_model_unavailable', {
+        defaultValue: 'The inspection model is temporarily unavailable',
+      });
+    case 'xAI probe failed':
+      return t('codex_inspection.xai_reason_probe_failed', {
+        defaultValue: 'Grok access inspection failed',
+      });
+    default:
+      break;
+  }
+
+  const reviewMatch = reason.match(
+    /^xAI permission or quota status requires review \(HTTP (\d+)\)$/
+  );
+  if (reviewMatch) {
+    return t('codex_inspection.xai_reason_review_required', {
+      defaultValue: 'Permission or quota status requires review (HTTP {{status}})',
+      status: reviewMatch[1],
+    });
+  }
+
+  const statusOverrideMatch = reason.match(/^(\d+) response$/);
+  if (statusOverrideMatch) {
+    return t('codex_inspection.xai_reason_status_override', {
+      defaultValue: 'Matched custom HTTP {{status}} classification',
+      status: statusOverrideMatch[1],
+    });
+  }
+
+  return '';
+}
+
+function renderReason(item: CodexInspectionResultItem, t: TFunction) {
+  const reason = item.actionReason;
+  if (item.provider.trim().toLowerCase() === 'xai') {
+    const xaiReason = renderXAIReason(reason, t);
+    if (xaiReason) return xaiReason;
+  }
   if (reason === 'no issue detected') {
     return '';
   }
@@ -326,7 +402,7 @@ export function CodexInspectionResultsTable({
                   <td style={errorCellStyle}>{renderQuota(item, t)}</td>
                   <td style={compactCellStyle}>{renderInspectionStatus(item, t)}</td>
                   <td style={errorCellStyle} title={item.actionReason || undefined}>
-                    {renderReason(item.actionReason, t)}
+                    {renderReason(item, t)}
                   </td>
                   <td style={bodyCellStyle}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>

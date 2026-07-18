@@ -349,6 +349,37 @@ export function CodexInspectionSettingsPanel({
             </label>
           </>
         ) : null}
+        {provider === 'xai' ? (
+          <div
+            style={{
+              width: '100%',
+              display: 'grid',
+              gap: 6,
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--border-primary, #d0d0d0)',
+              background: 'var(--bg-tertiary, #f7f7f7)',
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>
+              {t('codex_inspection.xai_probe_title', {
+                defaultValue: 'Grok OAuth inspection',
+              })}
+            </div>
+            <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
+              {t('codex_inspection.xai_probe_hint', {
+                defaultValue:
+                  'Uses grok-4.5 to verify actual Grok chat access. Official pay-as-you-go API keys are not probed.',
+              })}
+            </div>
+            <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
+              {t('codex_inspection.xai_status_override_hint', {
+                defaultValue:
+                  'Bare HTTP 402, 403, and 429 responses are kept for review by default. Custom status code rules still take priority and scheduled inspections may execute disable or delete rules automatically.',
+              })}
+            </div>
+          </div>
+        ) : null}
         <div
           style={{
             width: '100%',
