@@ -369,7 +369,7 @@ export function CodexInspectionSettingsPanel({
             <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
               {t('codex_inspection.xai_probe_hint', {
                 defaultValue:
-                  'Uses grok-4.5 to verify actual Grok chat access. Official pay-as-you-go API keys are not probed.',
+                  'Uses grok-4.5 to verify actual Grok chat access. Healthy disabled accounts are enabled automatically. Official pay-as-you-go API keys are not probed.',
               })}
             </div>
             <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>

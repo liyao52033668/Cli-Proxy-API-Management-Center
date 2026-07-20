@@ -96,7 +96,22 @@ function renderQuota(item: CodexInspectionResultItem, t: TFunction) {
   );
 }
 
+function isXAIAutoEnableFailure(item: CodexInspectionResultItem): boolean {
+  return (
+    item.provider.trim().toLowerCase() === 'xai' &&
+    item.disabled &&
+    item.action === 'enable' &&
+    item.actionReason === 'xAI probe succeeded'
+  );
+}
+
 function renderInspectionStatus(item: CodexInspectionResultItem, t: TFunction) {
+  if (isXAIAutoEnableFailure(item)) {
+    return t('codex_inspection.xai_status_auto_enable_failed', {
+      defaultValue: 'Automatic enable failed',
+    });
+  }
+
   switch (item.action) {
     case 'disable':
       return t('codex_inspection.action_disable', { defaultValue: 'Suggest disable' });
@@ -191,6 +206,12 @@ function renderXAIReason(reason: string, t: TFunction): string {
 
 function renderReason(item: CodexInspectionResultItem, t: TFunction) {
   const reason = item.actionReason;
+  if (isXAIAutoEnableFailure(item)) {
+    return t('codex_inspection.xai_reason_auto_enable_failed', {
+      defaultValue:
+        'Grok chat access is available, but automatic enable failed. Enable the account manually.',
+    });
+  }
   if (item.provider.trim().toLowerCase() === 'xai') {
     const xaiReason = renderXAIReason(reason, t);
     if (xaiReason) return xaiReason;
