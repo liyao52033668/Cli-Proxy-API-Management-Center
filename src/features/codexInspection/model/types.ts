@@ -1,7 +1,7 @@
 export type CodexInspectionMode = 'local' | 'server';
 export type CodexInspectionAction = 'keep' | 'delete' | 'disable' | 'enable' | 'reauth' | 'failed';
 export type CodexInspectionResultFilter = 'all' | 'disabled' | CodexInspectionAction;
-export type CodexInspectionRunStatus = 'idle' | 'running' | 'completed' | 'failed';
+export type CodexInspectionRunStatus = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
 
 export interface CodexInspectionSchedule {
   enabled: boolean;
@@ -42,6 +42,9 @@ export interface CodexInspectionRunState {
   triggerType?: 'manual' | 'scheduled';
   startedAtMs?: number;
   finishedAtMs?: number;
+  processedCount?: number;
+  pendingCount?: number;
+  batchSize?: number;
   nextTriggerAtMsByProvider?: Record<string, number>;
   nextTriggerAtMs?: number;
   summary: CodexInspectionSummary;

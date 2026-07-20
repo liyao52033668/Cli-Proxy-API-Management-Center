@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useNotificationStore } from '@/stores';
 import { createServerCodexInspectionAdapter } from '@/features/codexInspection/adapters/server';
-import { CodexInspectionRunError } from '@/services/api/codexInspection';
 import { CodexInspectionActionBar } from '@/features/codexInspection/components/CodexInspectionActionBar';
 import { CodexInspectionResultsTable } from '@/features/codexInspection/components/CodexInspectionResultsTable';
 import { CodexInspectionSettingsPanel } from '@/features/codexInspection/components/CodexInspectionSettingsPanel';
@@ -111,6 +110,12 @@ export function CodexInspectionPage() {
   const [error, setError] = useState('');
 
   const adapter = useMemo(() => serverAdapter, []);
+  const runActive = snapshot.run.status === 'queued' || snapshot.run.status === 'running';
+  const processedCount = snapshot.run.processedCount ?? 0;
+  const pendingCount = snapshot.run.pendingCount ?? 0;
+  const progressTotal = processedCount + pendingCount;
+  const progressPercent =
+    progressTotal > 0 ? Math.round((processedCount / progressTotal) * 100) : 0;
 
   const applySnapshot = useCallback((nextSnapshot: CodexInspectionSnapshot) => {
     const normalizedSettings = normalizeSettings(nextSnapshot.settings);
@@ -146,6 +151,18 @@ export function CodexInspectionPage() {
     }
   }, [adapter, applySnapshot, t]);
 
+  const pollSnapshot = useCallback(async () => {
+    try {
+      const nextSnapshot = await adapter.loadSnapshot();
+      applySnapshot(nextSnapshot);
+      setError(
+        nextSnapshot.run.status === 'failed' && nextSnapshot.run.error ? nextSnapshot.run.error : ''
+      );
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('notification.refresh_failed'));
+    }
+  }, [adapter, applySnapshot, t]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void refreshSnapshot();
@@ -157,21 +174,18 @@ export function CodexInspectionPage() {
   }, [refreshSnapshot]);
 
   useEffect(() => {
-    const hasEnabledSchedule = Object.values(snapshot.settings.schedules).some(
-      (schedule) => schedule.enabled
-    );
-    if (!hasEnabledSchedule || snapshot.run.status !== 'running') {
+    if (!runActive) {
       return undefined;
     }
 
     const timer = window.setInterval(() => {
-      void refreshSnapshot();
-    }, 5000);
+      void pollSnapshot();
+    }, 2000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [refreshSnapshot, snapshot.run.status, snapshot.settings.schedules]);
+  }, [pollSnapshot, runActive]);
 
   useHeaderRefresh(() => refreshSnapshot());
 
@@ -189,9 +203,6 @@ export function CodexInspectionPage() {
       }
       setSelected([]);
     } catch (err: unknown) {
-      if (err instanceof CodexInspectionRunError) {
-        applySnapshot(err.snapshot);
-      }
       setError(err instanceof Error ? err.message : t('notification.refresh_failed'));
     } finally {
       setBusy(false);
@@ -310,9 +321,6 @@ export function CodexInspectionPage() {
     return snapshot.results.filter((item) => item.action === resultFilter);
   }, [resultFilter, snapshot.results]);
 
-  const scheduledRunActive =
-    snapshot.run.status === 'running' && snapshot.run.triggerType === 'scheduled';
-
   return (
     <div className={styles.container}>
       <div className={styles.pageHeader}>
@@ -322,10 +330,43 @@ export function CodexInspectionPage() {
 
       {error ? <div className={styles.errorBox}>{error}</div> : null}
 
+      {runActive ? (
+        <div className={styles.progressCard} role="status" aria-live="polite">
+          <div className={styles.progressHeader}>
+            <strong>
+              {snapshot.run.status === 'queued'
+                ? t('codex_inspection.run_queued')
+                : t('codex_inspection.run_running')}
+            </strong>
+            <span>{progressPercent}%</span>
+          </div>
+          <div
+            className={styles.progressTrack}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+          >
+            <div className={styles.progressFill} style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className={styles.progressMeta}>
+            <span>
+              {t('codex_inspection.run_progress', {
+                processed: processedCount,
+                pending: pendingCount,
+              })}
+            </span>
+            {(snapshot.run.batchSize ?? 0) > 0 ? (
+              <span>{t('codex_inspection.run_batch_size', { count: snapshot.run.batchSize })}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <CodexInspectionActionBar
         selectedCount={selected.length}
         busy={busy}
-        runDisabled={scheduledRunActive}
+        runDisabled={runActive}
         onRun={runInspection}
         onRefresh={refreshSnapshot}
         onExecute={executeAction}
@@ -337,7 +378,7 @@ export function CodexInspectionPage() {
         nextTriggerAtMs={
           snapshot.run.nextTriggerAtMsByProvider?.[settings.targetType.trim().toLowerCase()]
         }
-        disabled={busy}
+        disabled={busy || runActive}
         loading={busy}
         onChange={changeSettings}
         onSave={saveSettings}
@@ -349,7 +390,7 @@ export function CodexInspectionPage() {
           items={filteredResults}
           selected={selected}
           filter={resultFilter}
-          disabled={busy}
+          disabled={busy || runActive}
           onFilterChange={(nextFilter) => {
             setResultFilter(nextFilter);
             setSelected([]);

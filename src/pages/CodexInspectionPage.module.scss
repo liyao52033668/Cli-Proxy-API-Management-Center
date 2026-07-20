@@ -45,6 +45,44 @@
   border-radius: 12px;
 }
 
+.progressCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border-primary, #d0d0d0);
+  background: var(--bg-secondary, #fff);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.progressHeader,
+.progressMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressMeta {
+  color: var(--text-secondary, #8b8b8b);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.progressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-tertiary, #e5e7eb);
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary-color, #2563eb);
+  transition: width 200ms ease;
+}
+
 .placeholder,
 .snapshotPreview {
   border: 1px solid var(--border-primary, #d0d0d0);

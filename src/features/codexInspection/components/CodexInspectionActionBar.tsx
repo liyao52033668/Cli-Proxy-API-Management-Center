@@ -27,7 +27,10 @@ export function CodexInspectionActionBar({
       title={t('codex_inspection.actions_title', { defaultValue: 'Actions' })}
       extra={
         <span style={{ color: 'var(--text-secondary, #8b8b8b)' }}>
-          {t('codex_inspection.selected_count', { defaultValue: '{{count}} selected', count: selectedCount })}
+          {t('codex_inspection.selected_count', {
+            defaultValue: '{{count}} selected',
+            count: selectedCount,
+          })}
         </span>
       }
     >
@@ -38,13 +41,25 @@ export function CodexInspectionActionBar({
         <Button variant="secondary" loading={busy} onClick={() => void onRefresh()}>
           {t('common.refresh')}
         </Button>
-        <Button variant="secondary" disabled={busy || selectedCount === 0} onClick={() => void onExecute('disable')}>
+        <Button
+          variant="secondary"
+          disabled={busy || runDisabled || selectedCount === 0}
+          onClick={() => void onExecute('disable')}
+        >
           {t('codex_inspection.disable_selected', { defaultValue: 'Disable selected' })}
         </Button>
-        <Button variant="secondary" disabled={busy || selectedCount === 0} onClick={() => void onExecute('enable')}>
+        <Button
+          variant="secondary"
+          disabled={busy || runDisabled || selectedCount === 0}
+          onClick={() => void onExecute('enable')}
+        >
           {t('codex_inspection.enable_selected', { defaultValue: 'Enable selected' })}
         </Button>
-        <Button variant="danger" disabled={busy || selectedCount === 0} onClick={() => void onExecute('delete')}>
+        <Button
+          variant="danger"
+          disabled={busy || runDisabled || selectedCount === 0}
+          onClick={() => void onExecute('delete')}
+        >
           {t('codex_inspection.delete_selected', { defaultValue: 'Delete selected' })}
         </Button>
       </div>
