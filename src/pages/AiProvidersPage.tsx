@@ -89,8 +89,19 @@ export function AiProvidersPage() {
     }
     setError('');
     try {
-      const [configResult, vertexResult, ampcodeResult, openaiResult] = await Promise.allSettled([
+      const [
+        configResult,
+        geminiResult,
+        codexResult,
+        claudeResult,
+        vertexResult,
+        ampcodeResult,
+        openaiResult,
+      ] = await Promise.allSettled([
         fetchConfig(),
+        providersApi.getGeminiKeys(),
+        providersApi.getCodexConfigs(),
+        providersApi.getClaudeConfigs(),
         providersApi.getVertexConfigs(),
         ampcodeApi.getAmpcode(),
         providersApi.getOpenAIProviders(),
@@ -106,6 +117,24 @@ export function AiProvidersPage() {
       setClaudeConfigs(data?.claudeApiKeys || []);
       setVertexConfigs(data?.vertexApiKeys || []);
       setOpenaiProviders(data?.openaiCompatibility || []);
+
+      if (geminiResult.status === 'fulfilled') {
+        setGeminiKeys(geminiResult.value || []);
+        updateConfigValue('gemini-api-key', geminiResult.value || []);
+        clearCache('gemini-api-key');
+      }
+
+      if (codexResult.status === 'fulfilled') {
+        setCodexConfigs(codexResult.value || []);
+        updateConfigValue('codex-api-key', codexResult.value || []);
+        clearCache('codex-api-key');
+      }
+
+      if (claudeResult.status === 'fulfilled') {
+        setClaudeConfigs(claudeResult.value || []);
+        updateConfigValue('claude-api-key', claudeResult.value || []);
+        clearCache('claude-api-key');
+      }
 
       if (vertexResult.status === 'fulfilled') {
         setVertexConfigs(vertexResult.value || []);
@@ -156,7 +185,11 @@ export function AiProvidersPage() {
     config?.openaiCompatibility,
   ]);
 
-  useHeaderRefresh(refreshKeyStats, isCurrentLayer);
+  const refreshProviders = useCallback(async () => {
+    await Promise.all([loadConfigs(), refreshKeyStats()]);
+  }, [loadConfigs, refreshKeyStats]);
+
+  useHeaderRefresh(refreshProviders, isCurrentLayer);
 
   const openEditor = useCallback(
     (path: string) => {
@@ -231,11 +264,7 @@ export function AiProvidersPage() {
     }
 
     const source =
-      provider === 'codex'
-        ? codexConfigs
-        : provider === 'claude'
-          ? claudeConfigs
-          : vertexConfigs;
+      provider === 'codex' ? codexConfigs : provider === 'claude' ? claudeConfigs : vertexConfigs;
     const current = source[index];
     if (!current) return;
 
@@ -301,7 +330,9 @@ export function AiProvidersPage() {
     const entry = source[index];
     if (!entry) return;
     showConfirmation({
-      title: t(`ai_providers.${type}_delete_title`, { defaultValue: `Delete ${type === 'codex' ? 'Codex' : 'Claude'} Config` }),
+      title: t(`ai_providers.${type}_delete_title`, {
+        defaultValue: `Delete ${type === 'codex' ? 'Codex' : 'Claude'} Config`,
+      }),
       message: t(`ai_providers.${type}_delete_confirm`),
       variant: 'danger',
       confirmText: t('common.confirm'),
@@ -495,6 +526,9 @@ export function AiProvidersPage() {
         <div id="provider-ampcode">
           <AmpcodeSection
             config={config?.ampcode}
+            keyStats={keyStats}
+            usageDetailsBySource={usageDetailsBySource}
+            usageDetailsByAuthIndex={usageDetailsByAuthIndex}
             loading={loading}
             disableControls={disableControls}
             isSwitching={isSwitching}
