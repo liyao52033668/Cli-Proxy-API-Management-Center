@@ -49,6 +49,10 @@ export function isXaiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'xai';
 }
 
+export function isCursorFile(file: AuthFileItem): boolean {
+  return resolveAuthProvider(file) === 'cursor';
+}
+
 export function isCopilotFile(file: AuthFileItem): boolean {
   const provider = resolveAuthProvider(file);
   return provider === 'github' || provider === 'github-copilot';

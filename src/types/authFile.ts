@@ -15,6 +15,8 @@ export type AuthFileType =
   | 'iflow'
   | 'vertex'
   | 'xai'
+  | 'cursor'
+  | 'kiro'
   | 'empty'
   | 'unknown';
 

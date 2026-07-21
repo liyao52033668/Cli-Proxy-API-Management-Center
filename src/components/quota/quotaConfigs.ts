@@ -24,6 +24,9 @@ import type {
   CopilotQuotaData,
   CopilotQuotaRow,
   CopilotQuotaState,
+  CursorQuotaData,
+  CursorQuotaRow,
+  CursorQuotaState,
   GeminiCliCodeAssistPayload,
   GeminiCliCredits,
   GeminiCliParsedBucket,
@@ -32,6 +35,7 @@ import type {
   GeminiCliUserTier,
   KimiQuotaRow,
   KimiQuotaState,
+  KiroQuotaData,
   KiroQuotaRow,
   KiroQuotaState,
   XaiBillingSummary,
@@ -40,6 +44,8 @@ import type {
 import {
   ANTIGRAVITY_QUOTA_URLS,
   ANTIGRAVITY_REQUEST_HEADERS,
+  CURSOR_REQUEST_HEADERS,
+  CURSOR_USAGE_SUMMARY_URL,
   buildAntigravityQuotaGroups,
   buildGeminiCliQuotaBuckets,
   buildKimiQuotaRows,
@@ -66,6 +72,7 @@ import {
   isClaudeFile,
   isCodexFile,
   isCopilotFile,
+  isCursorFile,
   isDisabledAuthFile,
   isGeminiCliFile,
   isKimiFile,
@@ -102,7 +109,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'gemini-cli' | 'kimi' | 'kiro' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'xai';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
@@ -118,6 +125,7 @@ export interface QuotaStore {
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
+  cursorQuota: Record<string, CursorQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
@@ -126,6 +134,7 @@ export interface QuotaStore {
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
+  setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
@@ -1811,10 +1820,63 @@ export const COPILOT_CONFIG: QuotaConfig<CopilotQuotaState, CopilotQuotaData> = 
   renderQuotaItems: renderCopilotItems,
 };
 
+const resolveKiroPlanLabel = (payload: Record<string, unknown>): string | null => {
+  const usage = payload.usage as Record<string, unknown> | undefined;
+  const quotaStatus = payload.quota_status as Record<string, unknown> | undefined;
+  const subscription =
+    (usage?.subscriptionInfo as Record<string, unknown> | undefined) ??
+    (usage?.subscription_info as Record<string, unknown> | undefined) ??
+    (quotaStatus?.subscription as Record<string, unknown> | undefined);
+  if (!subscription) return null;
+  const title =
+    subscription.subscriptionTitle ??
+    subscription.subscription_title ??
+    subscription.type ??
+    subscription.subscription_type;
+  if (typeof title !== 'string') return null;
+  const trimmed = title.trim();
+  return trimmed || null;
+};
+
+const resolveKiroNextReset = (payload: Record<string, unknown>): string | undefined => {
+  const usage = payload.usage as Record<string, unknown> | undefined;
+  const quotaStatus = payload.quota_status as Record<string, unknown> | undefined;
+  const raw =
+    quotaStatus?.next_reset ??
+    usage?.nextDateReset ??
+    usage?.next_date_reset;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    // API may return ms or seconds; values above year 2100-in-seconds are treated as ms.
+    const ms = raw > 1e12 ? raw : raw > 1e10 ? raw : raw * 1000;
+    return new Date(ms).toISOString();
+  }
+  return undefined;
+};
+
+const pushKiroQuotaRow = (
+  rows: KiroQuotaRow[],
+  id: string,
+  labelKey: string,
+  used: number,
+  limit: number
+) => {
+  if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return;
+  const remaining = limit - used;
+  rows.push({
+    id,
+    labelKey,
+    used,
+    limit,
+    remaining: remaining > 0 ? remaining : 0,
+    remainingPercent: Math.round((Math.max(0, remaining) / limit) * 100),
+  });
+};
+
 const fetchKiroQuota = async (
   file: AuthFileItem,
   t: TFunction
-): Promise<KiroQuotaRow[]> => {
+): Promise<KiroQuotaData> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
@@ -1822,48 +1884,62 @@ const fetchKiroQuota = async (
   }
 
   try {
-    const result = await apiClient.get<Record<string, unknown>>(`/kiro-quota?auth_index=${encodeURIComponent(authIndex)}`);
+    const result = await apiClient.get<Record<string, unknown>>(
+      `/kiro-quota?auth_index=${encodeURIComponent(authIndex)}`
+    );
 
     const payload = result as Record<string, unknown>;
     const rows: KiroQuotaRow[] = [];
+    const planType = resolveKiroPlanLabel(payload);
+    const nextReset = resolveKiroNextReset(payload);
 
     const usage = payload.usage as Record<string, unknown> | undefined;
-    if (usage) {
-      const usageBreakdownList = usage.usageBreakdownList as Array<Record<string, unknown>> | undefined;
-      if (usageBreakdownList && Array.isArray(usageBreakdownList)) {
-        for (const breakdown of usageBreakdownList) {
-          const resourceType = String(breakdown.resourceType ?? '');
-          const used = Number(breakdown.currentUsageWithPrecision ?? 0);
-          const limit = Number(breakdown.usageLimitWithPrecision ?? 0);
-          const remaining = limit - used;
+    const usageBreakdownList = usage?.usageBreakdownList as Array<Record<string, unknown>> | undefined;
+    if (usageBreakdownList && Array.isArray(usageBreakdownList)) {
+      for (const breakdown of usageBreakdownList) {
+        const resourceType = String(breakdown.resourceType ?? '');
+        const used = Number(breakdown.currentUsageWithPrecision ?? 0);
+        const limit = Number(breakdown.usageLimitWithPrecision ?? 0);
 
-          let id = '';
-          let labelKey = '';
+        let id = '';
+        let labelKey = '';
+        if (resourceType === 'CREDIT' || resourceType.includes('CREDIT')) {
+          id = 'credit';
+          labelKey = 'kiro_quota.credit_label';
+        } else if (resourceType === 'AGENTIC_REQUEST' || resourceType.includes('AGENTIC')) {
+          id = 'agentic_request';
+          labelKey = 'kiro_quota.agentic_request_label';
+        } else if (resourceType) {
+          id = resourceType.toLowerCase();
+          labelKey = '';
+        }
 
-          if (resourceType === 'CREDIT' || resourceType.includes('CREDIT')) {
-            id = 'code_scan';
-            labelKey = 'kiro_quota.code_scan_label';
-          } else if (resourceType === 'AGENTIC_REQUEST' || resourceType.includes('AGENTIC')) {
-            id = 'code_generation';
-            labelKey = 'kiro_quota.code_generation_label';
-          }
-
-          if (id) {
+        if (id) {
+          if (labelKey) {
+            pushKiroQuotaRow(rows, id, labelKey, used, limit);
+          } else {
+            const remaining = limit - used;
             rows.push({
               id,
-              labelKey,
+              label: resourceType,
               used,
               limit,
               remaining: remaining > 0 ? remaining : 0,
-              remainingPercent: limit ? Math.round((remaining / limit) * 100) : undefined,
-              unit: 'tokens',
+              remainingPercent: limit ? Math.round((Math.max(0, remaining) / limit) * 100) : undefined,
             });
           }
+        }
+
+        const freeTrial = breakdown.freeTrialInfo as Record<string, unknown> | undefined;
+        if (freeTrial) {
+          const freeUsed = Number(freeTrial.currentUsageWithPrecision ?? 0);
+          const freeLimit = Number(freeTrial.usageLimitWithPrecision ?? 0);
+          pushKiroQuotaRow(rows, `${id || 'base'}_free_trial`, 'kiro_quota.free_trial_label', freeUsed, freeLimit);
         }
       }
     }
 
-    return rows;
+    return { rows, planType, nextReset };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : t('common.unknown_error');
     const status = getStatusFromError(err);
@@ -1879,14 +1955,37 @@ const renderKiroItems = (
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h, Fragment } = React;
   const rows = quota.rows ?? [];
+  const planLabel = quota.planType?.trim() || null;
+  const resetLabel = formatQuotaResetTime(quota.nextReset);
+  const hasReset = Boolean(quota.nextReset) && resetLabel !== '-';
+  const nodes: ReactNode[] = [];
 
-  if (rows.length === 0) {
-    return h('div', { className: styleMap.quotaMessage }, t('kiro_quota.empty'));
+  if (planLabel || hasReset) {
+    const planNodes: ReactNode[] = [];
+    if (planLabel) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('kiro_quota.plan_label')),
+        h('span', { key: 'plan-value', className: styleMap.codexPlanValue }, planLabel)
+      );
+    }
+    if (planLabel && hasReset) {
+      planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
+    }
+    if (hasReset) {
+      planNodes.push(
+        h('span', { key: 'reset-label', className: styleMap.codexPlanLabel }, t('kiro_quota.reset_label')),
+        h('span', { key: 'reset-value', className: styleMap.codexPlanValue }, resetLabel)
+      );
+    }
+    nodes.push(h('div', { key: 'plan-reset', className: styleMap.codexPlan }, ...planNodes));
   }
 
-  return h(
-    Fragment,
-    null,
+  if (rows.length === 0) {
+    nodes.push(h('div', { key: 'empty', className: styleMap.quotaMessage }, t('kiro_quota.empty')));
+    return h(Fragment, null, ...nodes);
+  }
+
+  nodes.push(
     ...rows.map((row: KiroQuotaRow) => {
       const remaining = row.remainingPercent ?? null;
       const clampedRemaining = remaining === null ? null : Math.max(0, Math.min(100, remaining));
@@ -1914,9 +2013,11 @@ const renderKiroItems = (
       );
     })
   );
+
+  return h(Fragment, null, ...nodes);
 };
 
-export const KIRO_CONFIG: QuotaConfig<KiroQuotaState, KiroQuotaRow[]> = {
+export const KIRO_CONFIG: QuotaConfig<KiroQuotaState, KiroQuotaData> = {
   type: 'kiro',
   i18nPrefix: 'kiro_quota',
   cardIdleMessageKey: 'quota_management.card_idle_hint',
@@ -1925,14 +2026,19 @@ export const KIRO_CONFIG: QuotaConfig<KiroQuotaState, KiroQuotaRow[]> = {
   storeSelector: (state) => state.kiroQuota,
   storeSetter: 'setKiroQuota',
   buildLoadingState: () => ({ status: 'loading', rows: [] }),
-  buildSuccessState: (rows) => ({ status: 'success', rows }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    rows: data.rows,
+    planType: data.planType,
+    nextReset: data.nextReset,
+  }),
   buildErrorState: (message, status) => ({
     status: 'error',
     rows: [],
     error: message,
     errorStatus: status,
   }),
-  cardClassName: styles.codexCard,
+  cardClassName: styles.kiroCard,
   controlsClassName: styles.codexControls,
   controlClassName: styles.codexControl,
   gridClassName: styles.codexGrid,
@@ -2296,4 +2402,276 @@ export const XAI_CONFIG: QuotaConfig<XaiQuotaState, XaiBillingSummary> = {
   controlClassName: styles.xaiControl,
   gridClassName: styles.xaiGrid,
   renderQuotaItems: renderXaiItems,
+};
+
+const PREMIUM_CURSOR_PLAN_TYPES = new Set([
+  'pro',
+  'pro+',
+  'pro_plus',
+  'proplus',
+  'business',
+  'ultra',
+  'team',
+  'enterprise',
+]);
+
+const getCursorPlanLabel = (membershipType?: string | null, t?: TFunction): string | null => {
+  if (!membershipType || !t) return membershipType ?? null;
+  const key = membershipType.trim().toLowerCase().replace(/[\s_]+/g, '-');
+  const i18nKey = `cursor_quota.plan_${key.replace(/-/g, '_')}`;
+  const translated = t(i18nKey);
+  if (translated !== i18nKey) return translated;
+  if (key === 'pro+') {
+    const plusKey = 'cursor_quota.plan_pro_plus';
+    const plusTranslated = t(plusKey);
+    if (plusTranslated !== plusKey) return plusTranslated;
+  }
+  return membershipType;
+};
+
+const parseCursorUsageSummary = (body: unknown): CursorQuotaData | null => {
+  if (!body || typeof body !== 'object') return null;
+  const payload = body as Record<string, unknown>;
+  const membershipType =
+    typeof payload.membershipType === 'string'
+      ? payload.membershipType
+      : typeof payload.membership_type === 'string'
+        ? payload.membership_type
+        : null;
+  const isUnlimited = Boolean(payload.isUnlimited ?? payload.is_unlimited ?? false);
+  const billingCycleEnd =
+    typeof payload.billingCycleEnd === 'string'
+      ? payload.billingCycleEnd
+      : typeof payload.billing_cycle_end === 'string'
+        ? payload.billing_cycle_end
+        : null;
+
+  const individualUsage =
+    (payload.individualUsage as Record<string, unknown> | undefined) ??
+    (payload.individual_usage as Record<string, unknown> | undefined) ??
+    null;
+  const plan =
+    (individualUsage?.plan as Record<string, unknown> | undefined) ?? null;
+  const onDemand =
+    (individualUsage?.onDemand as Record<string, unknown> | undefined) ??
+    (individualUsage?.on_demand as Record<string, unknown> | undefined) ??
+    null;
+  const onDemandEnabled = Boolean(onDemand?.enabled ?? false);
+
+  const rows: CursorQuotaRow[] = [];
+  if (plan && typeof plan === 'object') {
+    const used = normalizeNumberValue(plan.used);
+    const limit = normalizeNumberValue(plan.limit);
+    const remaining = normalizeNumberValue(plan.remaining);
+    const totalPercentUsed = normalizeNumberValue(
+      plan.totalPercentUsed ?? plan.total_percent_used
+    );
+    const autoPercentUsed = normalizeNumberValue(
+      plan.autoPercentUsed ?? plan.auto_percent_used
+    );
+    const apiPercentUsed = normalizeNumberValue(
+      plan.apiPercentUsed ?? plan.api_percent_used
+    );
+
+    let remainingPercent: number | null = null;
+    if (isUnlimited) {
+      remainingPercent = 100;
+    } else if (totalPercentUsed !== null) {
+      remainingPercent = Math.max(0, Math.min(100, 100 - totalPercentUsed));
+    } else if (limit !== null && limit > 0 && remaining !== null) {
+      remainingPercent = Math.max(0, Math.min(100, (remaining / limit) * 100));
+    } else if (limit !== null && limit > 0 && used !== null) {
+      remainingPercent = Math.max(0, Math.min(100, ((limit - used) / limit) * 100));
+    }
+
+    rows.push({
+      id: 'plan',
+      labelKey: 'cursor_quota.plan_usage',
+      used: used ?? undefined,
+      limit: limit ?? undefined,
+      remaining: remaining ?? undefined,
+      remainingPercent: remainingPercent === null ? undefined : Math.round(remainingPercent),
+    });
+
+    if (autoPercentUsed !== null) {
+      rows.push({
+        id: 'auto',
+        labelKey: 'cursor_quota.auto_usage',
+        remainingPercent: Math.round(Math.max(0, Math.min(100, 100 - autoPercentUsed))),
+      });
+    }
+    if (apiPercentUsed !== null) {
+      rows.push({
+        id: 'api',
+        labelKey: 'cursor_quota.api_usage',
+        remainingPercent: Math.round(Math.max(0, Math.min(100, 100 - apiPercentUsed))),
+      });
+    }
+  }
+
+  if (onDemandEnabled && onDemand) {
+    const used = normalizeNumberValue(onDemand.used);
+    const limit = normalizeNumberValue(onDemand.limit);
+    const remaining = normalizeNumberValue(onDemand.remaining);
+    let remainingPercent: number | null = null;
+    if (limit !== null && limit > 0 && remaining !== null) {
+      remainingPercent = Math.max(0, Math.min(100, (remaining / limit) * 100));
+    } else if (limit !== null && limit > 0 && used !== null) {
+      remainingPercent = Math.max(0, Math.min(100, ((limit - used) / limit) * 100));
+    }
+    rows.push({
+      id: 'on-demand',
+      labelKey: 'cursor_quota.on_demand_usage',
+      used: used ?? undefined,
+      limit: limit ?? undefined,
+      remaining: remaining ?? undefined,
+      remainingPercent: remainingPercent === null ? undefined : Math.round(remainingPercent),
+    });
+  }
+
+  return {
+    rows,
+    membershipType,
+    isUnlimited,
+    billingCycleEnd,
+    onDemandEnabled,
+  };
+};
+
+const fetchCursorQuota = async (file: AuthFileItem, t: TFunction): Promise<CursorQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('cursor_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: CURSOR_USAGE_SUMMARY_URL,
+    header: { ...CURSOR_REQUEST_HEADERS },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const data = parseCursorUsageSummary(result.body ?? result.bodyText);
+  if (!data) {
+    throw new Error(t('cursor_quota.empty_data'));
+  }
+  return data;
+};
+
+const renderCursorItems = (
+  quota: CursorQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+  const rows = quota.rows ?? [];
+  const planLabel = getCursorPlanLabel(quota.membershipType, t);
+  const resetLabel = formatQuotaResetTime(quota.billingCycleEnd ?? undefined);
+  const hasReset = Boolean(quota.billingCycleEnd) && resetLabel !== '-';
+  const nodes: ReactNode[] = [];
+
+  if (planLabel || hasReset || quota.isUnlimited) {
+    const isPremium = PREMIUM_CURSOR_PLAN_TYPES.has(
+      (quota.membershipType ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-')
+    );
+    const valueClass = isPremium ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
+    const planNodes: ReactNode[] = [];
+    if (planLabel) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('cursor_quota.plan_label')),
+        h(
+          'span',
+          { key: 'plan-value', className: valueClass },
+          quota.isUnlimited ? `${planLabel} · ${t('cursor_quota.unlimited')}` : planLabel
+        )
+      );
+    } else if (quota.isUnlimited) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('cursor_quota.plan_label')),
+        h('span', { key: 'plan-value', className: valueClass }, t('cursor_quota.unlimited'))
+      );
+    }
+    if ((planLabel || quota.isUnlimited) && hasReset) {
+      planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
+    }
+    if (hasReset) {
+      planNodes.push(
+        h('span', { key: 'reset-label', className: styleMap.codexPlanLabel }, t('cursor_quota.reset_label')),
+        h('span', { key: 'reset-value', className: styleMap.codexPlanValue }, resetLabel)
+      );
+    }
+    nodes.push(h('div', { key: 'plan-reset', className: styleMap.codexPlan }, ...planNodes));
+  }
+
+  if (rows.length === 0) {
+    nodes.push(h('div', { key: 'empty', className: styleMap.quotaMessage }, t('cursor_quota.empty_data')));
+    return h(Fragment, null, ...nodes);
+  }
+
+  nodes.push(
+    ...rows.map((row: CursorQuotaRow) => {
+      const remaining = row.remainingPercent ?? null;
+      const clampedRemaining = remaining === null ? null : Math.max(0, Math.min(100, remaining));
+      const percentLabel = clampedRemaining === null ? '--' : `${Math.round(clampedRemaining)}%`;
+      const rowLabel = row.labelKey ? t(row.labelKey) : row.label || row.id;
+
+      return h(
+        'div',
+        { key: row.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, rowLabel),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h('span', { className: styleMap.quotaPercent }, percentLabel)
+          )
+        ),
+        h(QuotaProgressBar, {
+          percent: clampedRemaining,
+          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        })
+      );
+    })
+  );
+
+  return h(Fragment, null, ...nodes);
+};
+
+export const CURSOR_CONFIG: QuotaConfig<CursorQuotaState, CursorQuotaData> = {
+  type: 'cursor',
+  i18nPrefix: 'cursor_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isCursorFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchCursorQuota,
+  storeSelector: (state) => state.cursorQuota,
+  storeSetter: 'setCursorQuota',
+  buildLoadingState: () => ({ status: 'loading', rows: [] }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    rows: data.rows,
+    membershipType: data.membershipType,
+    isUnlimited: data.isUnlimited,
+    billingCycleEnd: data.billingCycleEnd,
+    onDemandEnabled: data.onDemandEnabled,
+  }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    rows: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.cursorCard,
+  controlsClassName: styles.cursorControls,
+  controlClassName: styles.cursorControl,
+  gridClassName: styles.cursorGrid,
+  renderQuotaItems: renderCursorItems,
 };

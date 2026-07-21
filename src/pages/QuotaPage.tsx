@@ -7,6 +7,7 @@ import {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   COPILOT_CONFIG,
+  CURSOR_CONFIG,
   GEMINI_CLI_CONFIG,
   KIMI_CONFIG,
   KIRO_CONFIG,
@@ -106,6 +107,12 @@ export function QuotaPage() {
       />
       <QuotaSection
         config={XAI_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={CURSOR_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}

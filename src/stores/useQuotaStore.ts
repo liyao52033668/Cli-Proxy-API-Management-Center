@@ -2,7 +2,7 @@
  * Quota cache that survives route switches.
  */
 
-import type { AntigravityQuotaState, ClaudeQuotaState, CodexQuotaState, CopilotQuotaState, GeminiCliQuotaState, KimiQuotaState, KiroQuotaState, XaiQuotaState } from '@/types';
+import type { AntigravityQuotaState, ClaudeQuotaState, CodexQuotaState, CopilotQuotaState, CursorQuotaState, GeminiCliQuotaState, KimiQuotaState, KiroQuotaState, XaiQuotaState } from '@/types';
 import { create } from 'zustand';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
@@ -12,6 +12,7 @@ interface QuotaStoreState {
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
+  cursorQuota: Record<string, CursorQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
@@ -20,6 +21,7 @@ interface QuotaStoreState {
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
+  setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
@@ -39,6 +41,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   claudeQuota: {},
   codexQuota: {},
   copilotQuota: {},
+  cursorQuota: {},
   geminiCliQuota: {},
   kimiQuota: {},
   kiroQuota: {},
@@ -58,6 +61,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   setCopilotQuota: (updater) =>
     set((state) => ({
       copilotQuota: resolveUpdater(updater, state.copilotQuota)
+    })),
+  setCursorQuota: (updater) =>
+    set((state) => ({
+      cursorQuota: resolveUpdater(updater, state.cursorQuota)
     })),
   setGeminiCliQuota: (updater) =>
     set((state) => ({
@@ -81,6 +88,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       claudeQuota: {},
       codexQuota: {},
       copilotQuota: {},
+      cursorQuota: {},
       geminiCliQuota: {},
       kimiQuota: {},
       kiroQuota: {},

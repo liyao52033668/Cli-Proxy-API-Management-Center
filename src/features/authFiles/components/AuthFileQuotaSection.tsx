@@ -6,8 +6,10 @@ import {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   COPILOT_CONFIG,
+  CURSOR_CONFIG,
   GEMINI_CLI_CONFIG,
   KIMI_CONFIG,
+  KIRO_CONFIG,
   XAI_CONFIG
 } from '@/components/quota';
 import { Button } from '@/components/ui/Button';
@@ -41,7 +43,9 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'claude') return CLAUDE_CONFIG;
   if (type === 'codex') return CODEX_CONFIG;
   if (type === 'copilot') return COPILOT_CONFIG;
+  if (type === 'cursor') return CURSOR_CONFIG;
   if (type === 'kimi') return KIMI_CONFIG;
+  if (type === 'kiro') return KIRO_CONFIG;
   if (type === 'xai') return XAI_CONFIG;
   return GEMINI_CLI_CONFIG;
 };
@@ -64,7 +68,9 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'claude') return state.claudeQuota[file.name] as QuotaState;
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
     if (quotaType === 'copilot') return state.copilotQuota[file.name] as QuotaState;
+    if (quotaType === 'cursor') return state.cursorQuota[file.name] as QuotaState;
     if (quotaType === 'kimi') return state.kimiQuota[file.name] as QuotaState;
+    if (quotaType === 'kiro') return state.kiroQuota[file.name] as QuotaState;
     if (quotaType === 'xai') return state.xaiQuota[file.name] as QuotaState;
     return state.geminiCliQuota[file.name] as QuotaState;
   });
@@ -74,7 +80,9 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'claude') return state.setClaudeQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'codex') return state.setCodexQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'copilot') return state.setCopilotQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'cursor') return state.setCursorQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kimi') return state.setKimiQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'kiro') return state.setKiroQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
     return state.setGeminiCliQuota as unknown as (updater: unknown) => void;
   });

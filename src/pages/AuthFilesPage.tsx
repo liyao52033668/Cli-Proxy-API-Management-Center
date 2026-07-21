@@ -162,17 +162,21 @@ export function AuthFilesPage() {
   const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
   const claudeQuota = useQuotaStore((state) => state.claudeQuota);
   const codexQuota = useQuotaStore((state) => state.codexQuota);
+  const cursorQuota = useQuotaStore((state) => state.cursorQuota);
   const geminiCliQuota = useQuotaStore((state) => state.geminiCliQuota);
   const kimiQuota = useQuotaStore((state) => state.kimiQuota);
+  const kiroQuota = useQuotaStore((state) => state.kiroQuota);
   const quotaProblems = useMemo(
     () => ({
       antigravity: antigravityQuota,
       claude: claudeQuota,
       codex: codexQuota,
+      cursor: cursorQuota,
       'gemini-cli': geminiCliQuota,
       kimi: kimiQuota,
+      kiro: kiroQuota,
     }),
-    [antigravityQuota, claudeQuota, codexQuota, geminiCliQuota, kimiQuota]
+    [antigravityQuota, claudeQuota, codexQuota, cursorQuota, geminiCliQuota, kimiQuota, kiroQuota]
   );
 
   const {

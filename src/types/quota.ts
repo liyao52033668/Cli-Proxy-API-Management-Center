@@ -384,14 +384,31 @@ export interface KiroQuotaDetail {
 }
 
 export interface KiroSubscriptionInfo {
+  subscriptionTitle?: string;
+  subscription_title?: string;
+  type?: string;
   subscription_type?: string;
   subscription_status?: string;
 }
 
+export interface KiroUsageBreakdown {
+  resourceType?: string;
+  usageLimitWithPrecision?: number;
+  currentUsageWithPrecision?: number;
+  freeTrialInfo?: {
+    freeTrialStatus?: string;
+    usageLimitWithPrecision?: number;
+    currentUsageWithPrecision?: number;
+  };
+}
+
 export interface KiroUsageQuotaResponse {
+  usageBreakdownList?: KiroUsageBreakdown[];
   code_scan_units?: KiroQuotaDetail;
   code_generation_units?: KiroQuotaDetail;
+  nextDateReset?: number;
   next_date_reset?: number;
+  subscriptionInfo?: KiroSubscriptionInfo;
   subscription_info?: KiroSubscriptionInfo;
 }
 
@@ -419,6 +436,12 @@ export interface KiroQuotaRow {
   remaining?: number;
   remainingPercent?: number;
   unit?: string;
+}
+
+export interface KiroQuotaData {
+  rows: KiroQuotaRow[];
+  planType?: string | null;
+  nextReset?: string;
 }
 
 export interface KiroQuotaState {
@@ -498,6 +521,36 @@ export interface XaiBillingSummary {
 export interface XaiQuotaState {
   status: 'idle' | 'loading' | 'success' | 'error';
   billing: XaiBillingSummary | null;
+  error?: string;
+  errorStatus?: number;
+}
+
+// Cursor dashboard usage-summary types
+export interface CursorQuotaRow {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  used?: number;
+  limit?: number;
+  remaining?: number;
+  remainingPercent?: number;
+}
+
+export interface CursorQuotaData {
+  rows: CursorQuotaRow[];
+  membershipType?: string | null;
+  isUnlimited?: boolean;
+  billingCycleEnd?: string | null;
+  onDemandEnabled?: boolean;
+}
+
+export interface CursorQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  rows: CursorQuotaRow[];
+  membershipType?: string | null;
+  isUnlimited?: boolean;
+  billingCycleEnd?: string | null;
+  onDemandEnabled?: boolean;
   error?: string;
   errorStatus?: number;
 }

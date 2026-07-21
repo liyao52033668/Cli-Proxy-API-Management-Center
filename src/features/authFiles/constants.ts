@@ -8,6 +8,8 @@ import iconIflow from '@/assets/icons/iflow.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconQwen from '@/assets/icons/qwen.svg';
+import iconCursor from '@/assets/icons/cursor.svg';
+import iconKiro from '@/assets/icons/kiro.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import type { AuthFileItem } from '@/types';
 import { parseTimestamp } from '@/utils/timestamp';
@@ -34,8 +36,10 @@ export type QuotaProviderType =
   | 'claude'
   | 'codex'
   | 'copilot'
+  | 'cursor'
   | 'gemini-cli'
   | 'kimi'
+  | 'kiro'
   | 'xai';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
@@ -43,8 +47,10 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'claude',
   'codex',
   'copilot',
+  'cursor',
   'gemini-cli',
   'kimi',
+  'kiro',
   'xai',
 ]);
 
@@ -125,6 +131,16 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#e8edf3', text: '#1f2937' },
     dark: { bg: '#1f2937', text: '#d1d5db' },
   },
+  // Cursor: 中性黑白品牌色
+  cursor: {
+    light: { bg: '#eef1f4', text: '#111827' },
+    dark: { bg: '#1f2937', text: '#e5e7eb' },
+  },
+  // Kiro: AWS 橙 #FF9900
+  kiro: {
+    light: { bg: '#fff3e0', text: '#c2410c' },
+    dark: { bg: '#7c2d12', text: '#fdba74' },
+  },
   empty: {
     light: { bg: '#f5f5f5', text: '#616161' },
     dark: { bg: '#424242', text: '#bdbdbd' },
@@ -147,6 +163,8 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   qwen: iconQwen,
   vertex: iconVertex,
   xai: iconGrok,
+  cursor: iconCursor,
+  kiro: iconKiro,
 };
 
 export const clampCardPageSize = (value: number) =>

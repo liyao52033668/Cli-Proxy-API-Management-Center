@@ -46,6 +46,14 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#f3f4f6', text: '#111827', border: '1px solid #d1d5db' },
     dark: { bg: '#111827', text: '#f9fafb', border: '1px solid #374151' },
   },
+  cursor: {
+    light: { bg: '#eef1f4', text: '#111827' },
+    dark: { bg: '#1f2937', text: '#e5e7eb' },
+  },
+  kiro: {
+    light: { bg: '#fff3e0', text: '#c2410c' },
+    dark: { bg: '#7c2d12', text: '#fdba74' },
+  },
   iflow: {
     light: { bg: '#f5e3fc', text: '#9025c8' },
     dark: { bg: '#521490', text: '#d49cf5' },
@@ -221,4 +229,14 @@ export const XAI_REQUEST_HEADERS = {
   'x-grok-client-version': XAI_GROK_CLIENT_VERSION,
   accept: '*/*',
   'user-agent': XAI_GROK_USER_AGENT,
+};
+
+// Cursor dashboard usage-summary (Cookie session token is expanded server-side)
+export const CURSOR_USAGE_SUMMARY_URL = 'https://cursor.com/api/usage-summary';
+
+export const CURSOR_REQUEST_HEADERS = {
+  Cookie: 'WorkosCursorSessionToken=$TOKEN$',
+  Accept: 'application/json',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
 };
