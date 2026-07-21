@@ -28,7 +28,6 @@ import { copyToClipboard } from '@/utils/clipboard';
 import {
   MAX_CARD_PAGE_SIZE,
   MIN_CARD_PAGE_SIZE,
-  QUOTA_PROVIDER_TYPES,
   clampCardPageSize,
   getAuthFileIcon,
   getTypeColor,
@@ -37,6 +36,7 @@ import {
   normalizeProviderKey,
   parsePriorityValue,
   resolveAuthFileStats,
+  resolveQuotaProviderType,
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
@@ -219,11 +219,8 @@ export function AuthFilesPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const normalizedFilter = normalizeProviderKey(String(filter));
-  const quotaFilterType: QuotaProviderType | null = QUOTA_PROVIDER_TYPES.has(
-    normalizedFilter as QuotaProviderType
-  )
-    ? (normalizedFilter as QuotaProviderType)
-    : null;
+  // github-copilot filter chip maps to the shared copilot quota provider.
+  const quotaFilterType: QuotaProviderType | null = resolveQuotaProviderType(normalizedFilter);
   const pageSize = compactMode ? pageSizeByMode.compact : pageSizeByMode.regular;
 
   useEffect(() => {

@@ -20,7 +20,6 @@ import {
 } from '@/utils/statusBarFromRecentRequests';
 import { formatFileSize } from '@/utils/format';
 import {
-  QUOTA_PROVIDER_TYPES,
   formatModified,
   getAuthFileIcon,
   getAuthFileStatusMessage,
@@ -29,6 +28,7 @@ import {
   isRuntimeOnlyAuthFile,
   parsePriorityValue,
   resolveAuthFileStats,
+  resolveQuotaProviderType,
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
@@ -58,9 +58,7 @@ export type AuthFileCardProps = {
 };
 
 const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
-  const provider = resolveAuthProvider(file);
-  if (!QUOTA_PROVIDER_TYPES.has(provider as QuotaProviderType)) return null;
-  return provider as QuotaProviderType;
+  return resolveQuotaProviderType(resolveAuthProvider(file));
 };
 
 export function AuthFileCard(props: AuthFileCardProps) {
@@ -102,7 +100,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
       ? styles.antigravityCard
       : quotaType === 'claude'
         ? styles.claudeCard
-        : quotaType === 'codex'
+        : quotaType === 'codex' || quotaType === 'copilot'
           ? styles.codexCard
           : quotaType === 'gemini-cli'
             ? styles.geminiCliCard

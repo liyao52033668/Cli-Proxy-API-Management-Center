@@ -358,10 +358,19 @@ export interface CopilotQuotaRow {
   remainingPercent?: number;
 }
 
+export interface CopilotQuotaData {
+  rows: CopilotQuotaRow[];
+  planType?: string | null;
+  accessTypeSku?: string | null;
+  quotaResetDate?: string | null;
+}
+
 export interface CopilotQuotaState {
   status: 'idle' | 'loading' | 'success' | 'error';
   rows: CopilotQuotaRow[];
   planType?: string | null;
+  accessTypeSku?: string | null;
+  quotaResetDate?: string | null;
   error?: string;
   errorStatus?: number;
 }

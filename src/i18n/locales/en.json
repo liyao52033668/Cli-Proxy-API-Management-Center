@@ -776,7 +776,13 @@
     "fetch_all": "Fetch All",
     "chat_label": "Chat",
     "completions_label": "Completions",
-    "premium_interactions_label": "Premium Interactions"
+    "premium_interactions_label": "Premium Interactions",
+    "plan_label": "Plan",
+    "reset_label": "Resets",
+    "plan_free": "Free",
+    "plan_individual": "Pro",
+    "plan_business": "Pro+",
+    "plan_enterprise": "Max"
   },
   "kimi_quota": {
     "title": "Kimi Quota",

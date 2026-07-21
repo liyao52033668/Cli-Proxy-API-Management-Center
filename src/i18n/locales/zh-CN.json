@@ -776,7 +776,13 @@
     "fetch_all": "获取全部",
     "chat_label": "聊天",
     "completions_label": "补全",
-    "premium_interactions_label": "高级交互"
+    "premium_interactions_label": "高级交互",
+    "plan_label": "套餐",
+    "reset_label": "刷新时间",
+    "plan_free": "Free",
+    "plan_individual": "Pro",
+    "plan_business": "Pro+",
+    "plan_enterprise": "Max"
   },
   "kimi_quota": {
     "title": "Kimi 额度",

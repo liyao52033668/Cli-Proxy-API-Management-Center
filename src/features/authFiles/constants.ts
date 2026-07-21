@@ -29,16 +29,36 @@ export type AuthFileModelItem = {
 };
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
-export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'xai';
+export type QuotaProviderType =
+  | 'antigravity'
+  | 'claude'
+  | 'codex'
+  | 'copilot'
+  | 'gemini-cli'
+  | 'kimi'
+  | 'xai';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
   'claude',
   'codex',
+  'copilot',
   'gemini-cli',
   'kimi',
   'xai',
 ]);
+
+// Auth-file type/filter labels use github-copilot; quota configs use copilot.
+export const resolveQuotaProviderType = (providerOrFilter: string): QuotaProviderType | null => {
+  const key = providerOrFilter.trim().toLowerCase().replace(/_/g, '-');
+  if (key === 'github' || key === 'github-copilot' || key === 'copilot') {
+    return 'copilot';
+  }
+  if (QUOTA_PROVIDER_TYPES.has(key as QuotaProviderType)) {
+    return key as QuotaProviderType;
+  }
+  return null;
+};
 
 export const MIN_CARD_PAGE_SIZE = 3;
 export const MAX_CARD_PAGE_SIZE = 30;
