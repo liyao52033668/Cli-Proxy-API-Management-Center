@@ -82,16 +82,13 @@ const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
 };
 
 export const oauthApi = {
-  startAuth: (provider: OAuthProvider, options?: { projectId?: string; planType?: string }) => {
+  startAuth: (provider: OAuthProvider, options?: { projectId?: string }) => {
     const params: Record<string, string | boolean> = {};
     if (WEBUI_SUPPORTED.includes(provider)) {
       params.is_webui = true;
     }
     if (provider === 'gemini-cli' && options?.projectId) {
       params.project_id = options.projectId;
-    }
-    if (provider === 'github' && options?.planType) {
-      params.plan_type = options.planType;
     }
     return apiClient.get<OAuthStartResponse>(`/${provider}-auth-url`, {
       params: Object.keys(params).length ? params : undefined

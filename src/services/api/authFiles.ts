@@ -528,7 +528,8 @@ export const authFilesApi = {
   deleteAll: () => apiClient.delete('/auth-files', { params: { all: true } }),
 
   downloadText: async (name: string): Promise<string> => {
-    const response = await apiClient.getRaw(`/auth-files/download?name=${encodeURIComponent(name)}`, {
+    const query = new URLSearchParams({ name });
+    const response = await apiClient.getRaw(`/auth-files/download?${query.toString()}`, {
       responseType: 'blob'
     });
     const blob = response.data as Blob;
