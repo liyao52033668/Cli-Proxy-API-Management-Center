@@ -5,8 +5,8 @@
 import { useTranslation } from 'react-i18next';
 import type { ReactElement, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
-import type { AuthFileItem, ResolvedTheme, ThemeColors } from '@/types';
-import { TYPE_COLORS } from '@/utils/quota';
+import type { AuthFileItem, ResolvedTheme } from '@/types';
+import { getAuthFileIcon, getTypeColor, getTypeLabel as resolveTypeLabel } from '@/features/authFiles/constants';
 import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -86,9 +86,9 @@ export function QuotaCard<TState extends QuotaStatusState>({
   const { t } = useTranslation();
 
   const displayType = item.type || item.provider || defaultType;
-  const typeColorSet = TYPE_COLORS[displayType] || TYPE_COLORS.unknown;
-  const typeColor: ThemeColors =
-    resolvedTheme === 'dark' && typeColorSet.dark ? typeColorSet.dark : typeColorSet.light;
+  const typeColor = getTypeColor(displayType, resolvedTheme);
+  const providerIcon = getAuthFileIcon(displayType, resolvedTheme);
+  const typeLabel = resolveTypeLabel(t, displayType);
 
   const quotaStatus = quota?.status ?? 'idle';
   const quotaErrorMessage = resolveQuotaErrorMessage(
@@ -99,28 +99,38 @@ export function QuotaCard<TState extends QuotaStatusState>({
   );
   const idleMessageKey = onRefresh ? `${i18nPrefix}.idle` : (cardIdleMessageKey ?? `${i18nPrefix}.idle`);
 
-  const getTypeLabel = (type: string): string => {
-    const key = `auth_files.filter_${type}`;
-    const translated = t(key);
-    if (translated !== key) return translated;
-    if (type.toLowerCase() === 'iflow') return 'iFlow';
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
   return (
     <div className={`${styles.fileCard} ${cardClassName}`}>
       <div className={styles.cardHeader}>
-        <span
-          className={styles.typeBadge}
+        <div
+          className={styles.providerAvatar}
           style={{
             backgroundColor: typeColor.bg,
             color: typeColor.text,
             ...(typeColor.border ? { border: typeColor.border } : {})
           }}
         >
-          {getTypeLabel(displayType)}
-        </span>
-        <span className={styles.fileName}>{item.name}</span>
+          {providerIcon ? (
+            <img src={providerIcon} alt="" className={styles.providerAvatarImage} />
+          ) : (
+            <span className={styles.providerAvatarFallback}>
+              {typeLabel.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className={styles.cardHeaderContent}>
+          <span
+            className={styles.typeBadge}
+            style={{
+              backgroundColor: typeColor.bg,
+              color: typeColor.text,
+              ...(typeColor.border ? { border: typeColor.border } : {})
+            }}
+          >
+            {typeLabel}
+          </span>
+          <span className={styles.fileName}>{item.name}</span>
+        </div>
       </div>
 
       <div className={styles.quotaSection}>

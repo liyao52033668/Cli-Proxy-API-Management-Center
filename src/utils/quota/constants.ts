@@ -8,63 +8,127 @@ import type {
   TypeColorSet,
 } from '@/types';
 
-// Theme colors for type badges — 与 authFiles/constants.ts 保持同步
+// Theme colors for type badges — keep in sync with authFiles/constants.ts
 export const TYPE_COLORS: Record<string, TypeColorSet> = {
   qwen: {
-    light: { bg: '#ede5fd', text: '#5530c7' },
-    dark: { bg: '#36208a', text: '#b5a3f0' },
-  },
-  gemini: {
-    light: { bg: '#e3f2fd', text: '#1565c0' },
-    dark: { bg: '#0d47a1', text: '#64b5f6' },
-  },
-  'gemini-cli': {
-    light: { bg: '#e0e8ff', text: '#1e4fa3' },
-    dark: { bg: '#1c3f73', text: '#a8c7ff' },
-  },
-  aistudio: {
-    light: { bg: '#f0f2f5', text: '#2f343c' },
-    dark: { bg: '#373c42', text: '#cfd3db' },
-  },
-  claude: {
-    light: { bg: '#fbece4', text: '#c05621' },
-    dark: { bg: '#5e2c14', text: '#e8a882' },
-  },
-  codex: {
-    light: { bg: '#eae7ff', text: '#3538d4' },
-    dark: { bg: '#262395', text: '#b5b0ff' },
+    light: { bg: '#ede5fd', text: '#5530c7', border: '1px solid #c4b5fd' },
+    dark: { bg: '#36208a', text: '#b5a3f0', border: '1px solid #7c6ad4' },
   },
   kimi: {
-    light: { bg: '#dce8ff', text: '#0560cf' },
-    dark: { bg: '#003880', text: '#70b5ff' },
+    light: { bg: '#dce8ff', text: '#0560cf', border: '1px solid #93c5fd' },
+    dark: { bg: '#003880', text: '#70b5ff', border: '1px solid #3b82f6' },
+  },
+  gemini: {
+    light: { bg: '#e3f2fd', text: '#1565c0', border: '1px solid #90caf9' },
+    dark: { bg: '#0d47a1', text: '#64b5f6', border: '1px solid #42a5f5' },
+  },
+  'gemini-cli': {
+    light: { bg: '#e0e8ff', text: '#1e4fa3', border: '1px solid #a5b4fc' },
+    dark: { bg: '#1c3f73', text: '#a8c7ff', border: '1px solid #6366f1' },
+  },
+  aistudio: {
+    light: { bg: '#f0f2f5', text: '#2f343c', border: '1px solid #d1d5db' },
+    dark: { bg: '#373c42', text: '#cfd3db', border: '1px solid #6b7280' },
+  },
+  claude: {
+    light: { bg: '#fbece4', text: '#c05621', border: '1px solid #fdba74' },
+    dark: { bg: '#5e2c14', text: '#e8a882', border: '1px solid #ea580c' },
+  },
+  codex: {
+    light: { bg: '#eae7ff', text: '#3538d4', border: '1px solid #c7d2fe' },
+    dark: { bg: '#262395', text: '#b5b0ff', border: '1px solid #818cf8' },
   },
   antigravity: {
-    light: { bg: '#e0f7fa', text: '#006064' },
-    dark: { bg: '#004d40', text: '#80deea' },
-  },
-  xai: {
-    light: { bg: '#f3f4f6', text: '#111827', border: '1px solid #d1d5db' },
-    dark: { bg: '#111827', text: '#f9fafb', border: '1px solid #374151' },
-  },
-  cursor: {
-    light: { bg: '#eef1f4', text: '#111827' },
-    dark: { bg: '#1f2937', text: '#e5e7eb' },
-  },
-  kiro: {
-    light: { bg: '#fff3e0', text: '#c2410c' },
-    dark: { bg: '#7c2d12', text: '#fdba74' },
+    light: { bg: '#e0f7fa', text: '#006064', border: '1px solid #67e8f9' },
+    dark: { bg: '#004d40', text: '#80deea', border: '1px solid #22d3ee' },
   },
   iflow: {
-    light: { bg: '#f5e3fc', text: '#9025c8' },
-    dark: { bg: '#521490', text: '#d49cf5' },
+    light: { bg: '#f5e3fc', text: '#9025c8', border: '1px solid #e9d5ff' },
+    dark: { bg: '#521490', text: '#d49cf5', border: '1px solid #c084fc' },
   },
   vertex: {
-    light: { bg: '#e4edfd', text: '#2b5fbc' },
-    dark: { bg: '#1a3d80', text: '#89b3f7' },
+    light: { bg: '#e4edfd', text: '#2b5fbc', border: '1px solid #bfdbfe' },
+    dark: { bg: '#1a3d80', text: '#89b3f7', border: '1px solid #60a5fa' },
+  },
+  xai: {
+    light: { bg: '#e8edf3', text: '#1f2937', border: '1px solid #d1d5db' },
+    dark: { bg: '#1f2937', text: '#d1d5db', border: '1px solid #4b5563' },
+  },
+  cursor: {
+    light: { bg: '#eef1f4', text: '#111827', border: '1px solid #cbd5e1' },
+    dark: { bg: '#1f2937', text: '#e5e7eb', border: '1px solid #64748b' },
+  },
+  kiro: {
+    light: { bg: '#fff3e0', text: '#c2410c', border: '1px solid #fdba74' },
+    dark: { bg: '#7c2d12', text: '#fdba74', border: '1px solid #f97316' },
+  },
+  'github-copilot': {
+    light: { bg: '#e8f5e9', text: '#1b5e20', border: '1px solid #86efac' },
+    dark: { bg: '#14532d', text: '#86efac', border: '1px solid #22c55e' },
+  },
+  copilot: {
+    light: { bg: '#e8f5e9', text: '#1b5e20', border: '1px solid #86efac' },
+    dark: { bg: '#14532d', text: '#86efac', border: '1px solid #22c55e' },
+  },
+  github: {
+    light: { bg: '#e8f5e9', text: '#1b5e20', border: '1px solid #86efac' },
+    dark: { bg: '#14532d', text: '#86efac', border: '1px solid #22c55e' },
+  },
+  codearts: {
+    light: { bg: '#ffe4e6', text: '#be123c', border: '1px solid #fda4af' },
+    dark: { bg: '#881337', text: '#fda4af', border: '1px solid #f43f5e' },
+  },
+  codebuddy: {
+    light: { bg: '#e0f2fe', text: '#0369a1', border: '1px solid #7dd3fc' },
+    dark: { bg: '#0c4a6e', text: '#7dd3fc', border: '1px solid #0ea5e9' },
+  },
+  'codebuddy-ai': {
+    light: { bg: '#cffafe', text: '#0e7490', border: '1px solid #67e8f9' },
+    dark: { bg: '#164e63', text: '#67e8f9', border: '1px solid #06b6d4' },
+  },
+  qoder: {
+    light: { bg: '#fce7f3', text: '#9d174d', border: '1px solid #f9a8d4' },
+    dark: { bg: '#831843', text: '#f9a8d4', border: '1px solid #ec4899' },
+  },
+  kilo: {
+    light: { bg: '#d1fae5', text: '#047857', border: '1px solid #6ee7b7' },
+    dark: { bg: '#064e3b', text: '#6ee7b7', border: '1px solid #10b981' },
+  },
+  joycode: {
+    light: { bg: '#fef3c7', text: '#b45309', border: '1px solid #fcd34d' },
+    dark: { bg: '#78350f', text: '#fcd34d', border: '1px solid #f59e0b' },
+  },
+  deepseek: {
+    light: { bg: '#dbeafe', text: '#1d4ed8', border: '1px solid #93c5fd' },
+    dark: { bg: '#1e3a8a', text: '#93c5fd', border: '1px solid #3b82f6' },
+  },
+  glm: {
+    light: { bg: '#ccfbf1', text: '#0f766e', border: '1px solid #5eead4' },
+    dark: { bg: '#134e4a', text: '#5eead4', border: '1px solid #14b8a6' },
+  },
+  minimax: {
+    light: { bg: '#ffe4e6', text: '#9f1239', border: '1px solid #fb7185' },
+    dark: { bg: '#4c0519', text: '#fb7185', border: '1px solid #e11d48' },
+  },
+  amp: {
+    light: { bg: '#fef9c3', text: '#a16207', border: '1px solid #fde047' },
+    dark: { bg: '#713f12', text: '#fde047', border: '1px solid #eab308' },
+  },
+  gitlab: {
+    light: { bg: '#fff1eb', text: '#c2410c', border: '1px solid #fb923c' },
+    dark: { bg: '#9a3412', text: '#fdba74', border: '1px solid #ea580c' },
+  },
+  openai: {
+    light: { bg: '#d1fae5', text: '#065f46', border: '1px solid #6ee7b7' },
+    dark: { bg: '#064e3b', text: '#a7f3d0', border: '1px solid #34d399' },
+  },
+  bt: {
+    light: { bg: '#e0f2fe', text: '#075985', border: '1px solid #7dd3fc' },
+    dark: { bg: '#0c4a6e', text: '#7dd3fc', border: '1px solid #0284c7' },
   },
   empty: {
-    light: { bg: '#f5f5f5', text: '#616161' },
-    dark: { bg: '#424242', text: '#bdbdbd' },
+    light: { bg: '#f5f5f5', text: '#616161', border: '1px solid #d4d4d4' },
+    dark: { bg: '#424242', text: '#bdbdbd', border: '1px solid #737373' },
   },
   unknown: {
     light: { bg: '#f0f0f0', text: '#666666', border: '1px dashed #999999' },
