@@ -91,6 +91,16 @@ export const buildOpenAIChatCompletionsEndpoint = (baseUrl: string): string => {
   return `${trimmed}/chat/completions`;
 };
 
+/** Codex / OpenAI Responses API: POST {base}/responses */
+export const buildCodexResponsesEndpoint = (baseUrl: string): string => {
+  const trimmed = normalizeOpenAIBaseUrl(baseUrl);
+  if (!trimmed) return '';
+  if (trimmed.endsWith('/responses')) {
+    return trimmed;
+  }
+  return `${trimmed}/responses`;
+};
+
 export const buildClaudeMessagesEndpoint = (baseUrl: string): string => {
   const trimmed = normalizeClaudeBaseUrl(baseUrl);
   if (!trimmed) return '';

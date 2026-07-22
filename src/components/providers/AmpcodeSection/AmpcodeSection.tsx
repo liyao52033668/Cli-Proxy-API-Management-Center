@@ -70,6 +70,12 @@ export function AmpcodeSection({
       ),
     [upstreamApiKeys, usageDetailsByAuthIndex, usageDetailsBySource]
   );
+  // Hide request counters until Amp has real upstream credentials configured.
+  const isConfigured = Boolean(
+    config?.upstreamUrl?.trim() ||
+      config?.upstreamApiKey?.trim() ||
+      (config?.upstreamApiKeys?.length ?? 0) > 0
+  );
 
   return (
     <>
@@ -126,15 +132,19 @@ export function AmpcodeSection({
               </span>
               <span className={styles.fieldValue}>{config?.upstreamApiKeys?.length || 0}</span>
             </div>
-            <div className={styles.cardStats}>
-              <span className={`${styles.statPill} ${styles.statSuccess}`}>
-                {t('stats.success')}: {stats.success}
-              </span>
-              <span className={`${styles.statPill} ${styles.statFailure}`}>
-                {t('stats.failure')}: {stats.failure}
-              </span>
-            </div>
-            <ProviderStatusBar statusData={statusData} />
+            {isConfigured ? (
+              <>
+                <div className={styles.cardStats}>
+                  <span className={`${styles.statPill} ${styles.statSuccess}`}>
+                    {t('stats.success')}: {stats.success}
+                  </span>
+                  <span className={`${styles.statPill} ${styles.statFailure}`}>
+                    {t('stats.failure')}: {stats.failure}
+                  </span>
+                </div>
+                <ProviderStatusBar statusData={statusData} />
+              </>
+            ) : null}
             {config?.modelMappings?.length ? (
               <div className={styles.modelTagList}>
                 {config.modelMappings.slice(0, 5).map((mapping) => (

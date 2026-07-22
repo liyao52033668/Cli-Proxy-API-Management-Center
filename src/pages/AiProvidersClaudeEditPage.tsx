@@ -21,6 +21,8 @@ import layoutStyles from './AiProvidersEditLayout.module.scss';
 const CLAUDE_TEST_TIMEOUT_MS = 30_000;
 const DEFAULT_ANTHROPIC_VERSION = '2023-06-01';
 
+type ModelTestStatus = 'loading' | 'success';
+
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
@@ -40,6 +42,40 @@ const resolveBearerTokenFromAuthorization = (headers: Record<string, string>): s
   const match = value.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || '';
 };
+
+function StatusLoadingIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
+      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path
+        d="M8 1A7 7 0 0 1 8 15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function StatusSuccessIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
+      <path
+        d="M4.5 8L7 10.5L11.5 6"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function StatusIcon({ status }: { status: ModelTestStatus }) {
+  if (status === 'loading') return <StatusLoadingIcon />;
+  return <StatusSuccessIcon />;
+}
 
 export function AiProvidersClaudeEditPage() {
   const { t } = useTranslation();
@@ -71,6 +107,8 @@ export function AiProvidersClaudeEditPage() {
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
   const [isTesting, setIsTesting] = useState(false);
+  const [modelTestStatuses, setModelTestStatuses] = useState<Record<string, ModelTestStatus>>({});
+  const skipConnectivityResetRef = useRef(false);
   const lastCloakConfigRef = useRef<typeof form.cloak>(null);
 
   useEffect(() => {
@@ -146,6 +184,11 @@ export function AiProvidersClaudeEditPage() {
       return;
     }
     previousConnectivityConfigRef.current = connectivityConfigSignature;
+    if (skipConnectivityResetRef.current) {
+      skipConnectivityResetRef.current = false;
+      return;
+    }
+    setModelTestStatuses({});
     setTestStatus('idle');
     setTestMessage('');
   }, [connectivityConfigSignature, setTestMessage, setTestStatus]);
@@ -154,18 +197,9 @@ export function AiProvidersClaudeEditPage() {
     navigate('models');
   };
 
-  const runClaudeConnectivityTest = useCallback(async () => {
-    if (isTesting) return;
-
-    const modelName = testModel.trim() || availableModels[0] || '';
-    if (!modelName) {
-      const message = t('ai_providers.claude_test_model_required');
-      setTestStatus('error');
-      setTestMessage(message);
-      showNotification(message, 'error');
-      return;
-    }
-
+  const buildClaudeTestHeaders = useCallback(():
+    | { ok: true; endpoint: string; headers: Record<string, string> }
+    | { ok: false; error: string } => {
     const customHeaders = buildHeaderObject(form.headers);
     const apiKey = form.apiKey.trim();
     const hasApiKeyHeader = hasHeader(customHeaders, 'x-api-key');
@@ -173,20 +207,12 @@ export function AiProvidersClaudeEditPage() {
     const resolvedApiKey = apiKey || apiKeyFromAuthorization;
 
     if (!resolvedApiKey && !hasApiKeyHeader) {
-      const message = t('ai_providers.claude_test_key_required');
-      setTestStatus('error');
-      setTestMessage(message);
-      showNotification(message, 'error');
-      return;
+      return { ok: false, error: t('ai_providers.claude_test_key_required') };
     }
 
     const endpoint = buildClaudeMessagesEndpoint(form.baseUrl ?? '');
     if (!endpoint) {
-      const message = t('ai_providers.claude_test_endpoint_invalid');
-      setTestStatus('error');
-      setTestMessage(message);
-      showNotification(message, 'error');
-      return;
+      return { ok: false, error: t('ai_providers.claude_test_endpoint_invalid') };
     }
 
     const headers: Record<string, string> = {
@@ -208,6 +234,67 @@ export function AiProvidersClaudeEditPage() {
       headers['X-Api-Key'] = resolvedApiKey;
     }
 
+    return { ok: true, endpoint, headers };
+  }, [form.apiKey, form.baseUrl, form.headers, t]);
+
+  const removeModelEntryByName = useCallback(
+    (modelName: string) => {
+      const normalizedModelName = modelName.trim();
+      if (!normalizedModelName) return;
+
+      const next = form.modelEntries.filter((entry) => entry.name.trim() !== normalizedModelName);
+      const nextModelEntries = next.length ? next : [{ name: '', alias: '' }];
+      const nextTestModel =
+        nextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
+
+      skipConnectivityResetRef.current = true;
+      setForm((prev) => ({
+        ...prev,
+        modelEntries: nextModelEntries,
+      }));
+      setModelTestStatuses((prev) => {
+        const nextStatuses = { ...prev };
+        delete nextStatuses[normalizedModelName];
+        return nextStatuses;
+      });
+      setTestModel(nextTestModel);
+    },
+    [form.modelEntries, setForm, setTestModel]
+  );
+
+  const selectNextModel = useCallback(
+    (currentModelName: string) => {
+      const modelNames = form.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
+      const currentIndex = modelNames.findIndex((name) => name === currentModelName.trim());
+      const nextModel = currentIndex >= 0 ? modelNames[currentIndex + 1] : modelNames[0];
+      if (nextModel) {
+        skipConnectivityResetRef.current = true;
+        setTestModel(nextModel);
+      }
+    },
+    [form.modelEntries, setTestModel]
+  );
+
+  const runClaudeConnectivityTest = useCallback(async () => {
+    if (isTesting) return;
+
+    const modelName = testModel.trim() || availableModels[0] || '';
+    if (!modelName) {
+      const message = t('ai_providers.claude_test_model_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    const prepared = buildClaudeTestHeaders();
+    if (!prepared.ok) {
+      setTestStatus('error');
+      setTestMessage(prepared.error);
+      showNotification(prepared.error, 'error');
+      return;
+    }
+
     setIsTesting(true);
     setTestStatus('loading');
     setTestMessage(t('ai_providers.claude_test_running'));
@@ -216,8 +303,8 @@ export function AiProvidersClaudeEditPage() {
       const result = await apiCallApi.request(
         {
           method: 'POST',
-          url: endpoint,
-          header: headers,
+          url: prepared.endpoint,
+          header: prepared.headers,
           data: JSON.stringify({
             model: modelName,
             max_tokens: 8,
@@ -235,6 +322,7 @@ export function AiProvidersClaudeEditPage() {
       setTestStatus('success');
       setTestMessage(message);
       showNotification(message, 'success');
+      selectNextModel(modelName);
     } catch (err: unknown) {
       const message = getErrorMessage(err);
       const errorCode =
@@ -248,20 +336,146 @@ export function AiProvidersClaudeEditPage() {
       setTestStatus('error');
       setTestMessage(resolvedMessage);
       showNotification(resolvedMessage, 'error');
+      removeModelEntryByName(modelName);
     } finally {
       setIsTesting(false);
     }
   }, [
     availableModels,
-    form.apiKey,
-    form.baseUrl,
-    form.headers,
+    buildClaudeTestHeaders,
     isTesting,
+    removeModelEntryByName,
+    selectNextModel,
     setTestMessage,
     setTestStatus,
     showNotification,
     t,
     testModel,
+  ]);
+
+  const testAllModels = useCallback(async () => {
+    if (isTesting) return;
+
+    const prepared = buildClaudeTestHeaders();
+    if (!prepared.ok) {
+      setTestStatus('error');
+      setTestMessage(prepared.error);
+      showNotification(prepared.error, 'error');
+      return;
+    }
+
+    const modelEntries = form.modelEntries.filter((entry) => entry.name.trim());
+    if (modelEntries.length === 0) {
+      const message = t('ai_providers.claude_test_model_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestStatus('loading');
+
+    const initialStatuses = modelEntries.reduce<Record<string, ModelTestStatus>>((acc, entry) => {
+      acc[entry.name.trim()] = 'loading';
+      return acc;
+    }, {});
+    setModelTestStatuses(initialStatuses);
+
+    let successCount = 0;
+    let failCount = 0;
+    const failedModels = new Set<string>();
+
+    try {
+      for (const entry of modelEntries) {
+        const modelName = entry.name.trim();
+        skipConnectivityResetRef.current = true;
+        setTestModel(modelName);
+        setTestMessage(t('ai_providers.claude_test_all_models_running', { model: modelName }));
+
+        let success = false;
+        try {
+          const result = await apiCallApi.request(
+            {
+              method: 'POST',
+              url: prepared.endpoint,
+              header: prepared.headers,
+              data: JSON.stringify({
+                model: modelName,
+                max_tokens: 8,
+                messages: [{ role: 'user', content: 'Hi' }],
+              }),
+            },
+            { timeout: CLAUDE_TEST_TIMEOUT_MS }
+          );
+          if (result.statusCode < 200 || result.statusCode >= 300) {
+            throw new Error(getApiCallErrorMessage(result));
+          }
+          success = true;
+        } catch {
+          success = false;
+        }
+
+        if (!success) {
+          failCount += 1;
+          failedModels.add(modelName);
+          skipConnectivityResetRef.current = true;
+          setForm((prev) => ({
+            ...prev,
+            modelEntries: prev.modelEntries.filter(
+              (modelEntry) => modelEntry.name.trim() !== modelName
+            ),
+          }));
+          setModelTestStatuses((prev) => {
+            const next = { ...prev };
+            delete next[modelName];
+            return next;
+          });
+        } else {
+          successCount += 1;
+          setModelTestStatuses((prev) => ({ ...prev, [modelName]: 'success' }));
+        }
+      }
+
+      const nextModelEntries = form.modelEntries.filter(
+        (entry) => !failedModels.has(entry.name.trim())
+      );
+      const normalizedNextModelEntries = nextModelEntries.length
+        ? nextModelEntries
+        : [{ name: '', alias: '' }];
+      const nextTestModel =
+        normalizedNextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
+
+      skipConnectivityResetRef.current = true;
+      setForm((prev) => ({
+        ...prev,
+        modelEntries: normalizedNextModelEntries,
+      }));
+      setTestModel(nextTestModel);
+
+      const message =
+        failCount === 0
+          ? t('ai_providers.claude_test_all_models_success', { count: successCount })
+          : t('ai_providers.claude_test_all_models_done', {
+              success: successCount,
+              failed: failCount,
+            });
+      setTestStatus(failCount === 0 ? 'success' : 'error');
+      setTestMessage(message);
+      showNotification(message, failCount === 0 ? 'success' : 'warning');
+    } finally {
+      setIsTesting(false);
+    }
+  }, [
+    buildClaudeTestHeaders,
+    form.modelEntries,
+    isTesting,
+    setForm,
+    setTestMessage,
+    setTestModel,
+    setTestStatus,
+    showNotification,
+    t,
   ]);
 
   return (
@@ -394,11 +608,19 @@ export function AiProvidersClaudeEditPage() {
                 disabled={saving || disableControls || isTesting}
                 hideAddButton
                 className={styles.modelInputList}
-                rowClassName={styles.modelInputRow}
+                rowClassName={`${styles.modelInputRow} ${styles.modelInputRowWithStatus}`}
                 inputClassName={styles.modelInputField}
                 removeButtonClassName={styles.modelRowRemoveButton}
                 removeButtonTitle={t('common.delete')}
                 removeButtonAriaLabel={t('common.delete')}
+                renderTrailing={(entry) => {
+                  const status = modelTestStatuses[entry.name.trim()];
+                  return (
+                    <span className={styles.modelTestRowStatus}>
+                      {status ? <StatusIcon status={status} /> : null}
+                    </span>
+                  );
+                }}
               />
 
               <div className={styles.modelTestPanel}>
@@ -445,6 +667,23 @@ export function AiProvidersClaudeEditPage() {
                     className={styles.modelTestAllButton}
                   >
                     {t('ai_providers.claude_test_action')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void testAllModels()}
+                    loading={testStatus === 'loading'}
+                    disabled={
+                      saving ||
+                      disableControls ||
+                      isTesting ||
+                      testStatus === 'loading' ||
+                      availableModels.length === 0
+                    }
+                    title={t('ai_providers.claude_test_all_models_hint')}
+                    className={styles.modelTestAllButton}
+                  >
+                    {t('ai_providers.claude_test_all_models_action')}
                   </Button>
                 </div>
               </div>

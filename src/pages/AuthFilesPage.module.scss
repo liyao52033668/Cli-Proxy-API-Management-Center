@@ -1906,17 +1906,124 @@
   border-radius: $radius-md;
   border: 1px solid var(--border-color);
   flex-wrap: wrap;
-  cursor: pointer;
   transition: all $transition-fast;
 
   &:hover {
     background-color: var(--bg-hover);
     border-color: var(--primary-color);
   }
+}
+
+.modelItemMain {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  cursor: pointer;
 
   &:active {
+    transform: scale(0.99);
+  }
+}
+
+.modelsTestHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: $spacing-xs;
+}
+
+.modelProviderChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+  max-width: 180px;
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all $transition-fast;
+  appearance: none;
+
+  &:hover:not(:disabled) {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    background-color: rgba($primary-color, 0.08);
+  }
+
+  &:active:not(:disabled) {
     transform: scale(0.98);
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+
+  &.modelProviderChipRunning:disabled {
+    cursor: wait;
+    opacity: 0.85;
+  }
+}
+
+.modelProviderChipText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modelProviderChipSpinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: modelProviderChipSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes modelProviderChipSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.modelProviderChipSuccess {
+  color: var(--success-color, #16a34a);
+  border-color: var(--success-color, #16a34a);
+  background-color: rgba($success-color, 0.1);
+}
+
+.modelProviderChipFailed {
+  color: var(--danger-color, #dc2626);
+  border-color: var(--danger-color, #dc2626);
+  background-color: rgba($error-color, 0.1);
+}
+
+.modelProviderChipRunning {
+  color: var(--text-secondary);
+}
+
+.modelProviderChipMuted {
+  color: var(--text-tertiary);
+  border-color: var(--border-color);
+}
+
+.modelTestError {
+  width: 100%;
+  font-size: 11px;
+  color: var(--danger-color, #dc2626);
+  word-break: break-all;
+  opacity: 0.9;
 }
 
 .modelId {
@@ -1940,7 +2047,6 @@
   padding: 2px 8px;
   border-radius: 10px;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .modelItemExcluded {
@@ -1967,6 +2073,7 @@
   border: 1px solid var(--danger-color);
   flex-shrink: 0;
 }
+
 
 // 排除模型勾选列表
 .excludedCheckList {

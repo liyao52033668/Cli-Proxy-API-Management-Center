@@ -50,6 +50,7 @@ export type UseAuthFilesDataResult = {
   batchDownload: (names: string[]) => Promise<void>;
   batchSetStatus: (names: string[], enabled: boolean) => Promise<void>;
   batchDelete: (names: string[]) => void;
+  updateFileExcludedModels: (name: string, models: string[]) => void;
 };
 
 export type UseAuthFilesDataOptions = {
@@ -645,6 +646,28 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     [applyDeletedFiles, showConfirmation, showNotification, t]
   );
 
+  const updateFileExcludedModels = useCallback((name: string, models: string[]) => {
+    const fileName = String(name ?? '').trim();
+    if (!fileName) return;
+    const normalized = Array.from(
+      new Set(
+        (Array.isArray(models) ? models : [])
+          .map((item) => String(item ?? '').trim().toLowerCase())
+          .filter(Boolean)
+      )
+    ).sort();
+    setFiles((prev) =>
+      prev.map((file) =>
+        file.name === fileName
+          ? {
+              ...file,
+              excluded_models: normalized
+            }
+          : file
+      )
+    );
+  }, []);
+
   return {
     files,
     selectedFiles,
@@ -671,5 +694,6 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     batchDownload,
     batchSetStatus,
     batchDelete,
+    updateFileExcludedModels,
   };
 }

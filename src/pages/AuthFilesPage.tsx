@@ -156,6 +156,7 @@ export function AuthFilesPage() {
     batchDownload,
     batchSetStatus,
     batchDelete,
+    updateFileExcludedModels,
   } = useAuthFilesData({ refreshKeyStats });
 
   const statusBarCache = useAuthFilesStatusBarCache(files, usageDetails);
@@ -998,8 +999,12 @@ export function AuthFilesPage() {
         error={modelsError}
         models={modelsList}
         excluded={excluded}
+        fileExcludedModels={
+          files.find((file) => file.name === modelsFileName)?.excluded_models ?? []
+        }
         onClose={closeModelsModal}
         onCopyText={copyTextWithNotification}
+        onFileExcludedModelsChange={updateFileExcludedModels}
       />
 
       <AuthFilesPrefixProxyEditorModal

@@ -86,9 +86,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#cffafe', text: '#0e7490', border: '1px solid #67e8f9' },
     dark: { bg: '#164e63', text: '#67e8f9', border: '1px solid #06b6d4' },
   },
+  // Qoder: brand green (#2BD85C)
   qoder: {
-    light: { bg: '#fce7f3', text: '#9d174d', border: '1px solid #f9a8d4' },
-    dark: { bg: '#831843', text: '#f9a8d4', border: '1px solid #ec4899' },
+    light: { bg: '#ecfdf3', text: '#147a3d', border: '1px solid #86efac' },
+    dark: { bg: '#134e2a', text: '#86efac', border: '1px solid #2bd85c' },
   },
   kilo: {
     light: { bg: '#d1fae5', text: '#047857', border: '1px solid #6ee7b7' },

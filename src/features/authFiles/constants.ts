@@ -44,6 +44,70 @@ export type AuthFileModelItem = {
   type?: string;
   owned_by?: string;
 };
+
+/** Media kind that cannot be validated by the chat connectivity probe. */
+export type AuthFileProbeMediaKind = 'image' | 'video';
+
+const AUTH_FILE_PROBE_IMAGE_MODELS = new Set([
+  'gpt-image-2',
+  'gpt-image-1.5',
+  'gpt-image-1',
+  'dall-e-3',
+  'dall-e-2',
+  'grok-imagine-image',
+  'grok-imagine-image-quality'
+]);
+
+const AUTH_FILE_PROBE_VIDEO_MODELS = new Set([
+  'grok-imagine-video',
+  'grok-imagine-video-1.5-preview'
+]);
+
+const authFileProbeModelBase = (model: string): string => {
+  const raw = String(model ?? '').trim();
+  if (!raw) return '';
+  const idx = raw.lastIndexOf('/');
+  return (idx >= 0 ? raw.slice(idx + 1) : raw).trim().toLowerCase();
+};
+
+/**
+ * Returns "image" | "video" when the model is a generation-only media model that
+ * cannot be validated by the chat connectivity probe. Empty string means eligible.
+ */
+export const getAuthFileProbeMediaKind = (
+  model: Pick<AuthFileModelItem, 'id' | 'type' | 'display_name'> | string
+): AuthFileProbeMediaKind | '' => {
+  const item = typeof model === 'string' ? { id: model } : model;
+  const id = String(item?.id ?? '').trim();
+  if (!id) return '';
+
+  const type = String(item?.type ?? '')
+    .trim()
+    .toLowerCase();
+  if (type === 'openai-image') return 'image';
+  if (type === 'openai-video') return 'video';
+
+  const base = authFileProbeModelBase(id);
+  if (AUTH_FILE_PROBE_IMAGE_MODELS.has(base)) return 'image';
+  if (AUTH_FILE_PROBE_VIDEO_MODELS.has(base)) return 'video';
+
+  if (
+    base.includes('imagen') ||
+    base.includes('image-preview') ||
+    base.endsWith('-image') ||
+    base.includes('-image-')
+  ) {
+    return 'image';
+  }
+  if (base.includes('video') || id.toLowerCase().includes('video')) {
+    return 'video';
+  }
+  return '';
+};
+
+export const isAuthFileProbeMediaModel = (
+  model: Pick<AuthFileModelItem, 'id' | 'type' | 'display_name'> | string
+): boolean => getAuthFileProbeMediaKind(model) !== '';
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
 export type QuotaProviderType =
@@ -180,10 +244,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#cffafe', text: '#0e7490', border: '1px solid #67e8f9' },
     dark: { bg: '#164e63', text: '#67e8f9', border: '1px solid #06b6d4' },
   },
-  // Qoder: 紫粉
+  // Qoder: brand green (#2BD85C)
   qoder: {
-    light: { bg: '#fce7f3', text: '#9d174d', border: '1px solid #f9a8d4' },
-    dark: { bg: '#831843', text: '#f9a8d4', border: '1px solid #ec4899' },
+    light: { bg: '#ecfdf3', text: '#147a3d', border: '1px solid #86efac' },
+    dark: { bg: '#134e2a', text: '#86efac', border: '1px solid #2bd85c' },
   },
   // Kilo: 青绿
   kilo: {

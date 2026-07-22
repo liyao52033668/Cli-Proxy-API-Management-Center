@@ -8,6 +8,68 @@ import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
 import { AUTH_FILES_UPLOAD_BATCH_SIZE, AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
 
+export type AuthFileModelTestStatus =
+  | 'success'
+  | 'failed'
+  | 'timeout'
+  | 'unsupported'
+  | 'disabled'
+  | 'idle'
+  | 'running';
+
+export type AuthFileModelTestResult = {
+  ok: boolean;
+  status: Exclude<AuthFileModelTestStatus, 'idle' | 'running'>;
+  latency_ms: number;
+  model: string;
+  provider?: string;
+  auth_id?: string;
+  http_status?: number;
+  error?: string;
+  preview?: string;
+  /** True when the probe failure newly appended this model to auth-file excluded_models. */
+  excluded_added?: boolean;
+  /** Auth-file excluded_models after the probe (file-level list). */
+  excluded_models?: string[];
+};
+
+const AUTH_FILE_MODEL_TEST_TIMEOUT_MS = 60 * 1000;
+
+const normalizeAuthFileModelTestResult = (
+  data: Record<string, unknown> | null | undefined,
+  fallbackModel: string
+): AuthFileModelTestResult => {
+  const statusRaw = String(data?.status ?? data?.Status ?? '').trim().toLowerCase();
+  const allowed = new Set(['success', 'failed', 'timeout', 'unsupported', 'disabled']);
+  const status = (allowed.has(statusRaw) ? statusRaw : data?.ok || data?.OK ? 'success' : 'failed') as AuthFileModelTestResult['status'];
+  const latency = Number(data?.latency_ms ?? data?.latencyMs ?? data?.LatencyMS ?? 0);
+  const excludedRaw = data?.excluded_models ?? data?.excludedModels ?? data?.ExcludedModels;
+  const excludedModels = Array.isArray(excludedRaw)
+    ? excludedRaw
+        .map((item) => String(item ?? '').trim().toLowerCase())
+        .filter((item, index, arr) => item && arr.indexOf(item) === index)
+    : undefined;
+
+  return {
+    ok: Boolean(data?.ok ?? data?.OK ?? status === 'success'),
+    status,
+    latency_ms: Number.isFinite(latency) ? Math.max(0, Math.round(latency)) : 0,
+    model: String(data?.model ?? data?.Model ?? fallbackModel ?? '').trim(),
+    provider: data?.provider != null ? String(data.provider) : data?.Provider != null ? String(data.Provider) : undefined,
+    auth_id: data?.auth_id != null ? String(data.auth_id) : data?.authId != null ? String(data.authId) : undefined,
+    http_status:
+      data?.http_status != null
+        ? Number(data.http_status)
+        : data?.httpStatus != null
+          ? Number(data.httpStatus)
+          : undefined,
+    error: data?.error != null ? String(data.error) : data?.Error != null ? String(data.Error) : undefined,
+    preview: data?.preview != null ? String(data.preview) : data?.Preview != null ? String(data.Preview) : undefined,
+    excluded_added: Boolean(data?.excluded_added ?? data?.excludedAdded ?? data?.ExcludedAdded),
+    excluded_models: excludedModels
+  };
+};
+
 type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
 type AuthFileEntry = AuthFilesResponse['files'][number];
@@ -598,6 +660,29 @@ export const authFilesApi = {
     return Array.isArray(models)
       ? (models as { id: string; display_name?: string; type?: string; owned_by?: string }[])
       : [];
+  },
+
+  // 测试认证文件下某个模型的连通性
+  async testAuthFileModel(
+    params: { name: string; model: string; timeout_seconds?: number },
+    config?: { signal?: AbortSignal; timeout?: number }
+  ): Promise<AuthFileModelTestResult> {
+    const payload: Record<string, unknown> = {
+      name: String(params.name ?? '').trim(),
+      model: String(params.model ?? '').trim()
+    };
+    if (params.timeout_seconds && params.timeout_seconds > 0) {
+      payload.timeout_seconds = params.timeout_seconds;
+    }
+    const data = await apiClient.post<Record<string, unknown>>(
+      '/auth-files/test',
+      payload,
+      {
+        signal: config?.signal,
+        timeout: config?.timeout ?? AUTH_FILE_MODEL_TEST_TIMEOUT_MS
+      }
+    );
+    return normalizeAuthFileModelTestResult(data, payload.model as string);
   },
 
   // 获取指定 channel 的模型定义
