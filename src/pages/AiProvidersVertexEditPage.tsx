@@ -81,9 +81,7 @@ export function AiProvidersVertexEditPage() {
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
-  const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const updateConfigValue = useConfigStore((state) => state.updateConfigValue);
-  const clearCache = useConfigStore((state) => state.clearCache);
 
   const [configs, setConfigs] = useState<ProviderKeyConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,18 +130,12 @@ export function AiProvidersVertexEditPage() {
     setLoading(true);
     setError('');
 
-    Promise.all([fetchConfig('vertex-api-key'), providersApi.getVertexConfigs()])
-      .then(([configResult, vertexResult]) => {
+    providersApi
+      .getVertexConfigs()
+      .then((value) => {
         if (cancelled) return;
-
-        const list = Array.isArray(vertexResult)
-          ? (vertexResult as ProviderKeyConfig[])
-          : Array.isArray(configResult)
-            ? (configResult as ProviderKeyConfig[])
-            : [];
-        setConfigs(list);
-        updateConfigValue('vertex-api-key', list);
-        clearCache('vertex-api-key');
+        setConfigs(value);
+        updateConfigValue('vertex-api-key', value);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -158,7 +150,7 @@ export function AiProvidersVertexEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [clearCache, fetchConfig, t, updateConfigValue]);
+  }, [t, updateConfigValue]);
 
   useEffect(() => {
     if (loading) return;
@@ -267,8 +259,9 @@ export function AiProvidersVertexEditPage() {
           : [...configs, payload];
 
       await providersApi.saveVertexConfigs(nextList);
-      updateConfigValue('vertex-api-key', nextList);
-      clearCache('vertex-api-key');
+      const syncedConfigs = await providersApi.getVertexConfigs().catch(() => nextList);
+      setConfigs(syncedConfigs);
+      updateConfigValue('vertex-api-key', syncedConfigs);
       showNotification(
         editIndex !== null ? t('notification.vertex_config_updated') : t('notification.vertex_config_added'),
         'success'
@@ -286,7 +279,6 @@ export function AiProvidersVertexEditPage() {
   }, [
     allowNextNavigation,
     canSave,
-    clearCache,
     configs,
     editIndex,
     form,

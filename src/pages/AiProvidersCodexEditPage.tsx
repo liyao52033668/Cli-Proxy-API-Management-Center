@@ -143,9 +143,7 @@ export function AiProvidersCodexEditPage() {
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
-  const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const updateConfigValue = useConfigStore((state) => state.updateConfigValue);
-  const clearCache = useConfigStore((state) => state.clearCache);
 
   const [configs, setConfigs] = useState<ProviderKeyConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,10 +211,12 @@ export function AiProvidersCodexEditPage() {
     setLoading(true);
     setError('');
 
-    fetchConfig('codex-api-key')
+    providersApi
+      .getCodexConfigs()
       .then((value) => {
         if (cancelled) return;
-        setConfigs(Array.isArray(value) ? (value as ProviderKeyConfig[]) : []);
+        setConfigs(value);
+        updateConfigValue('codex-api-key', value);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -231,7 +231,7 @@ export function AiProvidersCodexEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [fetchConfig, t]);
+  }, [t, updateConfigValue]);
 
   useEffect(() => {
     if (loading) return;
@@ -881,8 +881,9 @@ export function AiProvidersCodexEditPage() {
           : [...configs, payload];
 
       await providersApi.saveCodexConfigs(nextList);
-      updateConfigValue('codex-api-key', nextList);
-      clearCache('codex-api-key');
+      const syncedConfigs = await providersApi.getCodexConfigs().catch(() => nextList);
+      setConfigs(syncedConfigs);
+      updateConfigValue('codex-api-key', syncedConfigs);
       showNotification(
         editIndex !== null
           ? t('notification.codex_config_updated')
@@ -902,7 +903,6 @@ export function AiProvidersCodexEditPage() {
   }, [
     allowNextNavigation,
     canSave,
-    clearCache,
     configs,
     editIndex,
     form,

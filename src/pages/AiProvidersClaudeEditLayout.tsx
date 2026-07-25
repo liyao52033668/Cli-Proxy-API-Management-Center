@@ -128,14 +128,10 @@ export function AiProvidersClaudeEditLayout() {
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
-  const config = useConfigStore((state) => state.config);
-  const fetchConfig = useConfigStore((state) => state.fetchConfig);
-  const isCacheValid = useConfigStore((state) => state.isCacheValid);
   const updateConfigValue = useConfigStore((state) => state.updateConfigValue);
-  const clearCache = useConfigStore((state) => state.clearCache);
 
-  const [configs, setConfigs] = useState<ProviderKeyConfig[]>(() => config?.claudeApiKeys ?? []);
-  const [loading, setLoading] = useState(() => !isCacheValid('claude-api-key'));
+  const [configs, setConfigs] = useState<ProviderKeyConfig[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const draftKey = useMemo(() => {
@@ -215,15 +211,13 @@ export function AiProvidersClaudeEditLayout() {
 
   useEffect(() => {
     let cancelled = false;
-    const hasValidCache = isCacheValid('claude-api-key');
-    if (!hasValidCache) {
-      setLoading(true);
-    }
 
-    fetchConfig('claude-api-key')
+    providersApi
+      .getClaudeConfigs()
       .then((value) => {
         if (cancelled) return;
-        setConfigs(Array.isArray(value) ? (value as ProviderKeyConfig[]) : []);
+        setConfigs(value);
+        updateConfigValue('claude-api-key', value);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -238,7 +232,7 @@ export function AiProvidersClaudeEditLayout() {
     return () => {
       cancelled = true;
     };
-  }, [fetchConfig, isCacheValid, showNotification, t]);
+  }, [showNotification, t, updateConfigValue]);
 
   useEffect(() => {
     if (loading) return;
@@ -428,9 +422,9 @@ export function AiProvidersClaudeEditLayout() {
           : [...configs, payload];
 
       await providersApi.saveClaudeConfigs(nextList);
-      setConfigs(nextList);
-      updateConfigValue('claude-api-key', nextList);
-      clearCache('claude-api-key');
+      const syncedConfigs = await providersApi.getClaudeConfigs().catch(() => nextList);
+      setConfigs(syncedConfigs);
+      updateConfigValue('claude-api-key', syncedConfigs);
       showNotification(
         editIndex !== null ? t('notification.claude_config_updated') : t('notification.claude_config_added'),
         'success'
@@ -445,7 +439,6 @@ export function AiProvidersClaudeEditLayout() {
     }
   }, [
     allowNextNavigation,
-    clearCache,
     configs,
     draftKey,
     disableControls,

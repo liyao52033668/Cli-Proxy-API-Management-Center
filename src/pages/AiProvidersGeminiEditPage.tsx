@@ -94,9 +94,7 @@ export function AiProvidersGeminiEditPage() {
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';
 
-  const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const updateConfigValue = useConfigStore((state) => state.updateConfigValue);
-  const clearCache = useConfigStore((state) => state.clearCache);
 
   const [configs, setConfigs] = useState<GeminiKeyConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,10 +155,12 @@ export function AiProvidersGeminiEditPage() {
     setLoading(true);
     setError('');
 
-    fetchConfig('gemini-api-key')
+    providersApi
+      .getGeminiKeys()
       .then((value) => {
         if (cancelled) return;
-        setConfigs(Array.isArray(value) ? (value as GeminiKeyConfig[]) : []);
+        setConfigs(value);
+        updateConfigValue('gemini-api-key', value);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -175,7 +175,7 @@ export function AiProvidersGeminiEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [fetchConfig, t]);
+  }, [t, updateConfigValue]);
 
   useEffect(() => {
     if (loading) return;
@@ -463,8 +463,9 @@ export function AiProvidersGeminiEditPage() {
           : [...configs, payload];
 
       await providersApi.saveGeminiKeys(nextList);
-      updateConfigValue('gemini-api-key', nextList);
-      clearCache('gemini-api-key');
+      const syncedConfigs = await providersApi.getGeminiKeys().catch(() => nextList);
+      setConfigs(syncedConfigs);
+      updateConfigValue('gemini-api-key', syncedConfigs);
       showNotification(
         editIndex !== null
           ? t('notification.gemini_key_updated')
@@ -484,7 +485,6 @@ export function AiProvidersGeminiEditPage() {
   }, [
     allowNextNavigation,
     canSave,
-    clearCache,
     configs,
     editIndex,
     form,
