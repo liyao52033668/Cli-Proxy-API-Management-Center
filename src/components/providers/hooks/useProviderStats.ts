@@ -2,10 +2,7 @@ import { useCallback, useState } from 'react';
 import { useInterval } from '@/hooks/useInterval';
 import { apiKeyUsageApi, type ApiKeyUsageMap } from '@/services/api';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
-import type { KeyStats, UsageDetail } from '@/utils/usage';
 
-const EMPTY_KEY_STATS: KeyStats = { bySource: {}, byAuthIndex: {} };
-const EMPTY_USAGE_DETAILS: UsageDetail[] = [];
 const EMPTY_API_KEY_USAGE: ApiKeyUsageMap = {};
 
 export type UseProviderStatsOptions = {
@@ -14,10 +11,11 @@ export type UseProviderStatsOptions = {
 
 export const useProviderStats = (options: UseProviderStatsOptions = {}) => {
   const enabled = options.enabled ?? true;
-  const keyStats = useUsageStatsStore((state) => (enabled ? state.keyStats : EMPTY_KEY_STATS));
-  const usageDetails = useUsageStatsStore((state) =>
-    enabled ? state.usageDetails : EMPTY_USAGE_DETAILS
-  );
+  // Always expose the cached snapshot; `enabled` only gates refresh side effects.
+  // Projecting empty stats while the page is a stacked transition layer made
+  // every provider card show 0 after returning from an edit page.
+  const keyStats = useUsageStatsStore((state) => state.keyStats);
+  const usageDetails = useUsageStatsStore((state) => state.usageDetails);
   const isLoading = useUsageStatsStore((state) => (enabled ? state.loading : false));
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
   const [apiKeyUsage, setApiKeyUsage] = useState<ApiKeyUsageMap>(EMPTY_API_KEY_USAGE);
@@ -54,7 +52,7 @@ export const useProviderStats = (options: UseProviderStatsOptions = {}) => {
   return {
     keyStats,
     usageDetails,
-    apiKeyUsage: enabled ? apiKeyUsage : EMPTY_API_KEY_USAGE,
+    apiKeyUsage,
     loadKeyStats,
     refreshKeyStats,
     isLoading,
