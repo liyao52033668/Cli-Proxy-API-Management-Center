@@ -473,6 +473,10 @@ export function MainLayout() {
 
   return (
     <div className={`app-shell ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
+      <a className="skip-link" href="#main-content">
+        {t('common.skip_to_main')}
+      </a>
+
       <div className="top-gradient-blur" aria-hidden="true" />
 
       <header className="main-header" ref={headerRef}>
@@ -661,7 +665,11 @@ export function MainLayout() {
         </aside>
 
         <div className={`content${isLogsPage ? ' content-logs' : ''}`} ref={contentRef}>
-          <main className={`main-content${isLogsPage ? ' main-content-logs' : ''}`}>
+          <main
+            id="main-content"
+            className={`main-content${isLogsPage ? ' main-content-logs' : ''}`}
+            tabIndex={-1}
+          >
             <PageTransition
               render={(location) => <MainRoutes location={location} />}
               getRouteOrder={getRouteOrder}
