@@ -9,6 +9,72 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main
+        role="main"
+        style="
+          box-sizing: border-box;
+          min-height: 100vh;
+          margin: 0;
+          padding: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a1a;
+          background: #f5f5f5;
+        "
+      >
+        <div
+          style="
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 36rem;
+            padding: 1.5rem 1.25rem;
+            border: 1px solid #d0d0d0;
+            border-radius: 0.5rem;
+            background: #ffffff;
+          "
+        >
+          <h1 style="margin: 0 0 0.75rem; font-size: 1.25rem; line-height: 1.35">
+            CLI Proxy API Management Center 需要启用 JavaScript
+          </h1>
+          <p style="margin: 0 0 0.75rem">
+            当前浏览器未启用 JavaScript，或脚本未能加载。管理中心是基于 JavaScript 的单页应用，必须启用脚本后才能使用界面功能。
+          </p>
+          <p style="margin: 0 0 0.5rem; font-weight: 600">你可以尝试：</p>
+          <ul style="margin: 0; padding-left: 1.25rem">
+            <li style="margin-bottom: 0.35rem">在浏览器中启用 JavaScript，然后刷新本页面。</li>
+            <li style="margin-bottom: 0.35rem">通过 CLI Proxy API 的配置文件管理服务。</li>
+            <li>通过 CLI Proxy API 的管理 API 管理服务。</li>
+          </ul>
+        </div>
+      </main>
+      <style>
+        @media (prefers-color-scheme: dark) {
+          noscript main {
+            color: #f0f0f0 !important;
+            background: #121212 !important;
+          }
+          noscript main > div {
+            border-color: #3a3a3a !important;
+            background: #1e1e1e !important;
+          }
+        }
+        @media (max-width: 480px) {
+          noscript main {
+            padding: 1rem !important;
+          }
+          noscript main > div {
+            padding: 1.25rem 1rem !important;
+          }
+          noscript main h1 {
+            font-size: 1.125rem !important;
+          }
+        }
+      </style>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
