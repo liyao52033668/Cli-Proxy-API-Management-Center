@@ -1572,6 +1572,9 @@
           "disable_panel_desc": "停用內建的 Web 控制面板",
           "disable_auto_update_panel": "停用面板自動更新",
           "disable_auto_update_panel_desc": "阻止管理面板自動檢查並套用更新",
+          "cors_allowed_origins": "允許的 CORS 來源",
+          "cors_allowed_origins_desc": "允許這些可信的瀏覽器來源跨網域呼叫 Management API。僅填寫完整 origin，不要使用 * 或路徑；CORS 不能取代 Management API 驗證。",
+          "cors_allowed_origins_input": "新增可信的 CORS 來源",
           "secret_key": "管理金鑰",
           "secret_key_placeholder": "設定管理金鑰",
           "panel_repo": "面板儲存庫"

@@ -1552,6 +1552,9 @@
           "disable_panel_desc": "Disable the built-in web control panel",
           "disable_auto_update_panel": "Disable panel auto-update",
           "disable_auto_update_panel_desc": "Prevent the management panel from checking for and applying updates automatically",
+          "cors_allowed_origins": "Allowed CORS Origins",
+          "cors_allowed_origins_desc": "Allow these trusted browser origins to call the Management API cross-origin. Use complete origins only; do not use * or paths. CORS does not replace Management API authentication.",
+          "cors_allowed_origins_input": "Add a trusted CORS origin",
           "secret_key": "Management Key",
           "secret_key_placeholder": "Set management key",
           "panel_repo": "Panel Repository"

@@ -599,6 +599,14 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'rmPanelRepo')) {
     updateDirty('rmPanelRepo', nextValues.rmPanelRepo === baselineValues.rmPanelRepo);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'corsAllowedOrigins')) {
+    const left = nextValues.corsAllowedOrigins;
+    const right = baselineValues.corsAllowedOrigins;
+    updateDirty(
+      'corsAllowedOrigins',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'authDir')) {
     updateDirty('authDir', nextValues.authDir === baselineValues.authDir);
   }
@@ -892,6 +900,9 @@ export function useVisualConfig() {
             : typeof remoteManagement?.['panel-repo'] === 'string'
               ? remoteManagement['panel-repo']
               : '',
+        corsAllowedOrigins: Array.isArray(remoteManagement?.['cors-allowed-origins'])
+          ? remoteManagement['cors-allowed-origins'].map(String)
+          : [],
 
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
         incognitoBrowser: Boolean(parsed['incognito-browser']),
@@ -994,7 +1005,8 @@ export function useVisualConfig() {
           values.rmSecretKey.trim() ||
           values.rmDisableControlPanel ||
           values.rmDisableAutoUpdatePanel ||
-          values.rmPanelRepo.trim()
+          values.rmPanelRepo.trim() ||
+          values.corsAllowedOrigins.length > 0
         ) {
           ensureMapInDoc(doc, ['remote-management']);
           setBooleanInDoc(doc, ['remote-management', 'allow-remote'], values.rmAllowRemote);
@@ -1012,6 +1024,14 @@ export function useVisualConfig() {
           setStringInDoc(doc, ['remote-management', 'panel-github-repository'], values.rmPanelRepo);
           if (docHas(doc, ['remote-management', 'panel-repo'])) {
             doc.deleteIn(['remote-management', 'panel-repo']);
+          }
+          const corsAllowedOrigins = values.corsAllowedOrigins
+            .map((origin) => origin.trim())
+            .filter(Boolean);
+          if (corsAllowedOrigins.length > 0) {
+            doc.setIn(['remote-management', 'cors-allowed-origins'], corsAllowedOrigins);
+          } else if (docHas(doc, ['remote-management', 'cors-allowed-origins'])) {
+            doc.deleteIn(['remote-management', 'cors-allowed-origins']);
           }
           deleteIfMapEmpty(doc, ['remote-management']);
         }

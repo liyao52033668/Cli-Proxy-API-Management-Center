@@ -1543,6 +1543,9 @@
           "disable_panel_desc": "Отключить встроенную веб-панель управления",
           "disable_auto_update_panel": "Отключить автообновление панели",
           "disable_auto_update_panel_desc": "Не позволять панели управления автоматически проверять и применять обновления",
+          "cors_allowed_origins": "Разрешённые источники CORS",
+          "cors_allowed_origins_desc": "Разрешить этим доверенным источникам браузера выполнять кросс-доменные вызовы Management API. Указывайте только полный origin; не используйте * или пути. CORS не заменяет аутентификацию Management API.",
+          "cors_allowed_origins_input": "Добавить доверенный источник CORS",
           "secret_key": "Ключ управления",
           "secret_key_placeholder": "Задайте ключ управления",
           "panel_repo": "Репозиторий панели"

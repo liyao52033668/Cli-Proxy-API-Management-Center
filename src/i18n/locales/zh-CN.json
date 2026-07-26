@@ -1556,6 +1556,9 @@
           "disable_panel_desc": "禁用内置的 Web 控制面板",
           "disable_auto_update_panel": "禁用面板自动更新",
           "disable_auto_update_panel_desc": "阻止管理面板自动检查并应用更新",
+          "cors_allowed_origins": "允许的 CORS 来源",
+          "cors_allowed_origins_desc": "允许这些可信的浏览器来源跨域调用 Management API。仅填写完整 origin，不要使用 * 或路径；CORS 不能替代 Management API 认证。",
+          "cors_allowed_origins_input": "添加可信的 CORS 来源",
           "secret_key": "管理密钥",
           "secret_key_placeholder": "设置管理密钥",
           "panel_repo": "面板仓库"

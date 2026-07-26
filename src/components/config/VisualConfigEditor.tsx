@@ -636,6 +636,22 @@ export function VisualConfigEditor({
                 disabled={disabled}
                 onChange={(rmDisableAutoUpdatePanel) => onChange({ rmDisableAutoUpdatePanel })}
               />
+              <SectionSubsection
+                title={t('config_management.visual.sections.remote.cors_allowed_origins')}
+                description={t(
+                  'config_management.visual.sections.remote.cors_allowed_origins_desc'
+                )}
+              >
+                <StringListEditor
+                  value={values.corsAllowedOrigins}
+                  disabled={disabled}
+                  placeholder="https://admin.example.com"
+                  inputAriaLabel={t(
+                    'config_management.visual.sections.remote.cors_allowed_origins_input'
+                  )}
+                  onChange={(corsAllowedOrigins) => onChange({ corsAllowedOrigins })}
+                />
+              </SectionSubsection>
               <SectionGrid>
                 <Input
                   label={t('config_management.visual.sections.remote.secret_key')}

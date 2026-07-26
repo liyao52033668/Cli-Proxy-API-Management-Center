@@ -66,6 +66,7 @@ export type VisualConfigValues = {
   rmDisableControlPanel: boolean;
   rmDisableAutoUpdatePanel: boolean;
   rmPanelRepo: string;
+  corsAllowedOrigins: string[];
   authDir: string;
   incognitoBrowser: boolean;
   ignoredAuthJsonPaths: string[];
@@ -117,6 +118,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   rmDisableControlPanel: false,
   rmDisableAutoUpdatePanel: false,
   rmPanelRepo: '',
+  corsAllowedOrigins: [],
   authDir: '',
   incognitoBrowser: false,
   ignoredAuthJsonPaths: [],
