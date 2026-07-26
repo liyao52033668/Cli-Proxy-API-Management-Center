@@ -29,6 +29,11 @@ export function UsageChart({
   emptyText
 }: UsageChartProps) {
   const { t } = useTranslation();
+  const chartAriaLabel = t('usage_stats.chart_accessible_summary', {
+    title,
+    series: chartData.datasets.map((dataset) => dataset.label).filter(Boolean).join(', '),
+    count: chartData.labels.length
+  });
 
   return (
     <Card
@@ -72,6 +77,8 @@ export function UsageChart({
             <div className={styles.chartScroller}>
               <div
                 className={styles.chartCanvas}
+                role="img"
+                aria-label={chartAriaLabel}
                 style={
                   period === 'hour'
                     ? { minWidth: getHourChartMinWidth(chartData.labels.length, isMobile) }

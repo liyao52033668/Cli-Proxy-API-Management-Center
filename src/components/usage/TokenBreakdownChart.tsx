@@ -91,9 +91,16 @@ export function TokenBreakdownChart({
     return { chartData: data, chartOptions: options };
   }, [usage, hourlySeries, dailySeries, period, isDark, isMobile, hourWindowHours, t]);
 
+  const chartTitle = t('usage_stats.token_breakdown');
+  const chartAriaLabel = t('usage_stats.chart_accessible_summary', {
+    title: chartTitle,
+    series: chartData.datasets.map((dataset) => dataset.label).filter(Boolean).join(', '),
+    count: chartData.labels.length
+  });
+
   return (
     <Card
-      title={t('usage_stats.token_breakdown')}
+      title={chartTitle}
       extra={
         <div className={styles.periodButtons}>
           <Button
@@ -133,6 +140,8 @@ export function TokenBreakdownChart({
             <div className={styles.chartScroller}>
               <div
                 className={styles.chartCanvas}
+                role="img"
+                aria-label={chartAriaLabel}
                 style={
                   period === 'hour'
                     ? { minWidth: getHourChartMinWidth(chartData.labels.length, isMobile) }

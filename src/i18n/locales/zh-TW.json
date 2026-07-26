@@ -1333,6 +1333,7 @@
     "chart_line_all": "全部",
     "chart_line_delete": "刪除曲線",
     "chart_line_hint": "最多同時顯示 9 條模型曲線",
+    "chart_accessible_summary": "{{title}}。系列：{{series}}。{{count}} 個資料點。",
     "no_data": "暫無資料",
     "loading_error": "載入失敗",
     "api_endpoint": "API 端點",

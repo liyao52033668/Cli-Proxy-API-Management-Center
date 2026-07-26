@@ -114,9 +114,16 @@ export function CostTrendChart({
     t,
   ]);
 
+  const chartTitle = t('usage_stats.cost_trend');
+  const chartAriaLabel = t('usage_stats.chart_accessible_summary', {
+    title: chartTitle,
+    series: chartData.datasets.map((dataset) => dataset.label).filter(Boolean).join(', '),
+    count: chartData.labels.length,
+  });
+
   return (
     <Card
-      title={t('usage_stats.cost_trend')}
+      title={chartTitle}
       extra={
         <div className={styles.periodButtons}>
           <Button
@@ -148,6 +155,8 @@ export function CostTrendChart({
             <div className={styles.chartScroller}>
               <div
                 className={styles.chartCanvas}
+                role="img"
+                aria-label={chartAriaLabel}
                 style={
                   period === 'hour'
                     ? { minWidth: getHourChartMinWidth(chartData.labels.length, isMobile) }

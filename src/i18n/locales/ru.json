@@ -1304,6 +1304,7 @@
     "chart_line_all": "Все",
     "chart_line_delete": "Удалить линию",
     "chart_line_hint": "Отображайте до 9 линий моделей одновременно",
+    "chart_accessible_summary": "{{title}}. Ряды: {{series}}. Точек данных: {{count}}.",
     "no_data": "Данные отсутствуют",
     "loading_error": "Не удалось загрузить",
     "api_endpoint": "API-эндпоинт",

@@ -1313,6 +1313,7 @@
     "chart_line_all": "All",
     "chart_line_delete": "Delete line",
     "chart_line_hint": "Show up to 9 model lines at once",
+    "chart_accessible_summary": "{{title}}. Series: {{series}}. {{count}} data points.",
     "no_data": "No Data Available",
     "loading_error": "Loading Failed",
     "api_endpoint": "API Endpoint",
