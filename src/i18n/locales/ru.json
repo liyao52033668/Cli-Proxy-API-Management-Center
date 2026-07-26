@@ -1600,7 +1600,9 @@
           "passthrough_headers": "Передавать заголовки",
           "passthrough_headers_desc": "Передавать заголовки клиентского запроса в вышестоящие сервисы",
           "enable_gemini_cli_endpoint": "Включить endpoint Gemini CLI",
-          "enable_gemini_cli_endpoint_desc": "Включить прокси-endpoint, совместимый с Gemini CLI"
+          "enable_gemini_cli_endpoint_desc": "Включить прокси-endpoint, совместимый с Gemini CLI",
+          "disable_utls": "Отключить uTLS",
+          "disable_utls_desc": "Использовать стандартный стек Go TLS вместо отпечатка uTLS, имитирующего Chrome, для HTTPS-запросов Anthropic"
         },
         "quota": {
           "title": "Резерв по квоте",

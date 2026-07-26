@@ -667,6 +667,9 @@ function getNextDirtyFields(
       nextValues.enableGeminiCliEndpoint === baselineValues.enableGeminiCliEndpoint
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'disableUtls')) {
+    updateDirty('disableUtls', nextValues.disableUtls === baselineValues.disableUtls);
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'disableImageGeneration')) {
     updateDirty(
       'disableImageGeneration',
@@ -904,6 +907,7 @@ export function useVisualConfig() {
         forceModelPrefix: Boolean(parsed['force-model-prefix']),
         passthroughHeaders: Boolean(parsed['passthrough-headers']),
         enableGeminiCliEndpoint: Boolean(parsed['enable-gemini-cli-endpoint']),
+        disableUtls: Boolean(parsed['disable-utls']),
         disableImageGeneration: parseDisableImageGenerationValue(parsed['disable-image-generation']),
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
@@ -1042,6 +1046,7 @@ export function useVisualConfig() {
         setBooleanInDoc(doc, ['force-model-prefix'], values.forceModelPrefix);
         setBooleanInDoc(doc, ['passthrough-headers'], values.passthroughHeaders);
         setBooleanInDoc(doc, ['enable-gemini-cli-endpoint'], values.enableGeminiCliEndpoint);
+        setBooleanInDoc(doc, ['disable-utls'], values.disableUtls);
         if (values.disableImageGeneration === 'true') {
           doc.setIn(['disable-image-generation'], true);
         } else if (values.disableImageGeneration === 'chat') {

@@ -934,6 +934,13 @@ export function VisualConfigEditor({
                   disabled={disabled}
                   onChange={(enableGeminiCliEndpoint) => onChange({ enableGeminiCliEndpoint })}
                 />
+                <ToggleRow
+                  title={t('config_management.visual.sections.network.disable_utls')}
+                  description={t('config_management.visual.sections.network.disable_utls_desc')}
+                  checked={values.disableUtls}
+                  disabled={disabled}
+                  onChange={(disableUtls) => onChange({ disableUtls })}
+                />
               </SectionGrid>
             </SectionStack>
           </ConfigSection>

@@ -80,6 +80,7 @@ export type VisualConfigValues = {
   forceModelPrefix: boolean;
   passthroughHeaders: boolean;
   enableGeminiCliEndpoint: boolean;
+  disableUtls: boolean;
   disableImageGeneration: DisableImageGenerationValue;
   requestRetry: string;
   maxRetryCredentials: string;
@@ -129,6 +130,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   forceModelPrefix: false,
   passthroughHeaders: false,
   enableGeminiCliEndpoint: false,
+  disableUtls: false,
   disableImageGeneration: 'false',
   requestRetry: '',
   maxRetryCredentials: '',

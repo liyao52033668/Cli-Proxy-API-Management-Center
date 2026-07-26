@@ -1607,7 +1607,9 @@
           "passthrough_headers": "Pass through headers",
           "passthrough_headers_desc": "Forward client request headers to upstream services",
           "enable_gemini_cli_endpoint": "Enable Gemini CLI endpoint",
-          "enable_gemini_cli_endpoint_desc": "Enable the proxy endpoint compatible with Gemini CLI"
+          "enable_gemini_cli_endpoint_desc": "Enable the proxy endpoint compatible with Gemini CLI",
+          "disable_utls": "Disable uTLS",
+          "disable_utls_desc": "Use the standard Go TLS stack instead of the Chrome-like uTLS fingerprint for Anthropic HTTPS requests"
         },
         "quota": {
           "title": "Quota Fallback",
