@@ -1559,6 +1559,8 @@
         "auth": {
           "title": "Authentication Configuration",
           "description": "API keys and authentication directory settings",
+          "incognito_browser": "Use incognito browser for OAuth",
+          "incognito_browser_desc": "Open OAuth login URLs in a private browser window to use a different account without affecting the current browser session. Kiro command-line login flags may override this setting.",
           "auth_dir": "Auth Directory (auth-dir)",
           "auth_dir_hint": "Directory path for authentication files (supports ~)",
           "ignored_json_paths": "Ignored auth JSON paths",
@@ -1571,7 +1573,7 @@
           "debug": "Debug Mode",
           "debug_desc": "Enable verbose debug logging",
           "commercial_mode": "Commercial Mode",
-          "commercial_mode_desc": "Disable high-overhead middleware to support high concurrency",
+          "commercial_mode_desc": "Disable high-overhead middleware to support high concurrency. Restart the service for the complete effect.",
           "logging_to_file": "Log to File",
           "logging_to_file_desc": "Save logs to files",
           "usage_statistics": "Usage Statistics",

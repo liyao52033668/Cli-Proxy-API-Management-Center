@@ -67,6 +67,7 @@ export type VisualConfigValues = {
   rmDisableAutoUpdatePanel: boolean;
   rmPanelRepo: string;
   authDir: string;
+  incognitoBrowser: boolean;
   ignoredAuthJsonPaths: string[];
   apiKeysText: string;
   debug: boolean;
@@ -117,6 +118,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   rmDisableAutoUpdatePanel: false,
   rmPanelRepo: '',
   authDir: '',
+  incognitoBrowser: false,
   ignoredAuthJsonPaths: [],
   apiKeysText: '',
   debug: false,

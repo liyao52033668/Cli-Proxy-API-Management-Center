@@ -667,6 +667,13 @@ export function VisualConfigEditor({
             description={t('config_management.visual.sections.auth.description')}
           >
             <SectionStack>
+              <ToggleRow
+                title={t('config_management.visual.sections.auth.incognito_browser')}
+                description={t('config_management.visual.sections.auth.incognito_browser_desc')}
+                checked={values.incognitoBrowser}
+                disabled={disabled}
+                onChange={(incognitoBrowser) => onChange({ incognitoBrowser })}
+              />
               <Input
                 label={t('config_management.visual.sections.auth.auth_dir')}
                 placeholder="~/.cli-proxy-api"

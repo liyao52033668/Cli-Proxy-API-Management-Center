@@ -1579,6 +1579,8 @@
         "auth": {
           "title": "驗證設定",
           "description": "API 金鑰與驗證檔案目錄設定",
+          "incognito_browser": "OAuth 使用無痕瀏覽器",
+          "incognito_browser_desc": "在私密瀏覽器視窗中開啟 OAuth 登入連結，以便登入其他帳號而不影響目前瀏覽器工作階段。Kiro 命令列登入參數可能會覆蓋此設定。",
           "auth_dir": "驗證檔案目錄（auth-dir）",
           "auth_dir_hint": "存放驗證檔案的目錄路徑（支援 ~）",
           "ignored_json_paths": "忽略的驗證 JSON 路徑",
@@ -1591,7 +1593,7 @@
           "debug": "除錯模式",
           "debug_desc": "啟用詳細的除錯記錄",
           "commercial_mode": "商業模式",
-          "commercial_mode_desc": "停用高開銷中介軟體以支援高並行",
+          "commercial_mode_desc": "停用高開銷中介軟體以支援高並行。重新啟動服務後才能完全生效",
           "logging_to_file": "寫入記錄檔",
           "logging_to_file_desc": "將記錄儲存到檔案",
           "usage_statistics": "使用統計",

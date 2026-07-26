@@ -1563,6 +1563,8 @@
         "auth": {
           "title": "认证配置",
           "description": "API 密钥与认证文件目录设置",
+          "incognito_browser": "OAuth 使用无痕浏览器",
+          "incognito_browser_desc": "在隐私浏览器窗口中打开 OAuth 登录链接，以便登录其他账号而不影响当前浏览器会话。Kiro 命令行登录参数可能会覆盖此设置。",
           "auth_dir": "认证文件目录 (auth-dir)",
           "auth_dir_hint": "存放认证文件的目录路径（支持 ~）",
           "ignored_json_paths": "忽略的认证 JSON 路径",
@@ -1575,7 +1577,7 @@
           "debug": "调试模式",
           "debug_desc": "启用详细的调试日志",
           "commercial_mode": "商业模式",
-          "commercial_mode_desc": "禁用高开销中间件以支持高并发",
+          "commercial_mode_desc": "禁用高开销中间件以支持高并发。重启服务后才能完全生效",
           "logging_to_file": "写入日志文件",
           "logging_to_file_desc": "将日志保存到文件",
           "usage_statistics": "使用统计",

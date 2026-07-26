@@ -602,6 +602,12 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'authDir')) {
     updateDirty('authDir', nextValues.authDir === baselineValues.authDir);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'incognitoBrowser')) {
+    updateDirty(
+      'incognitoBrowser',
+      nextValues.incognitoBrowser === baselineValues.incognitoBrowser
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'apiKeysText')) {
     updateDirty('apiKeysText', nextValues.apiKeysText === baselineValues.apiKeysText);
   }
@@ -888,6 +894,7 @@ export function useVisualConfig() {
               : '',
 
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
+        incognitoBrowser: Boolean(parsed['incognito-browser']),
         apiKeysText: resolveApiKeysText(parsed),
         ignoredAuthJsonPaths: Array.isArray(parsed['ignored-auth-json-paths'])
           ? parsed['ignored-auth-json-paths'].map(String)
@@ -1010,6 +1017,7 @@ export function useVisualConfig() {
         }
 
         setStringInDoc(doc, ['auth-dir'], values.authDir);
+        setBooleanInDoc(doc, ['incognito-browser'], values.incognitoBrowser);
         const ignoredAuthJsonPaths = values.ignoredAuthJsonPaths
           .map((path) => path.trim())
           .filter(Boolean);
