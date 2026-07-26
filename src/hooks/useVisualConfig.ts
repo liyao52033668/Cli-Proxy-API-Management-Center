@@ -633,6 +633,9 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'commercialMode')) {
     updateDirty('commercialMode', nextValues.commercialMode === baselineValues.commercialMode);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'requestLog')) {
+    updateDirty('requestLog', nextValues.requestLog === baselineValues.requestLog);
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'loggingToFile')) {
     updateDirty('loggingToFile', nextValues.loggingToFile === baselineValues.loggingToFile);
   }
@@ -653,6 +656,9 @@ function getNextDirtyFields(
       'usageStatisticsEnabled',
       nextValues.usageStatisticsEnabled === baselineValues.usageStatisticsEnabled
     );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'allowQueryApiKey')) {
+    updateDirty('allowQueryApiKey', nextValues.allowQueryApiKey === baselineValues.allowQueryApiKey);
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'redisUsageQueueRetentionSeconds')) {
     updateDirty(
@@ -704,6 +710,9 @@ function getNextDirtyFields(
       'maxRetryInterval',
       nextValues.maxRetryInterval === baselineValues.maxRetryInterval
     );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'disableCooling')) {
+    updateDirty('disableCooling', nextValues.disableCooling === baselineValues.disableCooling);
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'wsAuth')) {
     updateDirty('wsAuth', nextValues.wsAuth === baselineValues.wsAuth);
@@ -913,10 +922,12 @@ export function useVisualConfig() {
 
         debug: Boolean(parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
+        requestLog: Boolean(parsed['request-log']),
         loggingToFile: Boolean(parsed['logging-to-file']),
         logsMaxTotalSizeMb: String(parsed['logs-max-total-size-mb'] ?? ''),
         errorLogsMaxFiles: String(parsed['error-logs-max-files'] ?? ''),
         usageStatisticsEnabled: Boolean(parsed['usage-statistics-enabled']),
+        allowQueryApiKey: Boolean(parsed['allow-query-api-key']),
         redisUsageQueueRetentionSeconds: String(
           parsed['redis-usage-queue-retention-seconds'] ?? ''
         ),
@@ -930,6 +941,7 @@ export function useVisualConfig() {
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
+        disableCooling: Boolean(parsed['disable-cooling']),
         wsAuth: Boolean(parsed['ws-auth']),
 
         quotaSwitchProject: Boolean(quotaExceeded?.['switch-project'] ?? true),
@@ -1060,10 +1072,12 @@ export function useVisualConfig() {
         setBooleanInDoc(doc, ['debug'], values.debug);
 
         setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
+        setBooleanInDoc(doc, ['request-log'], values.requestLog);
         setBooleanInDoc(doc, ['logging-to-file'], values.loggingToFile);
         setIntFromStringInDoc(doc, ['logs-max-total-size-mb'], values.logsMaxTotalSizeMb);
         setIntFromStringInDoc(doc, ['error-logs-max-files'], values.errorLogsMaxFiles);
         setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
+        setBooleanInDoc(doc, ['allow-query-api-key'], values.allowQueryApiKey);
         setIntFromStringInDoc(
           doc,
           ['redis-usage-queue-retention-seconds'],
@@ -1085,6 +1099,7 @@ export function useVisualConfig() {
         setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
         setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
         setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
+        setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
         setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
 
         if (

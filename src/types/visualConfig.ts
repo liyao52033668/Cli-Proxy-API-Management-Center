@@ -73,11 +73,13 @@ export type VisualConfigValues = {
   apiKeysText: string;
   debug: boolean;
   commercialMode: boolean;
+  requestLog: boolean;
   loggingToFile: boolean;
   logsMaxTotalSizeMb: string;
   errorLogsMaxFiles: string;
   redisUsageQueueRetentionSeconds: string;
   usageStatisticsEnabled: boolean;
+  allowQueryApiKey: boolean;
   proxyUrl: string;
   forceModelPrefix: boolean;
   passthroughHeaders: boolean;
@@ -87,6 +89,7 @@ export type VisualConfigValues = {
   requestRetry: string;
   maxRetryCredentials: string;
   maxRetryInterval: string;
+  disableCooling: boolean;
   quotaSwitchProject: boolean;
   quotaSwitchPreviewModel: boolean;
   quotaAntigravityCredits: boolean;
@@ -125,11 +128,13 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   apiKeysText: '',
   debug: false,
   commercialMode: false,
+  requestLog: false,
   loggingToFile: false,
   logsMaxTotalSizeMb: '',
   errorLogsMaxFiles: '',
   redisUsageQueueRetentionSeconds: '',
   usageStatisticsEnabled: false,
+  allowQueryApiKey: false,
   proxyUrl: '',
   forceModelPrefix: false,
   passthroughHeaders: false,
@@ -139,6 +144,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   requestRetry: '',
   maxRetryCredentials: '',
   maxRetryInterval: '',
+  disableCooling: false,
   quotaSwitchProject: true,
   quotaSwitchPreviewModel: true,
   quotaAntigravityCredits: true,

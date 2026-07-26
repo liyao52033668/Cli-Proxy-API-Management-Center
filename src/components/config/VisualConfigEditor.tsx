@@ -756,6 +756,13 @@ export function VisualConfigEditor({
                   onChange={(loggingToFile) => onChange({ loggingToFile })}
                 />
                 <ToggleRow
+                  title={t('config_management.visual.sections.system.request_log')}
+                  description={t('config_management.visual.sections.system.request_log_desc')}
+                  checked={values.requestLog}
+                  disabled={disabled}
+                  onChange={(requestLog) => onChange({ requestLog })}
+                />
+                <ToggleRow
                   title={t('config_management.visual.sections.system.usage_statistics')}
                   description={t('config_management.visual.sections.system.usage_statistics_desc')}
                   checked={values.usageStatisticsEnabled}
@@ -940,6 +947,15 @@ export function VisualConfigEditor({
                   onChange={(wsAuth) => onChange({ wsAuth })}
                 />
                 <ToggleRow
+                  title={t('config_management.visual.sections.network.allow_query_api_key')}
+                  description={t(
+                    'config_management.visual.sections.network.allow_query_api_key_desc'
+                  )}
+                  checked={values.allowQueryApiKey}
+                  disabled={disabled}
+                  onChange={(allowQueryApiKey) => onChange({ allowQueryApiKey })}
+                />
+                <ToggleRow
                   title={t('config_management.visual.sections.network.passthrough_headers')}
                   description={t(
                     'config_management.visual.sections.network.passthrough_headers_desc'
@@ -979,6 +995,13 @@ export function VisualConfigEditor({
             description={t('config_management.visual.sections.quota.description')}
           >
             <SectionGrid>
+              <ToggleRow
+                title={t('config_management.visual.sections.quota.disable_cooling')}
+                description={t('config_management.visual.sections.quota.disable_cooling_desc')}
+                checked={values.disableCooling}
+                disabled={disabled}
+                onChange={(disableCooling) => onChange({ disableCooling })}
+              />
               <ToggleRow
                 title={t('config_management.visual.sections.quota.switch_project')}
                 description={t('config_management.visual.sections.quota.switch_project_desc')}
