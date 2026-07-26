@@ -55,7 +55,7 @@ $openai-toolbar-control-height: 36px;
 .openaiProviderList {
   display: grid;
   gap: $spacing-md;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .openaiProviderCard {
@@ -68,6 +68,8 @@ $openai-toolbar-control-height: 36px;
   align-items: stretch;
   gap: $spacing-sm;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .openaiProviderMeta {
@@ -113,6 +115,8 @@ $openai-toolbar-control-height: 36px;
 .openaiProviderTitle {
   font-weight: 700;
   color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 // 排序控件
@@ -647,10 +651,14 @@ $openai-toolbar-control-height: 36px;
   padding: 4px 10px;
   font-size: 12px;
   color: var(--text-secondary);
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-all;
 
   strong {
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
   }
 }
 
@@ -799,6 +807,8 @@ $openai-toolbar-control-height: 36px;
 .apiKeyEntryProxy {
   color: var(--text-tertiary);
   font-size: 11px;
+  min-width: 0;
+  word-break: break-all;
 
   &::before {
     content: '| Proxy: ';

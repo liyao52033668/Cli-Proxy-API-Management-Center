@@ -12,6 +12,7 @@ import type {
 
 const tableStyle: CSSProperties = {
   width: '100%',
+  minWidth: 640,
   tableLayout: 'fixed',
   borderCollapse: 'collapse',
 };
@@ -348,7 +349,7 @@ export function CodexInspectionResultsTable({
           </Button>
         ))}
       </div>
-      <div style={{ width: '100%', overflowX: 'hidden' }}>
+      <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table style={tableStyle}>
           <colgroup>
             <col style={{ width: 48 }} />
