@@ -104,7 +104,9 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
  
 ];
 
-const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'qoder'];
+// Qoder uses device-code polling (no qoder:// callback). Keep callback UI only for
+// providers that still require pasting a local redirect URL.
+const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>
@@ -175,7 +177,7 @@ export function OAuthPage() {
   };
 
   const getQoderAuthMode = (providerState?: ProviderState): 'token' | 'oauth' => {
-    return providerState?.authMode === 'oauth' ? 'oauth' : 'token';
+    return providerState?.authMode === 'token' ? 'token' : 'oauth';
   };
 
   const clearQoderTokenInputState = (providerState?: ProviderState): ProviderState => {
@@ -231,7 +233,7 @@ export function OAuthPage() {
       setStates((prev) => ({
         ...prev,
         [provider]: {
-          authMode: 'token'
+          authMode: 'oauth'
         }
       }));
       return;
@@ -669,8 +671,7 @@ export function OAuthPage() {
           const qoderAuthMode = isQoder ? getQoderAuthMode(state) : undefined;
           const isQoderTokenMode = qoderAuthMode === 'token';
           const isQoderOAuthMode = qoderAuthMode === 'oauth';
-          const canSubmitCallback =
-            CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url) && (!isQoder || isQoderOAuthMode);
+          const canSubmitCallback = CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url);
           const canSubmitXaiCallbackToken = provider.id === 'xai' && Boolean(state.state);
           const loginButtonLabel =
             state.status === 'success'
@@ -708,7 +709,7 @@ export function OAuthPage() {
                   <div className={styles.cardHint}>
                     {isQoderTokenMode
                       ? t('auth_login.qoder_token_hint', {
-                        defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可继续使用原有授权流程。'
+                        defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可使用浏览器设备授权。'
                       })
                       : t(provider.hintKey)}
                   </div>
@@ -719,15 +720,15 @@ export function OAuthPage() {
                       </label>
                       <Select
                         id="qoder-auth-mode"
-                        value={qoderAuthMode || 'token'}
+                        value={qoderAuthMode || 'oauth'}
                         options={[
-                          {
-                            value: 'token',
-                            label: t('auth_login.qoder_auth_mode_token', { defaultValue: 'Token' })
-                          },
                           {
                             value: 'oauth',
                             label: t('auth_login.qoder_auth_mode_oauth', { defaultValue: 'OAuth' })
+                          },
+                          {
+                            value: 'token',
+                            label: t('auth_login.qoder_auth_mode_token', { defaultValue: 'Token' })
                           }
                         ]}
                         disabled={Boolean(state.polling || state.callbackSubmitting)}
@@ -736,7 +737,7 @@ export function OAuthPage() {
                       />
                       <div className={styles.cardHintSecondary}>
                         {t('auth_login.qoder_auth_mode_hint', {
-                          defaultValue: 'Token 模式适合直接粘贴 Personal Access Token；OAuth 模式保留浏览器授权与回调流程。'
+                          defaultValue: 'Token 模式适合直接粘贴 Personal Access Token；OAuth 模式通过浏览器设备授权自动完成。'
                         })}
                       </div>
                     </div>
@@ -915,8 +916,8 @@ export function OAuthPage() {
                     <div className={styles.callbackSection}>
                       <Input
                         label={t('auth_login.oauth_callback_label')}
-                        hint={t(provider.id === 'qoder' ? 'auth_login.oauth_callback_qoder_hint' : 'auth_login.oauth_callback_hint')}
-                        placeholder={t(provider.id === 'qoder' ? 'auth_login.oauth_callback_qoder_placeholder' : 'auth_login.oauth_callback_placeholder')}
+                        hint={t('auth_login.oauth_callback_hint')}
+                        placeholder={t('auth_login.oauth_callback_placeholder')}
                         value={state.callbackUrl || ''}
                         onChange={(e) =>
                           updateProviderState(provider.id, {
