@@ -700,6 +700,14 @@
   color: #ffd862;
 }
 
+.qoderCard {
+  background-image: linear-gradient(
+    180deg,
+    rgba(236, 253, 243, 0.22),
+    rgba(236, 253, 243, 0)
+  );
+}
+
 // 单个认证文件卡片
 .fileCard {
   position: relative;

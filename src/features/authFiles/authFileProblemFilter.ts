@@ -8,7 +8,7 @@ export type AuthFileQuotaProblemState = {
 
 export type AuthFileQuotaProblemMap = Partial<
   Record<
-    'antigravity' | 'claude' | 'codex' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro',
+    'antigravity' | 'claude' | 'codex' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder',
     Record<string, AuthFileQuotaProblemState | undefined>
   >
 >;

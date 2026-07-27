@@ -167,6 +167,7 @@ export function AuthFilesPage() {
   const geminiCliQuota = useQuotaStore((state) => state.geminiCliQuota);
   const kimiQuota = useQuotaStore((state) => state.kimiQuota);
   const kiroQuota = useQuotaStore((state) => state.kiroQuota);
+  const qoderQuota = useQuotaStore((state) => state.qoderQuota);
   const quotaProblems = useMemo(
     () => ({
       antigravity: antigravityQuota,
@@ -176,8 +177,18 @@ export function AuthFilesPage() {
       'gemini-cli': geminiCliQuota,
       kimi: kimiQuota,
       kiro: kiroQuota,
+      qoder: qoderQuota,
     }),
-    [antigravityQuota, claudeQuota, codexQuota, cursorQuota, geminiCliQuota, kimiQuota, kiroQuota]
+    [
+      antigravityQuota,
+      claudeQuota,
+      codexQuota,
+      cursorQuota,
+      geminiCliQuota,
+      kimiQuota,
+      kiroQuota,
+      qoderQuota,
+    ]
   );
 
   const {

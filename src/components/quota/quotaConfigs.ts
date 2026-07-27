@@ -38,6 +38,8 @@ import type {
   KiroQuotaData,
   KiroQuotaRow,
   KiroQuotaState,
+  QoderQuotaRow,
+  QoderQuotaState,
   XaiBillingSummary,
   XaiQuotaState
 } from '@/types';
@@ -49,6 +51,7 @@ import {
   buildAntigravityQuotaGroups,
   buildGeminiCliQuotaBuckets,
   buildKimiQuotaRows,
+  buildQoderQuotaRows,
   buildXaiBillingSummary,
   mergeXaiBillingSummaries,
   CLAUDE_PROFILE_URL,
@@ -62,8 +65,10 @@ import {
   createStatusError,
   formatCodexResetLabel,
   formatKimiResetHint,
+  formatQoderPlanLabel,
   formatQuotaResetDate,
   formatQuotaResetTime,
+  resolveQoderExpiresAt,
   GEMINI_CLI_CODE_ASSIST_URL,
   GEMINI_CLI_QUOTA_URL,
   GEMINI_CLI_REQUEST_HEADERS,
@@ -77,10 +82,13 @@ import {
   isGeminiCliFile,
   isKimiFile,
   isKiroFile,
+  isQoderFile,
   isXaiFile,
   isRuntimeOnlyAuthFile,
   KIMI_REQUEST_HEADERS,
   KIMI_USAGE_URL,
+  QODER_REQUEST_HEADERS,
+  QODER_USAGE_URL,
   XAI_BILLING_MONTHLY_URL,
   XAI_BILLING_WEEKLY_URL,
   XAI_REQUEST_HEADERS,
@@ -96,6 +104,7 @@ import {
   parseGeminiCliCodeAssistPayload,
   parseGeminiCliQuotaPayload,
   parseKimiUsagePayload,
+  parseQoderUsagePayload,
   parseXaiBillingPayload,
   resolveCodexChatgptAccountId,
   resolveCodexPlanType,
@@ -109,7 +118,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
@@ -129,6 +138,7 @@ export interface QuotaStore {
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
+  qoderQuota: Record<string, QoderQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
@@ -138,6 +148,7 @@ export interface QuotaStore {
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
+  setQoderQuota: (updater: QuotaUpdater<Record<string, QoderQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   clearQuotaCache: () => void;
 }
@@ -1572,6 +1583,164 @@ export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
   controlClassName: styles.kimiControl,
   gridClassName: styles.kimiGrid,
   renderQuotaItems: renderKimiItems,
+};
+
+interface QoderQuotaData {
+  rows: QoderQuotaRow[];
+  userType?: string;
+  usageType?: string;
+  isQuotaExceeded?: boolean;
+  expiresAt?: string;
+}
+
+const fetchQoderQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<QoderQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('qoder_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: QODER_USAGE_URL,
+    header: { ...QODER_REQUEST_HEADERS },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = parseQoderUsagePayload(result.body ?? result.bodyText);
+  if (!payload) {
+    throw new Error(t('qoder_quota.empty_data'));
+  }
+
+  const rows = buildQoderQuotaRows(payload);
+  return {
+    rows,
+    userType: typeof payload.userType === 'string' ? payload.userType : undefined,
+    usageType: typeof payload.usageType === 'string' ? payload.usageType : undefined,
+    isQuotaExceeded: Boolean(payload.isQuotaExceeded),
+    expiresAt: resolveQoderExpiresAt(payload.expiresAt),
+  };
+};
+
+const renderQoderItems = (
+  quota: QoderQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+  const rows = quota.rows ?? [];
+  const planLabel = formatQoderPlanLabel(quota.userType) || null;
+  const resetLabel = formatQuotaResetTime(quota.expiresAt);
+  const hasReset = Boolean(quota.expiresAt) && resetLabel !== '-';
+  const nodes: ReactNode[] = [];
+
+  if (planLabel || hasReset) {
+    const planNodes: ReactNode[] = [];
+    if (planLabel) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('qoder_quota.plan_label')),
+        h('span', { key: 'plan-value', className: styleMap.codexPlanValue }, planLabel)
+      );
+    }
+    if (planLabel && hasReset) {
+      planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
+    }
+    if (hasReset) {
+      planNodes.push(
+        h('span', { key: 'reset-label', className: styleMap.codexPlanLabel }, t('qoder_quota.reset_label')),
+        h('span', { key: 'reset-value', className: styleMap.codexPlanValue }, resetLabel)
+      );
+    }
+    nodes.push(h('div', { key: 'plan-reset', className: styleMap.codexPlan }, ...planNodes));
+  }
+
+  if (rows.length === 0) {
+    nodes.push(h('div', { key: 'empty', className: styleMap.quotaMessage }, t('qoder_quota.empty_data')));
+    return h(Fragment, null, ...nodes);
+  }
+
+  nodes.push(
+    ...rows.map((row) => {
+      const limit = row.limit;
+      const used = row.used;
+
+      let remainingPercent: number | null = null;
+      if (typeof row.usedPercent === 'number' && Number.isFinite(row.usedPercent)) {
+        remainingPercent = Math.max(0, Math.min(100, Math.round(100 - row.usedPercent)));
+      } else if (limit > 0) {
+        remainingPercent = Math.max(0, Math.min(100, Math.round(((limit - used) / limit) * 100)));
+      } else if (row.limitReached) {
+        remainingPercent = 0;
+      }
+
+      if (row.limitReached && remainingPercent !== null && remainingPercent > 0 && limit <= 0) {
+        remainingPercent = 0;
+      }
+
+      const percentLabel = remainingPercent === null ? '--' : `${remainingPercent}%`;
+      const rowLabel = row.labelKey ? t(row.labelKey) : row.label ?? t('qoder_quota.credits');
+
+      return h(
+        'div',
+        { key: row.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, rowLabel),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h('span', { className: styleMap.quotaPercent }, percentLabel)
+          )
+        ),
+        h(QuotaProgressBar, {
+          percent: remainingPercent,
+          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        })
+      );
+    })
+  );
+
+  return h(Fragment, null, ...nodes);
+};
+
+export const QODER_CONFIG: QuotaConfig<QoderQuotaState, QoderQuotaData> = {
+  type: 'qoder',
+  i18nPrefix: 'qoder_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isQoderFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchQoderQuota,
+  storeSelector: (state) => state.qoderQuota,
+  storeSetter: 'setQoderQuota',
+  buildLoadingState: () => ({ status: 'loading', rows: [] }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    rows: data.rows,
+    userType: data.userType,
+    usageType: data.usageType,
+    isQuotaExceeded: data.isQuotaExceeded ?? data.rows.some((row) => row.limitReached),
+    expiresAt: data.expiresAt,
+  }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    rows: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.qoderCard,
+  controlsClassName: styles.qoderControls,
+  controlClassName: styles.qoderControl,
+  gridClassName: styles.qoderGrid,
+  renderQuotaItems: renderQoderItems,
 };
 
 const PREMIUM_COPILOT_PLAN_TYPES = new Set([

@@ -83,3 +83,16 @@ export function formatKimiResetHint(t: TFunction, hint?: string): string {
   if (!hint) return '';
   return t('kimi_quota.reset_hint', { hint });
 }
+
+export function formatQoderExpiresHint(t: TFunction, hint?: string): string {
+  if (!hint) return '';
+  return t('qoder_quota.expires_hint', { hint });
+}
+
+/** Display-only plan label; official userType stays raw in store. */
+export function formatQoderPlanLabel(userType?: string): string {
+  const raw = typeof userType === 'string' ? userType.trim() : '';
+  if (!raw) return '';
+  if (raw.toLowerCase() === 'personal_standard') return 'free';
+  return raw;
+}

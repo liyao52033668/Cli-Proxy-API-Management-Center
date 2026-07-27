@@ -14,6 +14,8 @@ import type {
   KimiLimitItem,
   KimiLimitWindow,
   KimiQuotaRow,
+  QoderUsagePayload,
+  QoderQuotaRow,
   XaiBillingConfig,
   XaiBillingPeriod,
   XaiBillingPeriodType,
@@ -409,6 +411,73 @@ export function buildKimiQuotaRows(payload: KimiUsagePayload): KimiQuotaRow[] {
   }
 
   return rows;
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function qoderExpiresHint(expiresAtMs: unknown): string | undefined {
+  return resolveQoderExpiresAt(expiresAtMs);
+}
+
+/** ISO expiry for display; drops official far-future sentinels (year >= 9000). */
+export function resolveQoderExpiresAt(expiresAtMs: unknown): string | undefined {
+  const ms = toFiniteNumber(expiresAtMs);
+  if (ms === null || ms <= 0) return undefined;
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return undefined;
+  if (date.getUTCFullYear() >= 9000) return undefined;
+  try {
+    return date.toISOString();
+  } catch {
+    return undefined;
+  }
+}
+
+export function buildQoderQuotaRows(payload: QoderUsagePayload): QoderQuotaRow[] {
+  const userQuota =
+    payload.userQuota && typeof payload.userQuota === 'object' ? payload.userQuota : null;
+  const limit = toFiniteNumber(userQuota?.total) ?? 0;
+  const used = toFiniteNumber(userQuota?.used) ?? 0;
+  let remaining = toFiniteNumber(userQuota?.remaining);
+  if (remaining === null) {
+    remaining = Math.max(0, limit - used);
+  }
+  let usedPercent = toFiniteNumber(userQuota?.percentage);
+  if (usedPercent === null) {
+    usedPercent = toFiniteNumber(payload.totalUsagePercentage);
+  }
+  if (usedPercent === null && limit > 0) {
+    usedPercent = (used / limit) * 100;
+  }
+  if (usedPercent === null) {
+    usedPercent = payload.isQuotaExceeded ? 100 : 0;
+  }
+
+  const unit =
+    (typeof userQuota?.unit === 'string' && userQuota.unit.trim()) ||
+    (typeof payload.usageType === 'string' && payload.usageType.trim()) ||
+    'credits';
+
+  return [
+    {
+      id: 'credits',
+      labelKey: 'qoder_quota.credits',
+      used,
+      limit,
+      remaining,
+      usedPercent,
+      limitReached: Boolean(payload.isQuotaExceeded),
+      unit,
+      expiresHint: qoderExpiresHint(payload.expiresAt),
+    },
+  ];
 }
 
 function normalizeXaiCentValue(value: XaiBillingConfig['monthlyLimit']): number | null {

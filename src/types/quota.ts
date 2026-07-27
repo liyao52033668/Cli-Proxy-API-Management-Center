@@ -324,6 +324,52 @@ export interface KimiQuotaState {
   errorStatus?: number;
 }
 
+// Qoder official quota API payload types
+export interface QoderUserQuota {
+  total?: number;
+  used?: number;
+  remaining?: number;
+  percentage?: number;
+  unit?: string;
+}
+
+export interface QoderUsagePayload {
+  userId?: string;
+  userType?: string;
+  usageType?: string;
+  totalUsagePercentage?: number;
+  isQuotaExceeded?: boolean;
+  expiresAt?: number;
+  upgradeUrl?: string;
+  userQuota?: QoderUserQuota;
+  isPlanQuotaProrated?: boolean;
+}
+
+export interface QoderQuotaRow {
+  id: string;
+  label?: string;
+  labelKey?: string;
+  used: number;
+  limit: number;
+  remaining?: number;
+  usedPercent?: number;
+  limitReached?: boolean;
+  unit?: string;
+  expiresHint?: string;
+}
+
+export interface QoderQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  rows: QoderQuotaRow[];
+  userType?: string;
+  usageType?: string;
+  isQuotaExceeded?: boolean;
+  /** ISO timestamp for plan/quota cycle end; omit far-future sentinels. */
+  expiresAt?: string;
+  error?: string;
+  errorStatus?: number;
+}
+
 // Copilot API payload types
 export interface CopilotQuotaDetail {
   used?: number;

@@ -110,7 +110,9 @@ export function AuthFileCard(props: AuthFileCardProps) {
                 ? styles.cursorCard
                 : quotaType === 'kiro'
                   ? styles.kiroCard
-                  : '';
+                  : quotaType === 'qoder'
+                    ? styles.qoderCard
+                    : '';
 
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndexKey = normalizeAuthIndex(rawAuthIndex);

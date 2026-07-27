@@ -859,6 +859,24 @@
     "limit_index": "Лимит #{{index}}",
     "reset_hint": "сброс через {{hint}}"
   },
+  "qoder_quota": {
+    "title": "Квота Qoder",
+    "empty_title": "Файлы авторизации Qoder отсутствуют",
+    "empty_desc": "Загрузите учётные данные Qoder, чтобы увидеть оставшуюся квоту.",
+    "idle": "Не загружено. Нажмите \"Обновить квоту\".",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty_data": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все",
+    "credits": "Кредиты",
+    "remaining_only": "Осталось {{remaining}}",
+    "exceeded": "Квота исчерпана",
+    "plan_label": "План",
+    "reset_label": "Сброс",
+    "expires_hint": "истекает {{hint}}"
+  },
   "kiro_quota": {
     "title": "Квота Kiro",
     "empty_title": "Файлы авторизации Kiro отсутствуют",

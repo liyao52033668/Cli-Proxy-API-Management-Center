@@ -868,6 +868,24 @@
     "limit_index": "Limit #{{index}}",
     "reset_hint": "resets in {{hint}}"
   },
+  "qoder_quota": {
+    "title": "Qoder Quota",
+    "empty_title": "No Qoder Auth Files",
+    "empty_desc": "Upload a Qoder credential to view remaining quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_data": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "credits": "Credits",
+    "remaining_only": "{{remaining}} remaining",
+    "exceeded": "Quota exceeded",
+    "plan_label": "Plan",
+    "reset_label": "Reset",
+    "expires_hint": "expires {{hint}}"
+  },
   "kiro_quota": {
     "title": "Kiro Quota",
     "empty_title": "No Kiro Auth Files",

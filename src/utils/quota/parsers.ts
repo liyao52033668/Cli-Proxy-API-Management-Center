@@ -9,6 +9,7 @@ import type {
   GeminiCliCodeAssistPayload,
   GeminiCliQuotaPayload,
   KimiUsagePayload,
+  QoderUsagePayload,
   XaiBillingPayload,
 } from '@/types';
 import { normalizeAuthIndex } from '@/utils/usage';
@@ -292,6 +293,23 @@ export function parseKimiUsagePayload(payload: unknown): KimiUsagePayload | null
   }
   if (typeof payload === 'object') {
     return payload as KimiUsagePayload;
+  }
+  return null;
+}
+
+export function parseQoderUsagePayload(payload: unknown): QoderUsagePayload | null {
+  if (payload === undefined || payload === null) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as QoderUsagePayload;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as QoderUsagePayload;
   }
   return null;
 }

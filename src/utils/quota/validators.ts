@@ -45,6 +45,10 @@ export function isKimiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'kimi';
 }
 
+export function isQoderFile(file: AuthFileItem): boolean {
+  return resolveAuthProvider(file) === 'qoder';
+}
+
 export function isXaiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'xai';
 }
