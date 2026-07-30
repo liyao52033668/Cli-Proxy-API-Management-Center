@@ -26,8 +26,8 @@ type RequestEventRow = {
   sourceRaw: string;
   source: string;
   sourceType: string;
-  authIndex: string;
   failed: boolean;
+  firstTokenMs: number | null;
   latencyMs: number | null;
   inputTokens: number;
   outputTokens: number;
@@ -67,8 +67,7 @@ export function RequestEventsDetailsCard({
   const [eventSource, setEventSource] = useState<'memory' | 'history'>('memory');
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
-  const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
-  const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}::${authIndexFilter}`;
+  const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}`;
   const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -137,7 +136,6 @@ export function RequestEventsDetailsCard({
           pageSize: PAGE_SIZE,
           model: modelFilter === ALL_FILTER ? undefined : modelFilter,
           source: sourceFilter === ALL_FILTER ? undefined : sourceFilter,
-          authIndex: authIndexFilter === ALL_FILTER ? undefined : authIndexFilter,
         },
         eventSource
       )
@@ -168,7 +166,6 @@ export function RequestEventsDetailsCard({
       cancelled = true;
     };
   }, [
-    authIndexFilter,
     eventSource,
     modelFilter,
     page,
@@ -194,7 +191,6 @@ export function RequestEventsDetailsCard({
     () =>
       events.map((event, index) => {
         const sourceRaw = String(event.source_raw || event.source || '').trim();
-        const authIndex = normalizeAuthIndex(event.auth_index) || '-';
         const sourceInfo = resolveSourceDisplay(
           sourceRaw,
           event.auth_index,
@@ -213,8 +209,8 @@ export function RequestEventsDetailsCard({
           sourceRaw,
           source: sourceInfo.displayName,
           sourceType: sourceInfo.type,
-          authIndex,
           failed: event.failed === true,
+          firstTokenMs: Number(event.first_token_ms) > 0 ? Number(event.first_token_ms) : null,
           latencyMs: Number.isFinite(Number(event.latency_ms)) ? Number(event.latency_ms) : null,
           inputTokens: Math.max(Number(tokens?.input_tokens ?? event.input_tokens) || 0, 0),
           outputTokens: Math.max(Number(tokens?.output_tokens ?? event.output_tokens) || 0, 0),
@@ -230,6 +226,7 @@ export function RequestEventsDetailsCard({
   );
 
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
+  const hasFirstTokenData = useMemo(() => rows.some((row) => row.firstTokenMs !== null), [rows]);
   const modelOptions = useMemo(
     () => [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
@@ -250,28 +247,12 @@ export function RequestEventsDetailsCard({
       ...Array.from(options, ([value, label]) => ({ value, label })),
     ];
   }, [rows, sourceFilter, t]);
-  const authIndexOptions = useMemo(() => {
-    const options = new Map<string, string>();
-    authFileMap.forEach((info, authIndex) => options.set(authIndex, info.name || authIndex));
-    rows.forEach((row) => {
-      if (row.authIndex !== '-') options.set(row.authIndex, row.authIndex);
-    });
-    if (authIndexFilter !== ALL_FILTER && !options.has(authIndexFilter)) {
-      options.set(authIndexFilter, authIndexFilter);
-    }
-    return [
-      { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(options, ([value, label]) => ({ value, label })),
-    ];
-  }, [authFileMap, authIndexFilter, rows, t]);
 
-  const hasActiveFilters =
-    modelFilter !== ALL_FILTER || sourceFilter !== ALL_FILTER || authIndexFilter !== ALL_FILTER;
+  const hasActiveFilters = modelFilter !== ALL_FILTER || sourceFilter !== ALL_FILTER;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
-    setAuthIndexFilter(ALL_FILTER);
   };
 
   const handleToggleEventSource = () => {
@@ -279,7 +260,6 @@ export function RequestEventsDetailsCard({
     setModelNames([]);
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
-    setAuthIndexFilter(ALL_FILTER);
   };
 
   const handleExportCsv = () => {
@@ -289,8 +269,8 @@ export function RequestEventsDetailsCard({
       'model',
       'source',
       'source_raw',
-      'auth_index',
       'result',
+      ...(hasFirstTokenData ? ['first_token_ms'] : []),
       ...(hasLatencyData ? ['latency_ms'] : []),
       'input_tokens',
       'output_tokens',
@@ -304,8 +284,8 @@ export function RequestEventsDetailsCard({
         row.model,
         row.source,
         row.sourceRaw,
-        row.authIndex,
         row.failed ? 'failed' : 'success',
+        ...(hasFirstTokenData ? [row.firstTokenMs ?? ''] : []),
         ...(hasLatencyData ? [row.latencyMs ?? ''] : []),
         row.inputTokens,
         row.outputTokens,
@@ -332,8 +312,10 @@ export function RequestEventsDetailsCard({
       model: row.model,
       source: row.source,
       source_raw: row.sourceRaw,
-      auth_index: row.authIndex,
       failed: row.failed,
+      ...(hasFirstTokenData && row.firstTokenMs !== null
+        ? { first_token_ms: row.firstTokenMs }
+        : {}),
       ...(hasLatencyData && row.latencyMs !== null ? { latency_ms: row.latencyMs } : {}),
       tokens: {
         input_tokens: row.inputTokens,
@@ -406,19 +388,6 @@ export function RequestEventsDetailsCard({
             fullWidth={false}
           />
         </div>
-        <div className={styles.requestEventsFilterItem}>
-          <span className={styles.requestEventsFilterLabel}>
-            {t('usage_stats.request_events_filter_auth_index')}
-          </span>
-          <Select
-            value={authIndexFilter}
-            options={authIndexOptions}
-            onChange={setAuthIndexFilter}
-            className={styles.requestEventsSelect}
-            ariaLabel={t('usage_stats.request_events_filter_auth_index')}
-            fullWidth={false}
-          />
-        </div>
       </div>
 
       {/* {eventSource === 'history' ? (
@@ -460,8 +429,8 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.request_events_timestamp')}</th>
                   <th>{t('usage_stats.model_name')}</th>
                   <th>{t('usage_stats.request_events_source')}</th>
-                  <th>{t('usage_stats.request_events_auth_index')}</th>
                   <th>{t('usage_stats.request_events_result')}</th>
+                  {hasFirstTokenData && <th>{t('usage_stats.request_events_first_token')}</th>}
                   {hasLatencyData && <th title={latencyHint}>{t('usage_stats.time')}</th>}
                   <th>{t('usage_stats.input_tokens')}</th>
                   <th>{t('usage_stats.output_tokens')}</th>
@@ -483,9 +452,6 @@ export function RequestEventsDetailsCard({
                         <span className={styles.credentialType}>{row.sourceType}</span>
                       )}
                     </td>
-                    <td className={styles.requestEventsAuthIndex} title={row.authIndex}>
-                      {row.authIndex}
-                    </td>
                     <td>
                       <span
                         className={
@@ -497,6 +463,9 @@ export function RequestEventsDetailsCard({
                         {row.failed ? t('stats.failure') : t('stats.success')}
                       </span>
                     </td>
+                    {hasFirstTokenData && (
+                      <td className={styles.durationCell}>{formatDurationMs(row.firstTokenMs)}</td>
+                    )}
                     {hasLatencyData && (
                       <td className={styles.durationCell}>{formatDurationMs(row.latencyMs)}</td>
                     )}

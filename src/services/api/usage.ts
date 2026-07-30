@@ -200,6 +200,7 @@ export interface UsageEvent {
   isDelete?: boolean;
   failed: boolean;
   latency_ms: number;
+  first_token_ms?: number;
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
