@@ -127,7 +127,13 @@ export function CodexInspectionPage() {
     setSnapshot({
       ...nextSnapshot,
       settings: normalizedSettings,
-      run: { ...nextSnapshot.run, nextTriggerAtMsByProvider },
+      run: {
+        ...nextSnapshot.run,
+        summary: nextSnapshot.run.summary ?? emptySummary,
+        nextTriggerAtMsByProvider,
+      },
+      results: nextSnapshot.results ?? [],
+      actionLogs: nextSnapshot.actionLogs ?? [],
     });
     setSettings(normalizedSettings);
   }, []);
