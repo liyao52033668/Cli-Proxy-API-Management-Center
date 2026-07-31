@@ -7,6 +7,7 @@ import {
   IconDownload,
   IconInfo,
   IconModelCluster,
+  IconRefreshCw,
   IconSettings,
   IconTrash2,
 } from '@/components/ui/icons';
@@ -50,6 +51,7 @@ export type AuthFileCardProps = {
   resolvedTheme: ResolvedTheme;
   disableControls: boolean;
   deleting: string | null;
+  refreshing: string | null;
   statusUpdating: Record<string, boolean>;
   quotaFilterType: QuotaProviderType | null;
   keyStats: KeyStats;
@@ -57,6 +59,7 @@ export type AuthFileCardProps = {
   onShowModels: (file: AuthFileItem) => void;
   onDownload: (name: string) => void;
   onOpenPrefixProxyEditor: (file: AuthFileItem) => void;
+  onRefresh: (name: string) => void;
   onDelete: (name: string) => void;
   onToggleStatus: (file: AuthFileItem, enabled: boolean) => void;
   onToggleSelect: (name: string) => void;
@@ -75,6 +78,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
     resolvedTheme,
     disableControls,
     deleting,
+    refreshing,
     statusUpdating,
     quotaFilterType,
     keyStats,
@@ -82,6 +86,7 @@ export function AuthFileCard(props: AuthFileCardProps) {
     onShowModels,
     onDownload,
     onOpenPrefixProxyEditor,
+    onRefresh,
     onDelete,
     onToggleStatus,
     onToggleSelect,
@@ -304,6 +309,20 @@ export function AuthFileCard(props: AuthFileCardProps) {
                     disabled={disableControls}
                   >
                     <IconDownload className={styles.actionIcon} size={16} />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onRefresh(file.name)}
+                    className={styles.iconButton}
+                    title={t('auth_files.refresh_button')}
+                    disabled={disableControls || refreshing === file.name}
+                  >
+                    {refreshing === file.name ? (
+                      <LoadingSpinner size={14} />
+                    ) : (
+                      <IconRefreshCw className={styles.actionIcon} size={16} />
+                    )}
                   </Button>
                   <Button
                     variant="secondary"

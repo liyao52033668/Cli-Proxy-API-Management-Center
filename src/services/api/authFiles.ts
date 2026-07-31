@@ -72,6 +72,16 @@ const normalizeAuthFileModelTestResult = (
 
 type StatusError = { status?: number };
 type AuthFileStatusResponse = { status: string; disabled: boolean };
+type AuthFileRefreshResponse = {
+  ok?: boolean;
+  status?: string;
+  provider?: string;
+  auth_id?: string;
+  file_name?: string;
+  last_refresh?: string;
+  expires_at?: string;
+  error?: string;
+};
 type AuthFileEntry = AuthFilesResponse['files'][number];
 type AuthFileBatchFailure = { name: string; error: string };
 type AuthFileBatchUploadResponse = {
@@ -487,6 +497,9 @@ export const authFilesApi = {
 
   setStatus: (name: string, disabled: boolean) =>
     apiClient.patch<AuthFileStatusResponse>('/auth-files/status', { name, disabled }),
+
+  refreshAuthFile: (name: string) =>
+    apiClient.post<AuthFileRefreshResponse>('/auth-files/refresh', { name }),
 
   patchFields: (name: string, fields: AuthFilePatchFields) =>
     apiClient.patch<{ status: string }>('/auth-files/fields', { name, ...fields }),

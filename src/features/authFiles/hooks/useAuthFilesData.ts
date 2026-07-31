@@ -33,6 +33,7 @@ export type UseAuthFilesDataResult = {
   uploading: boolean;
   deleting: string | null;
   deletingAll: boolean;
+  refreshing: string | null;
   statusUpdating: Record<string, boolean>;
   batchStatusUpdating: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -42,6 +43,7 @@ export type UseAuthFilesDataResult = {
   handleDelete: (name: string) => void;
   handleDeleteAll: (options: DeleteAllOptions) => void;
   handleDownload: (name: string) => Promise<void>;
+  handleRefresh: (name: string) => Promise<void>;
   handleStatusToggle: (item: AuthFileItem, enabled: boolean) => Promise<void>;
   toggleSelect: (name: string) => void;
   selectAllVisible: (visibleFiles: AuthFileItem[]) => void;
@@ -68,6 +70,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [refreshing, setRefreshing] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({});
   const [batchStatusUpdating, setBatchStatusUpdating] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -439,6 +442,30 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     [showNotification, t]
   );
 
+  const handleRefresh = useCallback(
+    async (name: string) => {
+      setRefreshing(name);
+      try {
+        const result = await authFilesApi.refreshAuthFile(name);
+        if (result?.ok) {
+          showNotification(t('auth_files.refresh_success'), 'success');
+        } else if (result?.status === 'disabled') {
+          showNotification(t('auth_files.refresh_disabled'), 'warning');
+        } else {
+          const reason = result?.error ? `: ${result.error}` : '';
+          showNotification(`${t('notification.refresh_failed')}${reason}`, 'error');
+        }
+        await loadFiles();
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        showNotification(`${t('notification.refresh_failed')}: ${errorMessage}`, 'error');
+      } finally {
+        setRefreshing(null);
+      }
+    },
+    [loadFiles, showNotification, t]
+  );
+
   const handleStatusToggle = useCallback(
     async (item: AuthFileItem, enabled: boolean) => {
       const name = item.name;
@@ -677,6 +704,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     uploading,
     deleting,
     deletingAll,
+    refreshing,
     statusUpdating,
     batchStatusUpdating,
     fileInputRef,
@@ -686,6 +714,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     handleDelete,
     handleDeleteAll,
     handleDownload,
+    handleRefresh,
     handleStatusToggle,
     toggleSelect,
     selectAllVisible,
