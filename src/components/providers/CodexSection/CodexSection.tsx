@@ -6,7 +6,7 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import iconCodex from '@/assets/icons/codex.svg';
 import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
+import { calculateStatusBarData, formatCompactNumber, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import { resolveStatusBarPreferApiKeyUsage } from '@/utils/apiKeyUsageLookup';
 import type { ApiKeyUsageMap } from '@/services/api';
@@ -213,6 +213,10 @@ export function CodexSection({
                   </span>
                   <span className={`${styles.statPill} ${styles.statFailure}`}>
                     {t('stats.failure')}: {stats.failure}
+                  </span>
+                  <span className={`${styles.statPill} ${styles.statTokens}`}>
+                    {t('stats.tokens')}:{' '}
+                    {stats.tokens == null ? '-' : formatCompactNumber(stats.tokens)}
                   </span>
                 </div>
                 <ProviderStatusBar statusData={statusData} />

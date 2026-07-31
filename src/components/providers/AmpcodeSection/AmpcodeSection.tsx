@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import iconAmp from '@/assets/icons/amp.svg';
 import type { AmpcodeConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
+import { calculateStatusBarData, formatCompactNumber, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderStatusBar } from '../ProviderStatusBar';
@@ -55,9 +55,10 @@ export function AmpcodeSection({
           const current = getStatsForIdentity({ apiKey }, keyStats);
           total.success += current.success;
           total.failure += current.failure;
+          total.tokens += current.tokens ?? 0;
           return total;
         },
-        { success: 0, failure: 0 }
+        { success: 0, failure: 0, tokens: 0 }
       ),
     [keyStats, upstreamApiKeys]
   );
@@ -140,6 +141,10 @@ export function AmpcodeSection({
                   </span>
                   <span className={`${styles.statPill} ${styles.statFailure}`}>
                     {t('stats.failure')}: {stats.failure}
+                  </span>
+                  <span className={`${styles.statPill} ${styles.statTokens}`}>
+                    {t('stats.tokens')}:{' '}
+                    {stats.tokens == null ? '-' : formatCompactNumber(stats.tokens)}
                   </span>
                 </div>
                 <ProviderStatusBar statusData={statusData} />

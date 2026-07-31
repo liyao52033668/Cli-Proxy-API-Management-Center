@@ -17,7 +17,7 @@ import iconOpenaiLight from '@/assets/icons/openai-light.svg';
 import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
 import type { OpenAIProviderConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
+import { calculateStatusBarData, formatCompactNumber, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import { resolveStatusBarPreferApiKeyUsage } from '@/utils/apiKeyUsageLookup';
 import type { ApiKeyUsageMap } from '@/services/api';
@@ -885,6 +885,11 @@ export function OpenAISection({
                         >
                           <IconX size={12} /> {entryStats.failure}
                         </span>
+                        <span
+                          className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatTokens}`}
+                        >
+                          {entryStats.tokens == null ? '-' : formatCompactNumber(entryStats.tokens)}
+                        </span>
                       </div>
                     </div>
                   );
@@ -921,6 +926,9 @@ export function OpenAISection({
             </span>
             <span className={`${styles.statPill} ${styles.statFailure}`}>
               {t('stats.failure')}: {stats.failure}
+            </span>
+            <span className={`${styles.statPill} ${styles.statTokens}`}>
+              {t('stats.tokens')}: {stats.tokens == null ? '-' : formatCompactNumber(stats.tokens)}
             </span>
             {isDeepseek && deepseekApiKeys.length > 0 && (
               <span className={`${styles.statPill} ${styles.statBalance}`}>

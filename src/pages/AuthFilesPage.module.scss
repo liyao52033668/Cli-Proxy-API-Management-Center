@@ -1148,6 +1148,11 @@
   color: var(--failure-badge-text);
 }
 
+.statTokens {
+  background: color-mix(in srgb, #fef3c7 50%, transparent);
+  color: #92400e;
+}
+
 .statusPanel {
   display: flex;
   flex-direction: column;

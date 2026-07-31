@@ -1394,7 +1394,8 @@
   },
   "stats": {
     "success": "Success",
-    "failure": "Failure"
+    "failure": "Failure",
+    "tokens": "Tokens"
   },
   "status_bar": {
     "success_short": "✓",

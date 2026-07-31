@@ -1385,7 +1385,8 @@
   },
   "stats": {
     "success": "Успех",
-    "failure": "Сбой"
+    "failure": "Сбой",
+    "tokens": "Токены"
   },
   "status_bar": {
     "success_short": "✓",

@@ -127,14 +127,16 @@ export const getStatsBySource = (
 
   let success = 0;
   let failure = 0;
+  let tokens = 0;
   candidates.forEach((candidate) => {
     const stats = bySource[candidate];
     if (!stats) return;
     success += stats.success;
     failure += stats.failure;
+    tokens += stats.tokens ?? 0;
   });
 
-  return { success, failure };
+  return { success, failure, tokens };
 };
 
 type UsageIdentity = {
@@ -151,7 +153,7 @@ export const getStatsForIdentity = (
   if (authIndexKey) {
     const stats = keyStats.byAuthIndex?.[authIndexKey];
     if (stats) {
-      return { success: stats.success, failure: stats.failure };
+      return { success: stats.success, failure: stats.failure, tokens: stats.tokens };
     }
   }
 
@@ -208,28 +210,31 @@ export const getOpenAIProviderStats = (
 ): KeyStatBucket => {
   let success = 0;
   let failure = 0;
+  let tokens = 0;
 
   if (!provider.apiKeyEntries?.length) {
     const stats = getStatsForIdentity(
       { authIndex: provider.authIndex, prefix: provider.prefix },
       keyStats
     );
-    return { success: stats.success, failure: stats.failure };
+    return { success: stats.success, failure: stats.failure, tokens: stats.tokens };
   }
 
   if (!normalizeAuthIndex(provider.authIndex) && provider.prefix) {
     const prefixStats = getStatsBySource('', keyStats, provider.prefix);
     success += prefixStats.success;
     failure += prefixStats.failure;
+    tokens += prefixStats.tokens ?? 0;
   }
 
   provider.apiKeyEntries.forEach((entry) => {
     const stats = getStatsForIdentity({ authIndex: entry.authIndex, apiKey: entry.apiKey }, keyStats);
     success += stats.success;
     failure += stats.failure;
+    tokens += stats.tokens ?? 0;
   });
 
-  return { success, failure };
+  return { success, failure, tokens };
 };
 
 export const collectOpenAIProviderUsageDetails = (

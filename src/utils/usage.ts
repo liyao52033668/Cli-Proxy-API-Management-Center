@@ -2016,7 +2016,7 @@ export function computeKeyStatsFromDetails(usageDetails: UsageDetail[]): KeyStat
 
   const ensureBucket = (bucket: Record<string, KeyStatBucket>, key: string) => {
     if (!bucket[key]) {
-      bucket[key] = { success: 0, failure: 0 };
+      bucket[key] = { success: 0, failure: 0, tokens: 0 };
     }
     return bucket[key];
   };
@@ -2025,6 +2025,7 @@ export function computeKeyStatsFromDetails(usageDetails: UsageDetail[]): KeyStat
     const source = detail.source;
     const authIndexKey = normalizeAuthIndex(detail.auth_index);
     const isFailed = detail.failed === true;
+    const detailTokens = detail.tokens?.total_tokens ?? 0;
 
     if (source) {
       const bucket = ensureBucket(bySource, source);
@@ -2033,6 +2034,7 @@ export function computeKeyStatsFromDetails(usageDetails: UsageDetail[]): KeyStat
       } else {
         bucket.success += 1;
       }
+      bucket.tokens = (bucket.tokens ?? 0) + detailTokens;
     }
 
     if (authIndexKey) {
@@ -2042,6 +2044,7 @@ export function computeKeyStatsFromDetails(usageDetails: UsageDetail[]): KeyStat
       } else {
         bucket.success += 1;
       }
+      bucket.tokens = (bucket.tokens ?? 0) + detailTokens;
     }
   });
 

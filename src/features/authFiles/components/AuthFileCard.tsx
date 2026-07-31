@@ -13,7 +13,12 @@ import {
 import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
 import { resolveAuthProvider } from '@/utils/quota';
-import { calculateStatusBarData, normalizeAuthIndex, type KeyStats } from '@/utils/usage';
+import {
+  calculateStatusBarData,
+  formatCompactNumber,
+  normalizeAuthIndex,
+  type KeyStats,
+} from '@/utils/usage';
 import {
   calculateStatusBarDataFromRecentRequests,
   extractRecentRequestBuckets,
@@ -242,6 +247,12 @@ export function AuthFileCard(props: AuthFileCardProps) {
               <div className={`${styles.statPill} ${styles.statFailure}`}>
                 <span className={styles.statLabel}>{t('stats.failure')}</span>
                 <span className={styles.statValue}>{fileStats.failure}</span>
+              </div>
+              <div className={`${styles.statPill} ${styles.statTokens}`}>
+                <span className={styles.statLabel}>{t('stats.tokens')}</span>
+                <span className={styles.statValue}>
+                  {fileStats.tokens == null ? '-' : formatCompactNumber(fileStats.tokens)}
+                </span>
               </div>
             </div>
 

@@ -1398,7 +1398,8 @@
   },
   "stats": {
     "success": "成功",
-    "failure": "失败"
+    "failure": "失败",
+    "tokens": "Token"
   },
   "status_bar": {
     "success_short": "✓",

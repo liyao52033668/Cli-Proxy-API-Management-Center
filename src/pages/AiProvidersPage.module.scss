@@ -608,6 +608,12 @@ $openai-toolbar-control-height: 36px;
   border-color: var(--failure-badge-border);
 }
 
+.statTokens {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
 .statBalance {
   background-color: var(--info-badge-bg, var(--bg-tertiary));
   color: var(--info-badge-text, var(--info-color));
@@ -850,6 +856,11 @@ $openai-toolbar-control-height: 36px;
 .apiKeyEntryStatFailure {
   background: var(--failure-badge-bg);
   color: var(--failure-badge-text);
+}
+
+.apiKeyEntryStatTokens {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 // OpenAI 模型发现（二级界面）

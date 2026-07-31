@@ -1414,7 +1414,8 @@
   },
   "stats": {
     "success": "成功",
-    "failure": "失敗"
+    "failure": "失敗",
+    "tokens": "Token"
   },
   "status_bar": {
     "success_short": "✓",
