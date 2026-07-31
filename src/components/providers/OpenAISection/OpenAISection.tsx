@@ -21,6 +21,7 @@ import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import { resolveStatusBarPreferApiKeyUsage } from '@/utils/apiKeyUsageLookup';
 import type { ApiKeyUsageMap } from '@/services/api';
+import { apiCallApi } from '@/services/api';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderStatusBar } from '../ProviderStatusBar';
 import { CopyableModelTag } from '../CopyableModelTag';
@@ -31,6 +32,12 @@ import {
   getOpenAIProviderStats,
   getStatsForIdentity,
 } from '../utils';
+import {
+  fetchDeepseekBalance,
+  formatDeepseekBalance,
+  isDeepseekBaseUrl,
+  type DeepseekBalanceState,
+} from './deepseekBalance';
 
 interface FloatingToolbarStyle {
   left: number;
@@ -109,6 +116,12 @@ export function OpenAISection({
     visible: false,
   });
   const [isFloatingToolbarExpanded, setIsFloatingToolbarExpanded] = useState(false);
+
+  // DeepSeek 余额查询状态（按 provider key 缓存）
+  const [deepseekBalanceByKey, setDeepseekBalanceByKey] = useState<
+    Record<string, DeepseekBalanceState>
+  >({});
+  const deepseekRequestIdsRef = useRef<Record<string, number>>({});
 
   const sectionRef = useRef<HTMLDivElement>(null);
   const topToolbarAnchorRef = useRef<HTMLDivElement>(null);
@@ -389,6 +402,52 @@ export function OpenAISection({
 
     return cache;
   }, [apiKeyUsage, configs, usageDetailsByAuthIndex, usageDetailsBySource]);
+
+  // DeepSeek 余额：收集 baseUrl 为 api.deepseek.com 的提供商及其密钥
+  const deepseekTargets = useMemo(() => {
+    const targets: Array<{ providerKey: string; apiKeys: string[] }> = [];
+    configs.forEach((provider, index) => {
+      if (!isDeepseekBaseUrl(provider.baseUrl)) return;
+      const apiKeys = (provider.apiKeyEntries || [])
+        .map((entry) => entry.apiKey.trim())
+        .filter(Boolean);
+      if (apiKeys.length === 0) return;
+      targets.push({ providerKey: getOpenAIProviderKey(provider, index), apiKeys });
+    });
+    return targets;
+  }, [configs]);
+
+  useEffect(() => {
+    const targetKeys = new Set(deepseekTargets.map((target) => target.providerKey));
+
+    // 清理已不再是 deepseek 的提供商余额
+    setDeepseekBalanceByKey((prev) => {
+      const hasStale = Object.keys(prev).some((key) => !targetKeys.has(key));
+      if (!hasStale) return prev;
+      const next: Record<string, DeepseekBalanceState> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        if (targetKeys.has(key)) next[key] = value;
+      }
+      return next;
+    });
+
+    deepseekTargets.forEach(({ providerKey, apiKeys }) => {
+      const requestId = (deepseekRequestIdsRef.current[providerKey] ?? 0) + 1;
+      deepseekRequestIdsRef.current[providerKey] = requestId;
+
+      setDeepseekBalanceByKey((prev) => ({
+        ...prev,
+        [providerKey]: { status: 'loading' },
+      }));
+
+      void fetchDeepseekBalance(apiKeys, (payload) => apiCallApi.request(payload)).then((state) => {
+        if (deepseekRequestIdsRef.current[providerKey] !== requestId) {
+          return;
+        }
+        setDeepseekBalanceByKey((prev) => ({ ...prev, [providerKey]: state }));
+      });
+    });
+  }, [deepseekTargets]);
 
   // 过滤后的配置列表
   const filteredConfigs = useMemo<IndexedOpenAIProvider[]>(() => {
@@ -741,8 +800,13 @@ export function OpenAISection({
           hour12: false,
         }).format(new Date(provider.updatedAt))
       : null;
-    const statusData =
-      statusBarCache.get(getOpenAIProviderKey(provider, originalIndex)) || EMPTY_STATUS_BAR;
+    const providerKey = getOpenAIProviderKey(provider, originalIndex);
+    const isDeepseek = isDeepseekBaseUrl(provider.baseUrl);
+    const deepseekApiKeys = (provider.apiKeyEntries || [])
+      .map((entry) => entry.apiKey.trim())
+      .filter(Boolean);
+    const deepseekBalance = deepseekBalanceByKey[providerKey];
+    const statusData = statusBarCache.get(providerKey) || EMPTY_STATUS_BAR;
 
     return (
       <div
@@ -858,6 +922,19 @@ export function OpenAISection({
             <span className={`${styles.statPill} ${styles.statFailure}`}>
               {t('stats.failure')}: {stats.failure}
             </span>
+            {isDeepseek && deepseekApiKeys.length > 0 && (
+              <span className={`${styles.statPill} ${styles.statBalance}`}>
+                {deepseekBalance?.status === 'success' && deepseekBalance.balances.length > 0
+                  ? `${t('ai_providers.deepseek_balance')}: ${deepseekBalance.balances
+                      .map(formatDeepseekBalance)
+                      .join(' / ')}`
+                  : deepseekBalance?.status === 'error'
+                    ? `${t('ai_providers.deepseek_balance')}: ${t(
+                        'ai_providers.deepseek_balance_failed'
+                      )}`
+                    : `${t('ai_providers.deepseek_balance')}: ${t('common.loading')}`}
+              </span>
+            )}
           </div>
           <ProviderStatusBar statusData={statusData} />
         </div>

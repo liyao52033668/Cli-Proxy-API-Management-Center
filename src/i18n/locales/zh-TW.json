@@ -477,6 +477,8 @@
     "openai_force_stream_label": "強制上游串流",
     "openai_force_stream_hint": "適用於只接受 stream=true 的渠道。下游非串流請求會在後端聚合後返回。",
     "openai_keys_count": "金鑰數量",
+    "deepseek_balance": "餘額",
+    "deepseek_balance_failed": "取得失敗",
     "openai_models_count": "模型數量",
     "openai_test_title": "連通性測試",
     "openai_test_hint": "使用目前設定向 /chat/completions 請求，驗證是否可用。",

@@ -477,6 +477,8 @@
     "openai_force_stream_label": "Force upstream streaming",
     "openai_force_stream_hint": "Use for providers that only accept stream=true. Non-streaming downstream requests are aggregated by the backend before returning.",
     "openai_keys_count": "Keys Count",
+    "deepseek_balance": "Balance",
+    "deepseek_balance_failed": "Failed",
     "openai_models_count": "Models Count",
     "openai_test_title": "Connection Test",
     "openai_test_hint": "Send a /chat/completions request with the current settings to verify availability.",

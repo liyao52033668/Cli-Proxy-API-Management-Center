@@ -608,6 +608,12 @@ $openai-toolbar-control-height: 36px;
   border-color: var(--failure-badge-border);
 }
 
+.statBalance {
+  background-color: var(--info-badge-bg, var(--bg-tertiary));
+  color: var(--info-badge-text, var(--info-color));
+  border-color: var(--info-badge-border, var(--info-color));
+}
+
 // 字段行样式：标签 + 值
 .fieldRow {
   display: flex;
