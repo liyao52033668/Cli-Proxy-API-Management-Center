@@ -1641,7 +1641,9 @@
           "enable_gemini_cli_endpoint": "Enable Gemini CLI endpoint",
           "enable_gemini_cli_endpoint_desc": "Enable the proxy endpoint compatible with Gemini CLI",
           "disable_utls": "Disable uTLS",
-          "disable_utls_desc": "Use the standard Go TLS stack instead of the Chrome-like uTLS fingerprint for Anthropic HTTPS requests"
+          "disable_utls_desc": "Use the standard Go TLS stack instead of the Chrome-like uTLS fingerprint for Anthropic HTTPS requests",
+          "inject_x_search": "Inject x_search tool",
+          "inject_x_search_desc": "Inject xAI's native x_search tool when the request does not declare it"
         },
         "quota": {
           "title": "Quota Fallback",

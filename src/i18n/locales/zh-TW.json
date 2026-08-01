@@ -1661,7 +1661,9 @@
           "enable_gemini_cli_endpoint": "啟用 Gemini CLI 端點",
           "enable_gemini_cli_endpoint_desc": "啟用相容 Gemini CLI 的代理端點",
           "disable_utls": "停用 uTLS",
-          "disable_utls_desc": "Anthropic HTTPS 請求改用標準 Go TLS，而不是類似 Chrome 的 uTLS 指紋"
+          "disable_utls_desc": "Anthropic HTTPS 請求改用標準 Go TLS，而不是類似 Chrome 的 uTLS 指紋",
+          "inject_x_search": "注入 x_search 工具",
+          "inject_x_search_desc": "請求未聲明 x_search 工具時，自動注入 xAI 的原生 x_search 工具"
         },
         "quota": {
           "title": "配額回退",

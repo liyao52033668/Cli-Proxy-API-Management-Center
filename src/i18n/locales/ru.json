@@ -1634,7 +1634,9 @@
           "enable_gemini_cli_endpoint": "Включить endpoint Gemini CLI",
           "enable_gemini_cli_endpoint_desc": "Включить прокси-endpoint, совместимый с Gemini CLI",
           "disable_utls": "Отключить uTLS",
-          "disable_utls_desc": "Использовать стандартный стек Go TLS вместо отпечатка uTLS, имитирующего Chrome, для HTTPS-запросов Anthropic"
+          "disable_utls_desc": "Использовать стандартный стек Go TLS вместо отпечатка uTLS, имитирующего Chrome, для HTTPS-запросов Anthropic",
+          "inject_x_search": "Внедрять инструмент x_search",
+          "inject_x_search_desc": "Внедрять нативный инструмент x_search от xAI, если запрос не объявляет его"
         },
         "quota": {
           "title": "Резерв по квоте",

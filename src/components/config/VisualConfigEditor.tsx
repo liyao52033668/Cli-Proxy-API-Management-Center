@@ -980,6 +980,13 @@ export function VisualConfigEditor({
                   disabled={disabled}
                   onChange={(disableUtls) => onChange({ disableUtls })}
                 />
+                <ToggleRow
+                  title={t('config_management.visual.sections.network.inject_x_search')}
+                  description={t('config_management.visual.sections.network.inject_x_search_desc')}
+                  checked={values.xaiInjectXSearch}
+                  disabled={disabled}
+                  onChange={(xaiInjectXSearch) => onChange({ xaiInjectXSearch })}
+                />
               </SectionGrid>
             </SectionStack>
           </ConfigSection>

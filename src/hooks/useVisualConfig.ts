@@ -717,6 +717,12 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'wsAuth')) {
     updateDirty('wsAuth', nextValues.wsAuth === baselineValues.wsAuth);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'xaiInjectXSearch')) {
+    updateDirty(
+      'xaiInjectXSearch',
+      nextValues.xaiInjectXSearch === baselineValues.xaiInjectXSearch
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'quotaSwitchProject')) {
     updateDirty(
       'quotaSwitchProject',
@@ -887,6 +893,7 @@ export function useVisualConfig() {
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
+      const xai = asRecord(parsed.xai);
 
       const newValues: VisualConfigValues = {
         host: typeof parsed.host === 'string' ? parsed.host : '',
@@ -943,6 +950,7 @@ export function useVisualConfig() {
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
         disableCooling: Boolean(parsed['disable-cooling']),
         wsAuth: Boolean(parsed['ws-auth']),
+        xaiInjectXSearch: Boolean(xai?.['inject-x-search']),
 
         quotaSwitchProject: Boolean(quotaExceeded?.['switch-project'] ?? true),
         quotaSwitchPreviewModel: Boolean(quotaExceeded?.['switch-preview-model'] ?? true),
@@ -1101,6 +1109,12 @@ export function useVisualConfig() {
         setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
         setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
         setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
+
+        if (docHas(doc, ['xai']) || values.xaiInjectXSearch) {
+          ensureMapInDoc(doc, ['xai']);
+          setBooleanInDoc(doc, ['xai', 'inject-x-search'], values.xaiInjectXSearch);
+          deleteIfMapEmpty(doc, ['xai']);
+        }
 
         if (
           docHas(doc, ['quota-exceeded']) ||
