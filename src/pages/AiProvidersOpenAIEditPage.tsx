@@ -844,6 +844,22 @@ export function AiProvidersOpenAIEditPage() {
                 </div>
               </div>
             </div>
+            <div className={styles.modelConfigSection}>
+              <div className={styles.modelConfigHeader}>
+                <div>
+                  <label className={styles.modelConfigTitle}>{t('ai_providers.openai_support_prompt_cache_key_label')}</label>
+                  <div className={styles.sectionHint}>{t('ai_providers.openai_support_prompt_cache_key_hint')}</div>
+                </div>
+                <div className={styles.modelConfigToolbar}>
+                  <ToggleSwitch
+                    checked={Boolean(form.supportPromptCacheKey)}
+                    onChange={(enabled) => setForm((prev) => ({ ...prev, supportPromptCacheKey: enabled }))}
+                    disabled={saving || disableControls || isTestingKeys}
+                    ariaLabel={t('ai_providers.openai_support_prompt_cache_key_label')}
+                  />
+                </div>
+              </div>
+            </div>
 
             <HeaderInputList
               entries={form.headers}

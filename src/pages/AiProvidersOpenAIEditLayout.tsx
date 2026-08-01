@@ -48,6 +48,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   baseUrl: '',
   disabled: false,
   forceStream: false,
+  supportPromptCacheKey: false,
   headers: [],
   apiKeyEntries: [buildApiKeyEntry()],
   modelEntries: [{ name: '', alias: '' }],
@@ -114,6 +115,7 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
   baseUrl: String(form.baseUrl ?? '').trim(),
   disabled: Boolean(form.disabled),
   forceStream: Boolean(form.forceStream),
+  supportPromptCacheKey: Boolean(form.supportPromptCacheKey),
   headers: normalizeHeaderEntries(form.headers),
   apiKeyEntries: normalizeApiKeyEntries(form.apiKeyEntries),
   models: normalizeModelEntries(form.modelEntries),
@@ -306,6 +308,7 @@ export function AiProvidersOpenAIEditLayout() {
         baseUrl: initialData.baseUrl,
         disabled: Boolean(initialData.disabled),
         forceStream: Boolean(initialData.forceStream),
+        supportPromptCacheKey: Boolean(initialData.supportPromptCacheKey),
         updatedAt: initialData.updatedAt,
         headers: headersToEntries(initialData.headers),
         testModel: initialData.testModel,
@@ -433,6 +436,7 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.baseUrl !== form.baseUrl.trim() ||
       baseline.disabled !== Boolean(form.disabled) ||
       baseline.forceStream !== Boolean(form.forceStream) ||
+      baseline.supportPromptCacheKey !== Boolean(form.supportPromptCacheKey) ||
       baseline.testModel !== normalizedTestModel ||
       isHeadersDirty ||
       isApiKeyEntriesDirty ||
@@ -479,6 +483,7 @@ export function AiProvidersOpenAIEditLayout() {
         baseUrl,
         disabled: Boolean(form.disabled),
         forceStream: Boolean(form.forceStream),
+        supportPromptCacheKey: Boolean(form.supportPromptCacheKey),
         headers: buildHeaderObject(form.headers),
         apiKeyEntries: form.apiKeyEntries.map((entry: ApiKeyEntry) => ({
           apiKey: entry.apiKey.trim(),

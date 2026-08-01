@@ -58,6 +58,7 @@ export interface OpenAIProviderConfig {
   models?: ModelAlias[];
   disabled?: boolean;
   forceStream?: boolean;
+  supportPromptCacheKey?: boolean;
   updatedAt?: string;
   priority?: number;
   testModel?: string;

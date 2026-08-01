@@ -14,6 +14,7 @@ export interface OpenAIFormState {
   baseUrl: string;
   disabled: boolean;
   forceStream: boolean;
+  supportPromptCacheKey: boolean;
   updatedAt?: string;
   headers: HeaderEntry[];
   testModel?: string;

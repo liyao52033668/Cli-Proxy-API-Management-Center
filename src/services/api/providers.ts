@@ -151,6 +151,8 @@ const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
   if (models && models.length) payload.models = models;
   if (provider.disabled !== undefined) payload.disabled = provider.disabled;
   if (provider.forceStream !== undefined) payload['force-stream'] = provider.forceStream;
+  if (provider.supportPromptCacheKey !== undefined)
+    payload['support-prompt-cache-key'] = provider.supportPromptCacheKey;
   if (provider.priority !== undefined) payload.priority = provider.priority;
   if (provider.testModel) payload['test-model'] = provider.testModel;
   return payload;

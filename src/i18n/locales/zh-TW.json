@@ -476,6 +476,8 @@
     "openai_delete_confirm": "確定要刪除這個 OpenAI 供應商嗎？",
     "openai_force_stream_label": "強制上游串流",
     "openai_force_stream_hint": "適用於只接受 stream=true 的渠道。下游非串流請求會在後端聚合後返回。",
+    "openai_support_prompt_cache_key_label": "派生 prompt_cache_key",
+    "openai_support_prompt_cache_key_hint": "為請求派生穩定的 prompt_cache_key，提升上游提示快取命中率。",
     "openai_keys_count": "金鑰數量",
     "deepseek_balance": "餘額",
     "deepseek_balance_failed": "取得失敗",
