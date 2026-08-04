@@ -1,0 +1,116 @@
+@use '../styles/mixins' as *;
+
+.policyPanel {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: $spacing-sm $spacing-md;
+  background: var(--bg-secondary);
+}
+
+.policyTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: $spacing-sm;
+}
+
+.policyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-sm $spacing-lg;
+}
+
+.policyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.policyLabel {
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.policyValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.switchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tableWrapper {
+  max-height: 480px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+}
+
+.ipCell {
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.statusBanned {
+  color: var(--error-color, #e5484d);
+  background: var(--error-bg, rgba(229, 72, 77, 0.12));
+}
+
+.statusWatching {
+  color: var(--warning-color, #f5a623);
+  background: var(--warning-bg, rgba(245, 166, 35, 0.12));
+}
+
+.statusEscalated {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}

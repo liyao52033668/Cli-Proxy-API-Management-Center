@@ -34,6 +34,7 @@ import {
   resolveStatusGroup,
   type LogState,
 } from './hooks/logTypes';
+import { AuthGuardPanel } from './AuthGuardPanel';
 import { parseLogLine } from './hooks/logParsing';
 import { useLogFilters } from './hooks/useLogFilters';
 import { isNearBottom, useLogScroller } from './hooks/useLogScroller';
@@ -62,7 +63,7 @@ const getErrorMessage = (err: unknown): string => {
   return typeof message === 'string' ? message : '';
 };
 
-type TabType = 'logs' | 'errors';
+type TabType = 'logs' | 'errors' | 'guard';
 
 export function LogsPage() {
   const { t } = useTranslation();
@@ -476,6 +477,13 @@ export function LogsPage() {
           onClick={() => setActiveTab('errors')}
         >
           {t('logs.error_logs_modal_title')}
+        </button>
+        <button
+          type="button"
+          className={`${styles.tabItem} ${activeTab === 'guard' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('guard')}
+        >
+          {t('logs.auth_guard_tab')}
         </button>
       </div>
 
@@ -915,6 +923,12 @@ export function LogsPage() {
                 )}
               </div>
             </div>
+          </Card>
+        )}
+
+        {activeTab === 'guard' && (
+          <Card>
+            <AuthGuardPanel />
           </Card>
         )}
       </div>
