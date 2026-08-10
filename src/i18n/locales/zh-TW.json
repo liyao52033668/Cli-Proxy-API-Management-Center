@@ -533,6 +533,7 @@
     "health_status_disabled": "已停用",
     "health_status_unknown": "未知",
     "health_status_no_message": "暫無狀態說明",
+    "health_status_client_fault": "憑證健康，請求被拒（請求方原因）：",
     "last_refresh_label": "最近重新整理",
     "refresh_not_available": "暫無",
     "refresh_just_now": "剛剛",

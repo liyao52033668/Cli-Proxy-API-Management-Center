@@ -1,4 +1,5 @@
 import type { AuthFileItem } from '../../types/authFile';
+import { CLIENT_REQUEST_FAULT_PREFIX } from './constants';
 
 export type AuthFileQuotaProblemState = {
   status?: string;
@@ -26,6 +27,11 @@ const getAuthFileStatusMessage = (file: AuthFileItem): string => {
 
 const hasStatusProblem = (file: AuthFileItem): boolean => {
   const message = getAuthFileStatusMessage(file);
+  // A client-side request fault leaves the credential healthy, so it must not be
+  // surfaced as a credential problem.
+  if (message.toLowerCase().startsWith(CLIENT_REQUEST_FAULT_PREFIX.toLowerCase())) {
+    return false;
+  }
   return Boolean(message) && !HEALTHY_STATUS_MESSAGES.has(message.toLowerCase());
 };
 

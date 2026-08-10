@@ -363,6 +363,17 @@ export const getAuthFileStatusMessage = (file: AuthFileItem): string => {
 export const hasAuthFileStatusMessage = (file: AuthFileItem): boolean =>
   getAuthFileStatusMessage(file).length > 0;
 
+/**
+ * Client-side request fault prefix emitted by the backend when a request is
+ * rejected for a request-shape reason (cyber_policy, context_length_exceeded,
+ * store=false item miss, ...). The credential itself stays healthy, so the UI
+ * must not treat these as a bad key.
+ */
+export const CLIENT_REQUEST_FAULT_PREFIX = 'request fault (client-side)';
+
+export const isClientRequestFaultStatusMessage = (message: string): boolean =>
+  message.trim().toLowerCase().startsWith(CLIENT_REQUEST_FAULT_PREFIX.toLowerCase());
+
 export const getTypeLabel = (t: TFunction, type: string): string => {
   const key = `auth_files.filter_${type}`;
   const translated = t(key);

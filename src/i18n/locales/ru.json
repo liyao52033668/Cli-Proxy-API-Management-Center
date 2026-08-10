@@ -533,6 +533,7 @@
     "health_status_disabled": "Отключено",
     "health_status_unknown": "Неизвестно",
     "health_status_no_message": "Нет сообщения о статусе",
+    "health_status_client_fault": "Учётные данные в порядке, запрос отклонён (по вине запроса): ",
     "last_refresh_label": "Последнее обновление",
     "refresh_not_available": "Н/Д",
     "refresh_just_now": "Только что",

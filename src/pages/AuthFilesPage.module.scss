@@ -1081,6 +1081,19 @@
   margin-top: 1px;
 }
 
+.clientRequestFaultMessage {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--info-text, var(--text-secondary));
+  background-color: color-mix(in srgb, var(--info-bg, var(--accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info-border, var(--accent)) 30%, transparent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  word-break: break-word;
+}
+
 .cardInsights {
   display: flex;
   flex-direction: column;

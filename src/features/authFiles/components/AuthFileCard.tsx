@@ -26,11 +26,13 @@ import {
 } from '@/utils/statusBarFromRecentRequests';
 import { formatFileSize } from '@/utils/format';
 import {
+  CLIENT_REQUEST_FAULT_PREFIX,
   formatModified,
   getAuthFileIcon,
   getAuthFileStatusMessage,
   getTypeColor,
   getTypeLabel,
+  isClientRequestFaultStatusMessage,
   isRuntimeOnlyAuthFile,
   parsePriorityValue,
   resolveAuthFileStats,
@@ -133,8 +135,11 @@ export function AuthFileCard(props: AuthFileCardProps) {
       ? calculateStatusBarDataFromRecentRequests(recentBuckets)
       : (authIndexKey && statusBarCache.get(authIndexKey)) || calculateStatusBarData([]);
   const rawStatusMessage = getAuthFileStatusMessage(file);
+  const isClientRequestFault = isClientRequestFaultStatusMessage(rawStatusMessage);
   const hasStatusWarning =
-    Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
+    Boolean(rawStatusMessage) &&
+    !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase()) &&
+    !isClientRequestFault;
 
   const priorityValue = parsePriorityValue(file.priority ?? file['priority']);
   const noteValue = typeof file.note === 'string' ? file.note.trim() : '';
@@ -240,6 +245,19 @@ export function AuthFileCard(props: AuthFileCardProps) {
             <div className={styles.healthStatusMessage} title={rawStatusMessage}>
               <IconInfo className={styles.messageIcon} size={14} />
               <span>{rawStatusMessage}</span>
+            </div>
+          )}
+
+          {rawStatusMessage && isClientRequestFault && (
+            <div className={styles.clientRequestFaultMessage} title={rawStatusMessage}>
+              <IconInfo className={styles.messageIcon} size={14} />
+              <span>
+                {t('auth_files.health_status_client_fault')}
+                {rawStatusMessage.replace(
+                  new RegExp(`^${CLIENT_REQUEST_FAULT_PREFIX}\\s*`, 'i'),
+                  '',
+                )}
+              </span>
             </div>
           )}
 

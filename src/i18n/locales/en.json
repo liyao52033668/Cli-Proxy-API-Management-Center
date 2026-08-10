@@ -533,6 +533,7 @@
     "health_status_disabled": "Disabled",
     "health_status_unknown": "Unknown",
     "health_status_no_message": "No status message",
+    "health_status_client_fault": "Credential healthy, request rejected (client-side): ",
     "last_refresh_label": "Last Refresh",
     "refresh_not_available": "N/A",
     "refresh_just_now": "Just now",
