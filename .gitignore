@@ -35,3 +35,4 @@ settings.local.json
 *.sln
 *.sw?
 /.claude/*
+.codegraph/
