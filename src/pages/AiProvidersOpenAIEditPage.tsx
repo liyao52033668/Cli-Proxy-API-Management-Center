@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
@@ -7,7 +7,6 @@ import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { Input } from '@/components/ui/Input';
 import { ModelInputList } from '@/components/ui/ModelInputList';
-import { Select } from '@/components/ui/Select';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useNotificationStore } from '@/stores';
@@ -15,8 +14,12 @@ import { apiCallApi, getApiCallErrorMessage } from '@/services/api';
 import type { ApiKeyEntry } from '@/types';
 import { buildHeaderObject, hasHeader } from '@/utils/headers';
 import { buildApiKeyEntry, buildOpenAIChatCompletionsEndpoint } from '@/components/providers/utils';
+import {
+  ModelStatusIcon,
+  ProviderConnectivityTestPanel,
+  useProviderConnectivityTest,
+} from '@/components/providers';
 import type { OpenAIEditOutletContext } from './AiProvidersOpenAIEditLayout';
-import type { KeyTestStatus } from '@/stores/useOpenAIEditDraftStore';
 import styles from './AiProvidersPage.module.scss';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 
@@ -41,79 +44,11 @@ type KeyTestResult = {
   completed: boolean;
 };
 
-type ModelTestStatus = 'loading' | 'success';
-
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
   return '';
 };
-
-// Status icon components
-function StatusLoadingIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
-      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      <path
-        d="M8 1A7 7 0 0 1 8 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function StatusSuccessIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
-      <path
-        d="M4.5 8L7 10.5L11.5 6"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusErrorIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--danger-color, #c65746)" />
-      <path
-        d="M5 5L11 11M11 5L5 11"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusIdleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="7" stroke="var(--text-tertiary, #9ca3af)" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function StatusIcon({ status }: { status: KeyTestStatus['status'] }) {
-  switch (status) {
-    case 'loading':
-      return <StatusLoadingIcon />;
-    case 'success':
-      return <StatusSuccessIcon />;
-    case 'error':
-      return <StatusErrorIcon />;
-    default:
-      return <StatusIdleIcon />;
-  }
-}
 
 export function AiProvidersOpenAIEditPage() {
   const { t } = useTranslation();
@@ -147,9 +82,28 @@ export function AiProvidersOpenAIEditPage() {
     : t('ai_providers.openai_add_modal_title');
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
-  const [isTestingKeys, setIsTestingKeys] = useState(false);
-  const [modelTestStatuses, setModelTestStatuses] = useState<Record<string, ModelTestStatus>>({});
-  const skipConnectivityResetRef = useRef(false);
+
+  const {
+    modelTestStatuses,
+    setModelTestStatuses,
+    isTesting: isTestingKeys,
+    setIsTesting: setIsTestingKeys,
+    modelSelectOptions,
+    markSkipConnectivityReset,
+    removeModelEntryByName,
+    selectNextModel,
+  } = useProviderConnectivityTest({
+    form,
+    setForm,
+    testModel,
+    setTestModel,
+    testStatus,
+    setTestStatus,
+    testMessage,
+    setTestMessage,
+    extraSignature: [form.baseUrl.trim(), String(form.forceStream), form.headers.map((e) => `${e.key.trim()}:${e.value.trim()}`).join('|')].join('||'),
+    onReset: () => resetDraftKeyTestStatuses(form.apiKeyEntries.length),
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -179,93 +133,6 @@ export function AiProvidersOpenAIEditPage() {
   }, [form.updatedAt]);
   const hasConfiguredModels = form.modelEntries.some((entry) => entry.name.trim());
   const hasTestableKeys = form.apiKeyEntries.some((entry) => entry.apiKey?.trim());
-  const modelSelectOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return form.modelEntries.reduce<Array<{ value: string; label: string }>>((acc, entry) => {
-      const name = entry.name.trim();
-      if (!name || seen.has(name)) return acc;
-      seen.add(name);
-      const alias = entry.alias.trim();
-      acc.push({
-        value: name,
-        label: alias && alias !== name ? `${name} (${alias})` : name,
-      });
-      return acc;
-    }, []);
-  }, [form.modelEntries]);
-  const connectivityConfigSignature = useMemo(() => {
-    const headersSignature = form.headers
-      .map((entry) => `${entry.key.trim()}:${entry.value.trim()}`)
-      .join('|');
-    const modelsSignature = form.modelEntries
-      .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
-      .join('|');
-    return [form.baseUrl.trim(), String(form.forceStream), testModel.trim(), headersSignature, modelsSignature].join('||');
-  }, [form.baseUrl, form.forceStream, form.headers, form.modelEntries, testModel]);
-  const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
-
-  useEffect(() => {
-    if (previousConnectivityConfigRef.current === connectivityConfigSignature) {
-      return;
-    }
-    previousConnectivityConfigRef.current = connectivityConfigSignature;
-    if (skipConnectivityResetRef.current) {
-      skipConnectivityResetRef.current = false;
-      return;
-    }
-    resetDraftKeyTestStatuses(form.apiKeyEntries.length);
-    setModelTestStatuses({});
-    setTestStatus('idle');
-    setTestMessage('');
-  }, [
-    connectivityConfigSignature,
-    form.apiKeyEntries.length,
-    resetDraftKeyTestStatuses,
-    setTestStatus,
-    setTestMessage,
-  ]);
-
-  const removeModelEntryByName = useCallback(
-    (modelName: string) => {
-      const normalizedModelName = modelName.trim();
-      if (!normalizedModelName) return;
-
-      const next = form.modelEntries.filter((entry) => entry.name.trim() !== normalizedModelName);
-      const nextModelEntries = next.length ? next : [{ name: '', alias: '' }];
-      const nextTestModel =
-        nextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
-
-      skipConnectivityResetRef.current = true;
-      setForm((prev) => {
-        return {
-          ...prev,
-          modelEntries: nextModelEntries,
-        };
-      });
-      setModelTestStatuses((prev) => {
-        const nextStatuses = { ...prev };
-        delete nextStatuses[normalizedModelName];
-        return nextStatuses;
-      });
-      setTestModel(nextTestModel);
-    },
-    [form.modelEntries, setForm, setTestModel]
-  );
-
-  const selectNextModel = useCallback(
-    (currentModelName: string) => {
-      const modelNames = form.modelEntries
-        .map((entry) => entry.name.trim())
-        .filter(Boolean);
-      const currentIndex = modelNames.findIndex((name) => name === currentModelName.trim());
-      const nextModel = currentIndex >= 0 ? modelNames[currentIndex + 1] : modelNames[0];
-      if (nextModel) {
-        skipConnectivityResetRef.current = true;
-        setTestModel(nextModel);
-      }
-    },
-    [form.modelEntries, setTestModel]
-  );
 
   // Test a single key by index
   const runSingleKeyTest = useCallback(
@@ -519,7 +386,7 @@ export function AiProvidersOpenAIEditPage() {
     setTestStatus('loading');
     resetDraftKeyTestStatuses(form.apiKeyEntries.length);
 
-    const initialStatuses = modelEntries.reduce<Record<string, ModelTestStatus>>((acc, entry) => {
+    const initialStatuses = modelEntries.reduce<Record<string, 'loading' | 'success'>>((acc, entry) => {
       acc[entry.name.trim()] = 'loading';
       return acc;
     }, {});
@@ -532,7 +399,7 @@ export function AiProvidersOpenAIEditPage() {
     try {
       for (const entry of modelEntries) {
         const modelName = entry.name.trim();
-        skipConnectivityResetRef.current = true;
+        markSkipConnectivityReset();
         setTestModel(modelName);
         setTestMessage(t('ai_providers.openai_test_all_models_running', { model: modelName }));
 
@@ -543,7 +410,7 @@ export function AiProvidersOpenAIEditPage() {
         if (hasCompletedFailure) {
           failCount += 1;
           failedModels.add(modelName);
-          skipConnectivityResetRef.current = true;
+          markSkipConnectivityReset();
           setForm((prev) => ({
             ...prev,
             modelEntries: prev.modelEntries.filter((modelEntry) => modelEntry.name.trim() !== modelName),
@@ -568,7 +435,7 @@ export function AiProvidersOpenAIEditPage() {
       const nextTestModel =
         normalizedNextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
 
-      skipConnectivityResetRef.current = true;
+      markSkipConnectivityReset();
       setForm((prev) => ({
         ...prev,
         modelEntries: normalizedNextModelEntries,
@@ -683,7 +550,7 @@ export function AiProvidersOpenAIEditPage() {
                   className={styles.keyTableColStatus}
                   title={keyTestStatuses[index]?.message || ''}
                 >
-                  <StatusIcon status={keyStatus} />
+                  <ModelStatusIcon status={keyStatus} />
                 </div>
 
                 {/* Key 输入框 */}
@@ -951,73 +818,37 @@ export function AiProvidersOpenAIEditPage() {
                   const status = modelTestStatuses[entry.name.trim()];
                   return (
                     <span className={styles.modelTestRowStatus}>
-                      {status ? <StatusIcon status={status} /> : null}
+                      {status ? <ModelStatusIcon status={status} /> : null}
                     </span>
                   );
                 }}
               />
 
               {/* 测试区域 */}
-              <div className={styles.modelTestPanel}>
-                <div className={styles.modelTestMeta}>
-                  <label className={styles.modelTestLabel}>{t('ai_providers.openai_test_title')}</label>
-                  <span className={styles.modelTestHint}>{t('ai_providers.openai_test_hint')}</span>
-                </div>
-                <div className={styles.modelTestControls}>
-                  <Select
-                    value={testModel}
-                    options={modelSelectOptions}
-                    onChange={(value) => {
-                      setTestModel(value);
-                      setTestStatus('idle');
-                      setTestMessage('');
-                    }}
-                    placeholder={
-                      availableModels.length
-                        ? t('ai_providers.openai_test_select_placeholder')
-                        : t('ai_providers.openai_test_select_empty')
-                    }
-                    className={styles.openaiTestSelect}
-                    ariaLabel={t('ai_providers.openai_test_title')}
-                    disabled={saving || disableControls || isTestingKeys || testStatus === 'loading' || availableModels.length === 0}
-                  />
-                  <Button
-                    variant={testStatus === 'error' ? 'danger' : 'secondary'}
-                    size="sm"
-                    onClick={() => void testAllKeys()}
-                    loading={testStatus === 'loading'}
-                    disabled={saving || disableControls || isTestingKeys || testStatus === 'loading' || !hasConfiguredModels || !hasTestableKeys}
-                    title={t('ai_providers.openai_test_all_hint')}
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.openai_test_action')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void testAllModels()}
-                    loading={testStatus === 'loading'}
-                    disabled={saving || disableControls || isTestingKeys || testStatus === 'loading' || !hasConfiguredModels || !hasTestableKeys}
-                    title={t('ai_providers.openai_test_all_models_hint')}
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.openai_test_all_action')}
-                  </Button>
-                </div>
-              </div>
-              {testMessage && (
-                <div
-                  className={`status-badge ${
-                    testStatus === 'error'
-                      ? 'error'
-                      : testStatus === 'success'
-                        ? 'success'
-                        : 'muted'
-                  }`}
-                >
-                  {testMessage}
-                </div>
-              )}
+              <ProviderConnectivityTestPanel
+                title={t('ai_providers.openai_test_title')}
+                hint={t('ai_providers.openai_test_hint')}
+                testModel={testModel}
+                modelSelectOptions={modelSelectOptions}
+                onModelChange={(value) => {
+                  setTestModel(value);
+                  setTestStatus('idle');
+                  setTestMessage('');
+                }}
+                selectPlaceholder={t('ai_providers.openai_test_select_placeholder')}
+                selectEmptyText={t('ai_providers.openai_test_select_empty')}
+                testStatus={testStatus}
+                testMessage={testMessage}
+                disabled={saving || disableControls || isTestingKeys}
+                canRunSingleTest={hasConfiguredModels && hasTestableKeys}
+                canRunAllTest={hasConfiguredModels && hasTestableKeys}
+                singleTestActionText={t('ai_providers.openai_test_action')}
+                singleTestTitle={t('ai_providers.openai_test_all_hint')}
+                onRunSingleTest={() => void testAllKeys()}
+                allTestActionText={t('ai_providers.openai_test_all_action')}
+                allTestTitle={t('ai_providers.openai_test_all_models_hint')}
+                onRunAllTest={() => void testAllModels()}
+              />
             </div>
 
             <div className={styles.keyEntriesSection}>

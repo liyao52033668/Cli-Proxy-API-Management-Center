@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
@@ -14,14 +14,17 @@ import { apiCallApi, getApiCallErrorMessage } from '@/services/api';
 import { useNotificationStore } from '@/stores';
 import { buildHeaderObject } from '@/utils/headers';
 import { buildClaudeMessagesEndpoint, parseTextList } from '@/components/providers/utils';
+import {
+  ModelStatusIcon,
+  ProviderConnectivityTestPanel,
+  useProviderConnectivityTest,
+} from '@/components/providers';
 import type { ClaudeEditOutletContext } from './AiProvidersClaudeEditLayout';
 import styles from './AiProvidersPage.module.scss';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 
 const CLAUDE_TEST_TIMEOUT_MS = 30_000;
 const DEFAULT_ANTHROPIC_VERSION = '2023-06-01';
-
-type ModelTestStatus = 'loading' | 'success';
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -42,40 +45,6 @@ const resolveBearerTokenFromAuthorization = (headers: Record<string, string>): s
   const match = value.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || '';
 };
-
-function StatusLoadingIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
-      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      <path
-        d="M8 1A7 7 0 0 1 8 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function StatusSuccessIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
-      <path
-        d="M4.5 8L7 10.5L11.5 6"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusIcon({ status }: { status: ModelTestStatus }) {
-  if (status === 'loading') return <StatusLoadingIcon />;
-  return <StatusSuccessIcon />;
-}
 
 export function AiProvidersClaudeEditPage() {
   const { t } = useTranslation();
@@ -106,10 +75,28 @@ export function AiProvidersClaudeEditPage() {
     : t('ai_providers.claude_add_modal_title');
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
-  const [isTesting, setIsTesting] = useState(false);
-  const [modelTestStatuses, setModelTestStatuses] = useState<Record<string, ModelTestStatus>>({});
-  const skipConnectivityResetRef = useRef(false);
   const lastCloakConfigRef = useRef<typeof form.cloak>(null);
+
+  const {
+    modelTestStatuses,
+    setModelTestStatuses,
+    isTesting,
+    setIsTesting,
+    modelSelectOptions,
+    markSkipConnectivityReset,
+    removeModelEntryByName,
+    selectNextModel,
+  } = useProviderConnectivityTest({
+    form,
+    setForm,
+    testModel,
+    setTestModel,
+    testStatus,
+    setTestStatus,
+    testMessage,
+    setTestMessage,
+    extraSignature: [form.apiKey.trim(), form.baseUrl?.trim() ?? '', form.headers.map((e) => `${e.key.trim()}:${e.value.trim()}`).join('|')].join('||'),
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -129,21 +116,6 @@ export function AiProvidersClaudeEditPage() {
   const canSave =
     !disableControls && !loading && !saving && !invalidIndexParam && !invalidIndex && !isTesting;
 
-  const modelSelectOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return form.modelEntries.reduce<Array<{ value: string; label: string }>>((acc, entry) => {
-      const name = entry.name.trim();
-      if (!name || seen.has(name)) return acc;
-      seen.add(name);
-      const alias = entry.alias.trim();
-      acc.push({
-        value: name,
-        label: alias && alias !== name ? `${name} (${alias})` : name,
-      });
-      return acc;
-    }, []);
-  }, [form.modelEntries]);
-
   const cloakModeOptions = useMemo(
     () => [
       { value: 'auto', label: t('ai_providers.claude_cloak_mode_auto') },
@@ -160,38 +132,6 @@ export function AiProvidersClaudeEditPage() {
     if (mode === 'auto' || mode === 'always' || mode === 'never') return mode;
     return 'auto';
   }, [form.cloak?.mode]);
-
-  const connectivityConfigSignature = useMemo(() => {
-    const headersSignature = form.headers
-      .map((entry) => `${entry.key.trim()}:${entry.value.trim()}`)
-      .join('|');
-    const modelsSignature = form.modelEntries
-      .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
-      .join('|');
-    return [
-      form.apiKey.trim(),
-      form.baseUrl?.trim() ?? '',
-      testModel.trim(),
-      headersSignature,
-      modelsSignature,
-    ].join('||');
-  }, [form.apiKey, form.baseUrl, form.headers, form.modelEntries, testModel]);
-
-  const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
-
-  useEffect(() => {
-    if (previousConnectivityConfigRef.current === connectivityConfigSignature) {
-      return;
-    }
-    previousConnectivityConfigRef.current = connectivityConfigSignature;
-    if (skipConnectivityResetRef.current) {
-      skipConnectivityResetRef.current = false;
-      return;
-    }
-    setModelTestStatuses({});
-    setTestStatus('idle');
-    setTestMessage('');
-  }, [connectivityConfigSignature, setTestMessage, setTestStatus]);
 
   const openClaudeModelDiscovery = () => {
     navigate('models');
@@ -236,44 +176,6 @@ export function AiProvidersClaudeEditPage() {
 
     return { ok: true, endpoint, headers };
   }, [form.apiKey, form.baseUrl, form.headers, t]);
-
-  const removeModelEntryByName = useCallback(
-    (modelName: string) => {
-      const normalizedModelName = modelName.trim();
-      if (!normalizedModelName) return;
-
-      const next = form.modelEntries.filter((entry) => entry.name.trim() !== normalizedModelName);
-      const nextModelEntries = next.length ? next : [{ name: '', alias: '' }];
-      const nextTestModel =
-        nextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
-
-      skipConnectivityResetRef.current = true;
-      setForm((prev) => ({
-        ...prev,
-        modelEntries: nextModelEntries,
-      }));
-      setModelTestStatuses((prev) => {
-        const nextStatuses = { ...prev };
-        delete nextStatuses[normalizedModelName];
-        return nextStatuses;
-      });
-      setTestModel(nextTestModel);
-    },
-    [form.modelEntries, setForm, setTestModel]
-  );
-
-  const selectNextModel = useCallback(
-    (currentModelName: string) => {
-      const modelNames = form.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
-      const currentIndex = modelNames.findIndex((name) => name === currentModelName.trim());
-      const nextModel = currentIndex >= 0 ? modelNames[currentIndex + 1] : modelNames[0];
-      if (nextModel) {
-        skipConnectivityResetRef.current = true;
-        setTestModel(nextModel);
-      }
-    },
-    [form.modelEntries, setTestModel]
-  );
 
   const runClaudeConnectivityTest = useCallback(async () => {
     if (isTesting) return;
@@ -346,6 +248,7 @@ export function AiProvidersClaudeEditPage() {
     isTesting,
     removeModelEntryByName,
     selectNextModel,
+    setIsTesting,
     setTestMessage,
     setTestStatus,
     showNotification,
@@ -376,7 +279,7 @@ export function AiProvidersClaudeEditPage() {
     setIsTesting(true);
     setTestStatus('loading');
 
-    const initialStatuses = modelEntries.reduce<Record<string, ModelTestStatus>>((acc, entry) => {
+    const initialStatuses = modelEntries.reduce<Record<string, 'loading' | 'success'>>((acc, entry) => {
       acc[entry.name.trim()] = 'loading';
       return acc;
     }, {});
@@ -389,7 +292,7 @@ export function AiProvidersClaudeEditPage() {
     try {
       for (const entry of modelEntries) {
         const modelName = entry.name.trim();
-        skipConnectivityResetRef.current = true;
+        markSkipConnectivityReset();
         setTestModel(modelName);
         setTestMessage(t('ai_providers.claude_test_all_models_running', { model: modelName }));
 
@@ -419,7 +322,7 @@ export function AiProvidersClaudeEditPage() {
         if (!success) {
           failCount += 1;
           failedModels.add(modelName);
-          skipConnectivityResetRef.current = true;
+          markSkipConnectivityReset();
           setForm((prev) => ({
             ...prev,
             modelEntries: prev.modelEntries.filter(
@@ -446,7 +349,7 @@ export function AiProvidersClaudeEditPage() {
       const nextTestModel =
         normalizedNextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
 
-      skipConnectivityResetRef.current = true;
+      markSkipConnectivityReset();
       setForm((prev) => ({
         ...prev,
         modelEntries: normalizedNextModelEntries,
@@ -470,7 +373,10 @@ export function AiProvidersClaudeEditPage() {
     buildClaudeTestHeaders,
     form.modelEntries,
     isTesting,
+    markSkipConnectivityReset,
     setForm,
+    setIsTesting,
+    setModelTestStatuses,
     setTestMessage,
     setTestModel,
     setTestStatus,
@@ -617,90 +523,35 @@ export function AiProvidersClaudeEditPage() {
                   const status = modelTestStatuses[entry.name.trim()];
                   return (
                     <span className={styles.modelTestRowStatus}>
-                      {status ? <StatusIcon status={status} /> : null}
+                      {status ? <ModelStatusIcon status={status} /> : null}
                     </span>
                   );
                 }}
               />
 
-              <div className={styles.modelTestPanel}>
-                <div className={styles.modelTestMeta}>
-                  <label className={styles.modelTestLabel}>{t('ai_providers.claude_test_title')}</label>
-                  <span className={styles.modelTestHint}>{t('ai_providers.claude_test_hint')}</span>
-                </div>
-                <div className={styles.modelTestControls}>
-                  <Select
-                    value={testModel}
-                    options={modelSelectOptions}
-                    onChange={(value) => {
-                      setTestModel(value);
-                      setTestStatus('idle');
-                      setTestMessage('');
-                    }}
-                    placeholder={
-                      availableModels.length
-                        ? t('ai_providers.claude_test_select_placeholder')
-                        : t('ai_providers.claude_test_select_empty')
-                    }
-                    className={styles.openaiTestSelect}
-                    ariaLabel={t('ai_providers.claude_test_title')}
-                    disabled={
-                      saving ||
-                      disableControls ||
-                      isTesting ||
-                      testStatus === 'loading' ||
-                      availableModels.length === 0
-                    }
-                  />
-                  <Button
-                    variant={testStatus === 'error' ? 'danger' : 'secondary'}
-                    size="sm"
-                    onClick={() => void runClaudeConnectivityTest()}
-                    loading={testStatus === 'loading'}
-                    disabled={
-                      saving ||
-                      disableControls ||
-                      isTesting ||
-                      testStatus === 'loading' ||
-                      availableModels.length === 0
-                    }
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.claude_test_action')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void testAllModels()}
-                    loading={testStatus === 'loading'}
-                    disabled={
-                      saving ||
-                      disableControls ||
-                      isTesting ||
-                      testStatus === 'loading' ||
-                      availableModels.length === 0
-                    }
-                    title={t('ai_providers.claude_test_all_models_hint')}
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.claude_test_all_models_action')}
-                  </Button>
-                </div>
-              </div>
-
-              {testMessage && (
-                <div
-                  className={`status-badge ${
-                    testStatus === 'error'
-                      ? 'error'
-                      : testStatus === 'success'
-                        ? 'success'
-                        : 'muted'
-                  }`}
-                >
-                  {testMessage}
-                </div>
-              )}
+              <ProviderConnectivityTestPanel
+                title={t('ai_providers.claude_test_title')}
+                hint={t('ai_providers.claude_test_hint')}
+                testModel={testModel}
+                modelSelectOptions={modelSelectOptions}
+                onModelChange={(value) => {
+                  setTestModel(value);
+                  setTestStatus('idle');
+                  setTestMessage('');
+                }}
+                selectPlaceholder={t('ai_providers.claude_test_select_placeholder')}
+                selectEmptyText={t('ai_providers.claude_test_select_empty')}
+                testStatus={testStatus}
+                testMessage={testMessage}
+                disabled={saving || disableControls || isTesting}
+                canRunSingleTest={availableModels.length > 0}
+                canRunAllTest={availableModels.length > 0}
+                singleTestActionText={t('ai_providers.claude_test_action')}
+                onRunSingleTest={() => void runClaudeConnectivityTest()}
+                allTestActionText={t('ai_providers.claude_test_all_models_action')}
+                allTestTitle={t('ai_providers.claude_test_all_models_hint')}
+                onRunAllTest={() => void testAllModels()}
+              />
             </div>
 
             <div className="form-group">

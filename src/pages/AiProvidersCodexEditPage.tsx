@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { ModelInputList } from '@/components/ui/ModelInputList';
 import { Modal } from '@/components/ui/Modal';
@@ -24,49 +23,17 @@ import {
   excludedModelsToText,
   parseExcludedModels,
 } from '@/components/providers/utils';
-import type { ProviderFormState } from '@/components/providers';
+import {
+  ModelStatusIcon,
+  ProviderConnectivityTestPanel,
+  useProviderConnectivityTest,
+  type ProviderFormState,
+} from '@/components/providers';
 import type { ModelInfo } from '@/utils/models';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 import styles from './AiProvidersPage.module.scss';
 
 const CODEX_TEST_TIMEOUT_MS = 30_000;
-
-type ModelTestStatus = 'loading' | 'success';
-type ConnectivityTestStatus = 'idle' | 'loading' | 'success' | 'error';
-
-function StatusLoadingIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
-      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      <path
-        d="M8 1A7 7 0 0 1 8 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function StatusSuccessIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
-      <path
-        d="M4.5 8L7 10.5L11.5 6"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusIcon({ status }: { status: ModelTestStatus }) {
-  if (status === 'loading') return <StatusLoadingIcon />;
-  return <StatusSuccessIcon />;
-}
 
 type LocationState = { fromAiProviders?: boolean } | null;
 
@@ -162,12 +129,28 @@ export function AiProvidersCodexEditPage() {
   const autoFetchSignatureRef = useRef<string>('');
   const modelDiscoveryRequestIdRef = useRef(0);
 
-  const [testModel, setTestModel] = useState('');
-  const [testStatus, setTestStatus] = useState<ConnectivityTestStatus>('idle');
-  const [testMessage, setTestMessage] = useState('');
-  const [isTesting, setIsTesting] = useState(false);
-  const [modelTestStatuses, setModelTestStatuses] = useState<Record<string, ModelTestStatus>>({});
-  const skipConnectivityResetRef = useRef(false);
+  const {
+    testModel,
+    setTestModel,
+    testStatus,
+    setTestStatus,
+    testMessage,
+    setTestMessage,
+    modelTestStatuses,
+    setModelTestStatuses,
+    isTesting,
+    setIsTesting,
+    availableModels,
+    hasConfiguredModels,
+    modelSelectOptions,
+    markSkipConnectivityReset,
+    removeModelEntryByName,
+    selectNextModel,
+  } = useProviderConnectivityTest({
+    form,
+    setForm,
+    extraSignature: [form.apiKey.trim(), String(form.baseUrl ?? '').trim(), form.headers.map((e) => `${e.key.trim()}:${e.value.trim()}`).join('|')].join('||'),
+  });
 
   const hasIndexParam = typeof params.index === 'string';
   const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
@@ -307,112 +290,11 @@ export function AiProvidersCodexEditPage() {
   const canSave =
     !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex && !isTesting;
 
-  const availableModels = useMemo(
-    () =>
-      form.modelEntries
-        .map((entry) => entry.name.trim())
-        .filter((name, index, arr) => Boolean(name) && arr.indexOf(name) === index),
-    [form.modelEntries]
-  );
-  const hasConfiguredModels = availableModels.length > 0;
   const hasCustomAuthorization = useMemo(() => {
     const headers = buildHeaderObject(form.headers);
     return hasHeader(headers, 'authorization');
   }, [form.headers]);
   const hasTestableKey = Boolean(form.apiKey.trim()) || hasCustomAuthorization;
-  const modelSelectOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return form.modelEntries.reduce<Array<{ value: string; label: string }>>((acc, entry) => {
-      const name = entry.name.trim();
-      if (!name || seen.has(name)) return acc;
-      seen.add(name);
-      const alias = entry.alias.trim();
-      acc.push({
-        value: name,
-        label: alias && alias !== name ? `${name} (${alias})` : name,
-      });
-      return acc;
-    }, []);
-  }, [form.modelEntries]);
-
-  const connectivityConfigSignature = useMemo(() => {
-    const headersSignature = form.headers
-      .map((entry) => `${entry.key.trim()}:${entry.value.trim()}`)
-      .join('|');
-    const modelsSignature = form.modelEntries
-      .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
-      .join('|');
-    return [
-      form.apiKey.trim(),
-      String(form.baseUrl ?? '').trim(),
-      testModel.trim(),
-      headersSignature,
-      modelsSignature,
-    ].join('||');
-  }, [form.apiKey, form.baseUrl, form.headers, form.modelEntries, testModel]);
-  const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
-
-  useEffect(() => {
-    if (!testModel && availableModels.length) {
-      setTestModel(availableModels[0]);
-      return;
-    }
-    if (testModel && !availableModels.includes(testModel)) {
-      setTestModel(availableModels[0] ?? '');
-    }
-  }, [availableModels, testModel]);
-
-  useEffect(() => {
-    if (previousConnectivityConfigRef.current === connectivityConfigSignature) {
-      return;
-    }
-    previousConnectivityConfigRef.current = connectivityConfigSignature;
-    if (skipConnectivityResetRef.current) {
-      skipConnectivityResetRef.current = false;
-      return;
-    }
-    setModelTestStatuses({});
-    setTestStatus('idle');
-    setTestMessage('');
-  }, [connectivityConfigSignature]);
-
-  const removeModelEntryByName = useCallback(
-    (modelName: string) => {
-      const normalizedModelName = modelName.trim();
-      if (!normalizedModelName) return;
-
-      const next = form.modelEntries.filter((entry) => entry.name.trim() !== normalizedModelName);
-      const nextModelEntries = next.length ? next : [{ name: '', alias: '' }];
-      const nextTestModel =
-        nextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
-
-      skipConnectivityResetRef.current = true;
-      setForm((prev) => ({
-        ...prev,
-        modelEntries: nextModelEntries,
-      }));
-      setModelTestStatuses((prev) => {
-        const nextStatuses = { ...prev };
-        delete nextStatuses[normalizedModelName];
-        return nextStatuses;
-      });
-      setTestModel(nextTestModel);
-    },
-    [form.modelEntries]
-  );
-
-  const selectNextModel = useCallback(
-    (currentModelName: string) => {
-      const modelNames = form.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
-      const currentIndex = modelNames.findIndex((name) => name === currentModelName.trim());
-      const nextModel = currentIndex >= 0 ? modelNames[currentIndex + 1] : modelNames[0];
-      if (nextModel) {
-        skipConnectivityResetRef.current = true;
-        setTestModel(nextModel);
-      }
-    },
-    [form.modelEntries]
-  );
 
   const runSingleConnectivityTest = useCallback(async () => {
     if (isTesting) return;
@@ -516,6 +398,9 @@ export function AiProvidersCodexEditPage() {
     isTesting,
     removeModelEntryByName,
     selectNextModel,
+    setIsTesting,
+    setTestMessage,
+    setTestStatus,
     showNotification,
     t,
     testModel,
@@ -564,7 +449,7 @@ export function AiProvidersCodexEditPage() {
     setIsTesting(true);
     setTestStatus('loading');
 
-    const initialStatuses = modelEntries.reduce<Record<string, ModelTestStatus>>((acc, entry) => {
+    const initialStatuses = modelEntries.reduce<Record<string, 'loading' | 'success'>>((acc, entry) => {
       acc[entry.name.trim()] = 'loading';
       return acc;
     }, {});
@@ -577,7 +462,7 @@ export function AiProvidersCodexEditPage() {
     try {
       for (const entry of modelEntries) {
         const modelName = entry.name.trim();
-        skipConnectivityResetRef.current = true;
+        markSkipConnectivityReset();
         setTestModel(modelName);
         setTestMessage(t('ai_providers.codex_test_all_models_running', { model: modelName }));
 
@@ -616,7 +501,7 @@ export function AiProvidersCodexEditPage() {
         if (!success) {
           failCount += 1;
           failedModels.add(modelName);
-          skipConnectivityResetRef.current = true;
+          markSkipConnectivityReset();
           setForm((prev) => ({
             ...prev,
             modelEntries: prev.modelEntries.filter(
@@ -643,7 +528,7 @@ export function AiProvidersCodexEditPage() {
       const nextTestModel =
         normalizedNextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
 
-      skipConnectivityResetRef.current = true;
+      markSkipConnectivityReset();
       setForm((prev) => ({
         ...prev,
         modelEntries: normalizedNextModelEntries,
@@ -669,6 +554,12 @@ export function AiProvidersCodexEditPage() {
     form.headers,
     form.modelEntries,
     isTesting,
+    markSkipConnectivityReset,
+    setIsTesting,
+    setModelTestStatuses,
+    setTestMessage,
+    setTestModel,
+    setTestStatus,
     showNotification,
     t,
   ]);
@@ -1079,84 +970,35 @@ export function AiProvidersCodexEditPage() {
                   const status = modelTestStatuses[entry.name.trim()];
                   return (
                     <span className={styles.modelTestRowStatus}>
-                      {status ? <StatusIcon status={status} /> : null}
+                      {status ? <ModelStatusIcon status={status} /> : null}
                     </span>
                   );
                 }}
               />
 
-              <div className={styles.modelTestPanel}>
-                <div className={styles.modelTestMeta}>
-                  <label className={styles.modelTestLabel}>{t('ai_providers.codex_test_title')}</label>
-                  <span className={styles.modelTestHint}>{t('ai_providers.codex_test_hint')}</span>
-                </div>
-                <div className={styles.modelTestControls}>
-                  <Select
-                    value={testModel}
-                    options={modelSelectOptions}
-                    onChange={(value) => {
-                      setTestModel(value);
-                      setTestStatus('idle');
-                      setTestMessage('');
-                    }}
-                    placeholder={
-                      availableModels.length
-                        ? t('ai_providers.codex_test_select_placeholder')
-                        : t('ai_providers.codex_test_select_empty')
-                    }
-                    className={styles.openaiTestSelect}
-                    ariaLabel={t('ai_providers.codex_test_title')}
-                    disabled={
-                      formDisabled || testStatus === 'loading' || availableModels.length === 0
-                    }
-                  />
-                  <Button
-                    variant={testStatus === 'error' ? 'danger' : 'secondary'}
-                    size="sm"
-                    onClick={() => void runSingleConnectivityTest()}
-                    loading={testStatus === 'loading'}
-                    disabled={
-                      formDisabled ||
-                      testStatus === 'loading' ||
-                      !hasConfiguredModels ||
-                      !hasTestableKey
-                    }
-                    title={t('ai_providers.codex_test_action')}
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.codex_test_action')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void testAllModels()}
-                    loading={testStatus === 'loading'}
-                    disabled={
-                      formDisabled ||
-                      testStatus === 'loading' ||
-                      !hasConfiguredModels ||
-                      !hasTestableKey
-                    }
-                    title={t('ai_providers.codex_test_all_models_hint')}
-                    className={styles.modelTestAllButton}
-                  >
-                    {t('ai_providers.codex_test_all_models_action')}
-                  </Button>
-                </div>
-              </div>
-              {testMessage && (
-                <div
-                  className={`status-badge ${
-                    testStatus === 'error'
-                      ? 'error'
-                      : testStatus === 'success'
-                        ? 'success'
-                        : 'muted'
-                  }`}
-                >
-                  {testMessage}
-                </div>
-              )}
+              <ProviderConnectivityTestPanel
+                title={t('ai_providers.codex_test_title')}
+                hint={t('ai_providers.codex_test_hint')}
+                testModel={testModel}
+                modelSelectOptions={modelSelectOptions}
+                onModelChange={(value) => {
+                  setTestModel(value);
+                  setTestStatus('idle');
+                  setTestMessage('');
+                }}
+                selectPlaceholder={t('ai_providers.codex_test_select_placeholder')}
+                selectEmptyText={t('ai_providers.codex_test_select_empty')}
+                testStatus={testStatus}
+                testMessage={testMessage}
+                disabled={formDisabled}
+                canRunSingleTest={hasConfiguredModels && hasTestableKey}
+                canRunAllTest={hasConfiguredModels && hasTestableKey}
+                singleTestActionText={t('ai_providers.codex_test_action')}
+                onRunSingleTest={() => void runSingleConnectivityTest()}
+                allTestActionText={t('ai_providers.codex_test_all_models_action')}
+                allTestTitle={t('ai_providers.codex_test_all_models_hint')}
+                onRunAllTest={() => void testAllModels()}
+              />
             </div>
             <div className="form-group">
               <label>{t('ai_providers.excluded_models_label')}</label>
