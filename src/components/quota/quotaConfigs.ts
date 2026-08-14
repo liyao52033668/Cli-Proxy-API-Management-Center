@@ -129,7 +129,6 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 
 type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
 
-const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const geminiCliSupplementaryRequestIds = new Map<string, number>();
@@ -183,10 +182,33 @@ export interface QuotaConfig<TState, TData> {
 }
 
 const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> => {
+  const directProjectId = normalizeStringValue(file.project_id ?? file.projectId);
+  if (directProjectId) return directProjectId;
+
+  const metadata =
+    file.metadata && typeof file.metadata === 'object' && file.metadata !== null
+      ? (file.metadata as Record<string, unknown>)
+      : null;
+  const metadataProjectId = metadata
+    ? normalizeStringValue(metadata.project_id ?? metadata.projectId)
+    : null;
+  if (metadataProjectId) return metadataProjectId;
+
+  const attributes =
+    file.attributes && typeof file.attributes === 'object' && file.attributes !== null
+      ? (file.attributes as Record<string, unknown>)
+      : null;
+  const attributesProjectId = attributes
+    ? normalizeStringValue(
+        attributes.project_id ?? attributes.projectId ?? attributes.gemini_virtual_project
+      )
+    : null;
+  if (attributesProjectId) return attributesProjectId;
+
   try {
     const text = await authFilesApi.downloadText(file.name);
     const trimmed = text.trim();
-    if (!trimmed) return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+    if (!trimmed) return '';
 
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
     const topLevel = normalizeStringValue(parsed.project_id ?? parsed.projectId);
@@ -208,10 +230,10 @@ const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> 
     const webProjectId = web ? normalizeStringValue(web.project_id ?? web.projectId) : null;
     if (webProjectId) return webProjectId;
   } catch {
-    return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+    return '';
   }
 
-  return DEFAULT_ANTIGRAVITY_PROJECT_ID;
+  return '';
 };
 
 type AntigravityQuotaData = {
@@ -237,6 +259,9 @@ const fetchAntigravityQuota = async (
   }
 
   const projectId = await resolveAntigravityProjectId(file);
+  if (!projectId) {
+    throw new Error(t('antigravity_quota.missing_project_id'));
+  }
   const requestBody = JSON.stringify({ project: projectId });
   // 套餐信息来自独立的 loadCodeAssist 接口，与额度查询并发执行
   const subscriptionPromise = antigravitySubscriptionApi

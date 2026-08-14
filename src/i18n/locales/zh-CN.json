@@ -775,6 +775,7 @@
     "loading": "正在加载额度...",
     "load_failed": "额度获取失败：{{message}}",
     "missing_auth_index": "认证文件缺少 auth_index",
+    "missing_project_id": "Antigravity 凭证缺少 project_id。请重新登录或刷新凭证以发现项目。",
     "empty_models": "暂无额度数据",
     "refresh_button": "刷新额度",
     "fetch_all": "获取全部",

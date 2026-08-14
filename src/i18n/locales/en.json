@@ -775,6 +775,7 @@
     "loading": "Loading quota...",
     "load_failed": "Failed to load quota: {{message}}",
     "missing_auth_index": "Auth file missing auth_index",
+    "missing_project_id": "Antigravity credential missing project_id. Re-login or refresh the credential to discover the project.",
     "empty_models": "No quota data available",
     "refresh_button": "Refresh Quota",
     "fetch_all": "Fetch All",
