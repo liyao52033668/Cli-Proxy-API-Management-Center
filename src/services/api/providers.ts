@@ -155,6 +155,10 @@ const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
     payload['support-prompt-cache-key'] = provider.supportPromptCacheKey;
   if (provider.priority !== undefined) payload.priority = provider.priority;
   if (provider.testModel) payload['test-model'] = provider.testModel;
+  if (provider.quotaEndpoint?.trim()) payload['quota-endpoint'] = provider.quotaEndpoint.trim();
+  if (provider.quotaToken?.trim()) payload['quota-token'] = provider.quotaToken.trim();
+  if (provider.quotaDivisor !== undefined && Number.isFinite(provider.quotaDivisor))
+    payload['quota-divisor'] = provider.quotaDivisor;
   return payload;
 };
 
