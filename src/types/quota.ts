@@ -67,6 +67,31 @@ export interface AntigravityQuotaInfo {
 
 export type AntigravityModelsPayload = Record<string, AntigravityQuotaInfo>;
 
+/** Antigravity `retrieveUserQuotaSummary` 新格式：分组 + bucket（与旧 models 格式并存）。 */
+export interface AntigravityQuotaSummaryBucketPayload {
+  bucketId?: string;
+  bucket_id?: string;
+  displayName?: string;
+  display_name?: string;
+  window?: string;
+  resetTime?: string;
+  reset_time?: string;
+  remainingFraction?: number | string;
+  remaining_fraction?: number | string;
+  description?: string;
+}
+
+export interface AntigravityQuotaSummaryGroupPayload {
+  displayName?: string;
+  display_name?: string;
+  description?: string;
+  buckets?: AntigravityQuotaSummaryBucketPayload[];
+}
+
+export interface AntigravityQuotaSummaryPayload {
+  groups?: AntigravityQuotaSummaryGroupPayload[];
+}
+
 export interface AntigravityQuotaGroupDefinition {
   id: string;
   label: string;
@@ -208,17 +233,38 @@ export interface ClaudeQuotaState {
 }
 
 // Quota state types
+export interface AntigravityQuotaBucket {
+  id: string;
+  label: string;
+  window?: string;
+  remainingFraction: number;
+  resetTime?: string;
+  description?: string;
+}
+
 export interface AntigravityQuotaGroup {
   id: string;
   label: string;
   models: string[];
   remainingFraction: number;
   resetTime?: string;
+  /** 分组描述（新格式接口下分组可能携带 "models within this group: ..."）。 */
+  description?: string;
+  /** 新格式接口的 bucket 细分；旧 models 格式无此字段。 */
+  buckets?: AntigravityQuotaBucket[];
+}
+
+export interface AntigravityQuotaSubscription {
+  plan: string | null;
+  tierName: string | null;
+  tierId: string | null;
 }
 
 export interface AntigravityQuotaState {
   status: 'idle' | 'loading' | 'success' | 'error';
   groups: AntigravityQuotaGroup[];
+  subscription?: AntigravityQuotaSubscription | null;
+  serverTimeOffsetMs?: number | null;
   error?: string;
   errorStatus?: number;
 }

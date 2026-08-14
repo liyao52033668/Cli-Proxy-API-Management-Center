@@ -12,6 +12,7 @@ export interface OpenAIFormState {
   priority?: number;
   prefix: string;
   baseUrl: string;
+  quotaEndpoint: string;
   disabled: boolean;
   forceStream: boolean;
   supportPromptCacheKey: boolean;
@@ -36,6 +37,7 @@ export interface AmpcodeFormState {
 }
 
 export type GeminiFormState = Omit<GeminiKeyConfig, 'headers' | 'models'> & {
+  disabled: boolean;
   headers: HeaderEntry[];
   modelEntries: ModelEntry[];
   excludedText: string;

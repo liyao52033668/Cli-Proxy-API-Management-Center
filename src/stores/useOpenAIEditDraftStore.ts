@@ -25,6 +25,7 @@ export type OpenAIEditBaseline = {
   priority: number | null;
   prefix: string;
   baseUrl: string;
+  quotaEndpoint: string;
   disabled: boolean;
   forceStream: boolean;
   supportPromptCacheKey: boolean;
@@ -72,6 +73,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   name: '',
   prefix: '',
   baseUrl: '',
+  quotaEndpoint: '',
   disabled: false,
   forceStream: false,
   supportPromptCacheKey: false,

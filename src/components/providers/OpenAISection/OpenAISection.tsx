@@ -33,11 +33,11 @@ import {
   getStatsForIdentity,
 } from '../utils';
 import {
-  fetchDeepseekBalance,
-  formatDeepseekBalance,
-  isDeepseekBaseUrl,
-  type DeepseekBalanceState,
-} from './deepseekBalance';
+  fetchQuotaBalance,
+  formatQuotaBalance,
+  resolveQuotaEndpoint,
+  type QuotaBalanceState,
+} from './balance';
 
 interface FloatingToolbarStyle {
   left: number;
@@ -117,11 +117,11 @@ export function OpenAISection({
   });
   const [isFloatingToolbarExpanded, setIsFloatingToolbarExpanded] = useState(false);
 
-  // DeepSeek 余额查询状态（按 provider key 缓存）
-  const [deepseekBalanceByKey, setDeepseekBalanceByKey] = useState<
-    Record<string, DeepseekBalanceState>
+  // 额度查询状态（按 provider key 缓存）
+  const [quotaBalanceByKey, setQuotaBalanceByKey] = useState<
+    Record<string, QuotaBalanceState>
   >({});
-  const deepseekRequestIdsRef = useRef<Record<string, number>>({});
+  const quotaRequestIdsRef = useRef<Record<string, number>>({});
 
   const sectionRef = useRef<HTMLDivElement>(null);
   const topToolbarAnchorRef = useRef<HTMLDivElement>(null);
@@ -403,51 +403,65 @@ export function OpenAISection({
     return cache;
   }, [apiKeyUsage, configs, usageDetailsByAuthIndex, usageDetailsBySource]);
 
-  // DeepSeek 余额：收集 baseUrl 为 api.deepseek.com 的提供商及其密钥
-  const deepseekTargets = useMemo(() => {
-    const targets: Array<{ providerKey: string; apiKeys: string[] }> = [];
+  // 额度查询：收集配置了额度端点的提供商及其密钥
+  const quotaTargets = useMemo(() => {
+    const targets: Array<{
+      providerKey: string;
+      apiKeys: string[];
+      endpoint: string | null;
+      headers?: Record<string, string>;
+    }> = [];
     configs.forEach((provider, index) => {
-      if (!isDeepseekBaseUrl(provider.baseUrl)) return;
+      const endpoint = resolveQuotaEndpoint(provider.quotaEndpoint);
+      if (!endpoint) return;
       const apiKeys = (provider.apiKeyEntries || [])
         .map((entry) => entry.apiKey.trim())
         .filter(Boolean);
       if (apiKeys.length === 0) return;
-      targets.push({ providerKey: getOpenAIProviderKey(provider, index), apiKeys });
+      targets.push({
+        providerKey: getOpenAIProviderKey(provider, index),
+        apiKeys,
+        endpoint,
+        headers: provider.headers,
+      });
     });
     return targets;
   }, [configs]);
 
   useEffect(() => {
-    const targetKeys = new Set(deepseekTargets.map((target) => target.providerKey));
+    const targetKeys = new Set(quotaTargets.map((target) => target.providerKey));
 
-    // 清理已不再是 deepseek 的提供商余额
-    setDeepseekBalanceByKey((prev) => {
+    // 清理已不再参与额度查询的提供商余额
+    setQuotaBalanceByKey((prev) => {
       const hasStale = Object.keys(prev).some((key) => !targetKeys.has(key));
       if (!hasStale) return prev;
-      const next: Record<string, DeepseekBalanceState> = {};
+      const next: Record<string, QuotaBalanceState> = {};
       for (const [key, value] of Object.entries(prev)) {
         if (targetKeys.has(key)) next[key] = value;
       }
       return next;
     });
 
-    deepseekTargets.forEach(({ providerKey, apiKeys }) => {
-      const requestId = (deepseekRequestIdsRef.current[providerKey] ?? 0) + 1;
-      deepseekRequestIdsRef.current[providerKey] = requestId;
+    quotaTargets.forEach(({ providerKey, apiKeys, endpoint, headers }) => {
+      if (!endpoint) return;
+      const requestId = (quotaRequestIdsRef.current[providerKey] ?? 0) + 1;
+      quotaRequestIdsRef.current[providerKey] = requestId;
 
-      setDeepseekBalanceByKey((prev) => ({
+      setQuotaBalanceByKey((prev) => ({
         ...prev,
         [providerKey]: { status: 'loading' },
       }));
 
-      void fetchDeepseekBalance(apiKeys, (payload) => apiCallApi.request(payload)).then((state) => {
-        if (deepseekRequestIdsRef.current[providerKey] !== requestId) {
-          return;
+      void fetchQuotaBalance(apiKeys, endpoint, (payload) => apiCallApi.request(payload), headers).then(
+        (state) => {
+          if (quotaRequestIdsRef.current[providerKey] !== requestId) {
+            return;
+          }
+          setQuotaBalanceByKey((prev) => ({ ...prev, [providerKey]: state }));
         }
-        setDeepseekBalanceByKey((prev) => ({ ...prev, [providerKey]: state }));
-      });
+      );
     });
-  }, [deepseekTargets]);
+  }, [quotaTargets]);
 
   // 过滤后的配置列表
   const filteredConfigs = useMemo<IndexedOpenAIProvider[]>(() => {
@@ -801,11 +815,11 @@ export function OpenAISection({
         }).format(new Date(provider.updatedAt))
       : null;
     const providerKey = getOpenAIProviderKey(provider, originalIndex);
-    const isDeepseek = isDeepseekBaseUrl(provider.baseUrl);
-    const deepseekApiKeys = (provider.apiKeyEntries || [])
+    const quotaEndpoint = resolveQuotaEndpoint(provider.quotaEndpoint);
+    const quotaApiKeys = (provider.apiKeyEntries || [])
       .map((entry) => entry.apiKey.trim())
       .filter(Boolean);
-    const deepseekBalance = deepseekBalanceByKey[providerKey];
+    const quotaBalance = quotaBalanceByKey[providerKey];
     const statusData = statusBarCache.get(providerKey) || EMPTY_STATUS_BAR;
 
     return (
@@ -930,17 +944,17 @@ export function OpenAISection({
             <span className={`${styles.statPill} ${styles.statTokens}`}>
               {t('stats.tokens')}: {stats.tokens == null ? '-' : formatCompactNumber(stats.tokens)}
             </span>
-            {isDeepseek && deepseekApiKeys.length > 0 && (
+            {quotaEndpoint && quotaApiKeys.length > 0 && (
               <span className={`${styles.statPill} ${styles.statBalance}`}>
-                {deepseekBalance?.status === 'success' && deepseekBalance.balances.length > 0
-                  ? `${t('ai_providers.deepseek_balance')}: ${deepseekBalance.balances
-                      .map(formatDeepseekBalance)
+                {quotaBalance?.status === 'success' && quotaBalance.balances.length > 0
+                  ? `${t('ai_providers.openai_balance')}: ${quotaBalance.balances
+                      .map(formatQuotaBalance)
                       .join(' / ')}`
-                  : deepseekBalance?.status === 'error'
-                    ? `${t('ai_providers.deepseek_balance')}: ${t(
-                        'ai_providers.deepseek_balance_failed'
+                  : quotaBalance?.status === 'error'
+                    ? `${t('ai_providers.openai_balance')}: ${t(
+                        'ai_providers.openai_balance_failed'
                       )}`
-                    : `${t('ai_providers.deepseek_balance')}: ${t('common.loading')}`}
+                    : `${t('ai_providers.openai_balance')}: ${t('common.loading')}`}
               </span>
             )}
           </div>

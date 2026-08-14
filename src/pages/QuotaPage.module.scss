@@ -300,6 +300,40 @@
   gap: $spacing-xs;
 }
 
+.antigravityQuotaGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  & + & {
+    margin-top: 3px;
+    padding-top: 9px;
+    border-top: 1px dashed color-mix(in srgb, var(--border-color) 80%, transparent);
+  }
+}
+
+.antigravityQuotaGroupHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.antigravityQuotaGroupTitle {
+  font-family: $font-mono;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.antigravityQuotaGroupDescription {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-quaternary);
+}
+
 .quotaRowHeader {
   display: flex;
   align-items: center;

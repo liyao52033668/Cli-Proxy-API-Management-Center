@@ -7,18 +7,30 @@ import { Input } from '@/components/ui/Input';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { ModelInputList } from '@/components/ui/ModelInputList';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
-import { modelsApi, providersApi } from '@/services/api';
+import { apiCallApi, getApiCallErrorMessage, modelsApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { GeminiKeyConfig } from '@/types';
-import { buildHeaderObject, headersToEntries, normalizeHeaderEntries } from '@/utils/headers';
+import {
+  buildHeaderObject,
+  hasHeader,
+  headersToEntries,
+  normalizeHeaderEntries,
+} from '@/utils/headers';
 import { areKeyValueEntriesEqual, areModelEntriesEqual, areStringArraysEqual } from '@/utils/compare';
 import type { ModelInfo } from '@/utils/models';
 import { entriesToModels, modelsToEntries } from '@/components/ui/modelInputListUtils';
-import { excludedModelsToText, parseExcludedModels } from '@/components/providers/utils';
+import {
+  DISABLE_ALL_MODELS_RULE,
+  excludedModelsToText,
+  hasDisableAllModelsRule,
+  parseExcludedModels,
+  stripDisableAllModelsRule,
+} from '@/components/providers/utils';
 import type { GeminiFormState } from '@/components/providers';
 import layoutStyles from './AiProvidersEditLayout.module.scss';
 import styles from './AiProvidersPage.module.scss';
@@ -35,7 +47,63 @@ const buildEmptyForm = (): GeminiFormState => ({
   modelEntries: [{ name: '', alias: '' }],
   excludedModels: [],
   excludedText: '',
+  disabled: false,
 });
+
+/**
+ * Resolve the effective excluded-models list from the editable text plus the
+ * disabled state. The "*" (disable-all) rule is managed internally (the toggle
+ * on the list page owns it); it is never rendered inside the textarea.
+ */
+const resolveGeminiExcludedModels = (text: string, disabled: boolean): string[] => {
+  const base = stripDisableAllModelsRule(parseExcludedModels(text ?? ''));
+  return disabled ? [...base, DISABLE_ALL_MODELS_RULE] : base;
+};
+
+const GEMINI_TEST_TIMEOUT_MS = 30_000;
+
+type ConnectivityTestStatus = 'idle' | 'loading' | 'success' | 'error';
+type ModelTestStatus = 'loading' | 'success';
+
+const getErrorMessage = (err: unknown) => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  return '';
+};
+
+function StatusLoadingIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
+      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+      <path
+        d="M8 1A7 7 0 0 1 8 15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function StatusSuccessIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
+      <path
+        d="M4.5 8L7 10.5L11.5 6"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function StatusIcon({ status }: { status: ModelTestStatus }) {
+  if (status === 'loading') return <StatusLoadingIcon />;
+  return <StatusSuccessIcon />;
+}
 
 const parseIndexParam = (value: string | undefined) => {
   if (!value) return null;
@@ -69,6 +137,7 @@ type GeminiFormBaseline = {
   proxyUrl: string;
   headers: ReturnType<typeof normalizeHeaderEntries>;
   models: ReturnType<typeof normalizeModelEntries>;
+  disabled: boolean;
   excludedModels: string[];
 };
 
@@ -81,7 +150,8 @@ const buildGeminiBaseline = (form: GeminiFormState): GeminiFormBaseline => ({
   proxyUrl: String(form.proxyUrl ?? '').trim(),
   headers: normalizeHeaderEntries(form.headers),
   models: normalizeModelEntries(form.modelEntries),
-  excludedModels: parseExcludedModels(form.excludedText ?? ''),
+  disabled: form.disabled === true,
+  excludedModels: resolveGeminiExcludedModels(form.excludedText ?? '', form.disabled === true),
 });
 
 export function AiProvidersGeminiEditPage() {
@@ -112,6 +182,13 @@ export function AiProvidersGeminiEditPage() {
   const [modelDiscoverySelected, setModelDiscoverySelected] = useState<Set<string>>(new Set());
   const autoFetchSignatureRef = useRef<string>('');
   const modelDiscoveryRequestIdRef = useRef(0);
+
+  const [testModel, setTestModel] = useState('');
+  const [testStatus, setTestStatus] = useState<ConnectivityTestStatus>('idle');
+  const [testMessage, setTestMessage] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [modelTestStatuses, setModelTestStatuses] = useState<Record<string, ModelTestStatus>>({});
+  const skipConnectivityResetRef = useRef(false);
 
   const hasIndexParam = typeof params.index === 'string';
   const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
@@ -182,14 +259,17 @@ export function AiProvidersGeminiEditPage() {
 
     if (initialData) {
       const { headers, models, ...rest } = initialData;
+      const rawExcluded = initialData.excludedModels ?? [];
       const nextForm: GeminiFormState = {
         ...rest,
+        disabled: hasDisableAllModelsRule(rawExcluded),
         headers: headersToEntries(headers),
         modelEntries: modelsToEntries(models).map((entry) => ({
           ...entry,
           name: stripGeminiModelResourceName(entry.name),
         })),
-        excludedText: excludedModelsToText(initialData.excludedModels),
+        excludedModels: stripDisableAllModelsRule(rawExcluded),
+        excludedText: excludedModelsToText(stripDisableAllModelsRule(rawExcluded)),
       };
       setForm(nextForm);
       setBaseline(buildGeminiBaseline(nextForm));
@@ -200,7 +280,8 @@ export function AiProvidersGeminiEditPage() {
     setBaseline(buildGeminiBaseline(nextForm));
   }, [initialData, loading]);
 
-  const canSave = !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex;
+  const canSave =
+    !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex && !isTesting;
 
   const discoveredModelsFiltered = useMemo(() => {
     const filter = modelDiscoverySearch.trim().toLowerCase();
@@ -391,8 +472,8 @@ export function AiProvidersGeminiEditPage() {
     [form.modelEntries]
   );
   const normalizedExcludedModels = useMemo(
-    () => parseExcludedModels(form.excludedText ?? ''),
-    [form.excludedText]
+    () => resolveGeminiExcludedModels(form.excludedText ?? '', form.disabled === true),
+    [form.disabled, form.excludedText]
   );
   const normalizedPriority = useMemo(() => {
     return form.priority !== undefined && Number.isFinite(form.priority)
@@ -454,7 +535,7 @@ export function AiProvidersGeminiEditPage() {
         proxyUrl: form.proxyUrl?.trim() || undefined,
         headers: buildHeaderObject(form.headers),
         models: entriesToModels(normalizedModelEntries),
-        excludedModels: parseExcludedModels(form.excludedText),
+        excludedModels: resolveGeminiExcludedModels(form.excludedText, form.disabled === true),
       };
 
       const nextList =
@@ -492,6 +573,366 @@ export function AiProvidersGeminiEditPage() {
     showNotification,
     t,
     updateConfigValue,
+  ]);
+
+  const availableModels = useMemo(
+    () =>
+      form.modelEntries
+        .map((entry) => entry.name.trim())
+        .filter((name, index, arr) => Boolean(name) && arr.indexOf(name) === index),
+    [form.modelEntries]
+  );
+  const hasConfiguredModels = availableModels.length > 0;
+  const hasCustomAuthHeader = useMemo(() => {
+    const headers = buildHeaderObject(form.headers);
+    return hasHeader(headers, 'x-goog-api-key') || hasHeader(headers, 'authorization');
+  }, [form.headers]);
+  const hasTestableKey = Boolean(form.apiKey.trim()) || hasCustomAuthHeader;
+  const modelSelectOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return form.modelEntries.reduce<Array<{ value: string; label: string }>>((acc, entry) => {
+      const name = entry.name.trim();
+      if (!name || seen.has(name)) return acc;
+      seen.add(name);
+      const alias = entry.alias.trim();
+      acc.push({
+        value: name,
+        label: alias && alias !== name ? `${name} (${alias})` : name,
+      });
+      return acc;
+    }, []);
+  }, [form.modelEntries]);
+
+  const connectivityConfigSignature = useMemo(() => {
+    const headersSignature = form.headers
+      .map((entry) => `${entry.key.trim()}:${entry.value.trim()}`)
+      .join('|');
+    const modelsSignature = form.modelEntries
+      .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
+      .join('|');
+    return [
+      form.apiKey.trim(),
+      String(form.baseUrl ?? '').trim(),
+      testModel.trim(),
+      headersSignature,
+      modelsSignature,
+    ].join('||');
+  }, [form.apiKey, form.baseUrl, form.headers, form.modelEntries, testModel]);
+  const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
+
+  useEffect(() => {
+    if (!testModel && availableModels.length) {
+      setTestModel(availableModels[0]);
+      return;
+    }
+    if (testModel && !availableModels.includes(testModel)) {
+      setTestModel(availableModels[0] ?? '');
+    }
+  }, [availableModels, testModel]);
+
+  useEffect(() => {
+    if (previousConnectivityConfigRef.current === connectivityConfigSignature) {
+      return;
+    }
+    previousConnectivityConfigRef.current = connectivityConfigSignature;
+    if (skipConnectivityResetRef.current) {
+      skipConnectivityResetRef.current = false;
+      return;
+    }
+    setModelTestStatuses({});
+    setTestStatus('idle');
+    setTestMessage('');
+  }, [connectivityConfigSignature]);
+
+  const removeModelEntryByName = useCallback(
+    (modelName: string) => {
+      const normalizedModelName = modelName.trim();
+      if (!normalizedModelName) return;
+
+      const next = form.modelEntries.filter((entry) => entry.name.trim() !== normalizedModelName);
+      const nextModelEntries = next.length ? next : [{ name: '', alias: '' }];
+      const nextTestModel =
+        nextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
+
+      skipConnectivityResetRef.current = true;
+      setForm((prev) => ({
+        ...prev,
+        modelEntries: nextModelEntries,
+      }));
+      setModelTestStatuses((prev) => {
+        const nextStatuses = { ...prev };
+        delete nextStatuses[normalizedModelName];
+        return nextStatuses;
+      });
+      setTestModel(nextTestModel);
+    },
+    [form.modelEntries]
+  );
+
+  const selectNextModel = useCallback(
+    (currentModelName: string) => {
+      const modelNames = form.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
+      const currentIndex = modelNames.findIndex((name) => name === currentModelName.trim());
+      const nextModel = currentIndex >= 0 ? modelNames[currentIndex + 1] : modelNames[0];
+      if (nextModel) {
+        skipConnectivityResetRef.current = true;
+        setTestModel(nextModel);
+      }
+    },
+    [form.modelEntries]
+  );
+
+  const buildGeminiGenerateEndpoint = useCallback((baseUrl: string, modelName: string) => {
+    const baseModelsEndpoint = modelsApi.buildGeminiModelsEndpoint(baseUrl);
+    if (!baseModelsEndpoint) return '';
+    const model = stripGeminiModelResourceName(modelName);
+    return `${baseModelsEndpoint}/${encodeURIComponent(model)}:generateContent`;
+  }, []);
+
+  const resolveTestHeaders = useCallback(
+    (customHeaders: Record<string, string>, apiKey: string): Record<string, string> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...customHeaders,
+      };
+      if (!hasHeader(headers, 'x-goog-api-key') && apiKey) {
+        headers['x-goog-api-key'] = apiKey;
+      }
+      return headers;
+    },
+    []
+  );
+
+  const testModelWithRequest = useCallback(
+    async (modelName: string): Promise<boolean> => {
+      const baseUrl = String(form.baseUrl ?? '').trim();
+      const endpoint = buildGeminiGenerateEndpoint(baseUrl, modelName);
+      if (!endpoint) return false;
+
+      const customHeaders = buildHeaderObject(form.headers);
+      const headers = resolveTestHeaders(customHeaders, form.apiKey.trim());
+
+      const result = await apiCallApi.request(
+        {
+          method: 'POST',
+          url: endpoint,
+          header: Object.keys(headers).length ? headers : undefined,
+          data: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
+            generationConfig: { maxOutputTokens: 5 },
+          }),
+        },
+        { timeout: GEMINI_TEST_TIMEOUT_MS }
+      );
+
+      if (result.statusCode < 200 || result.statusCode >= 300) {
+        throw new Error(getApiCallErrorMessage(result));
+      }
+      return true;
+    },
+    [buildGeminiGenerateEndpoint, form.apiKey, form.baseUrl, form.headers, resolveTestHeaders]
+  );
+
+  const runGeminiConnectivityTest = useCallback(async () => {
+    if (isTesting) return;
+
+    const baseUrl = String(form.baseUrl ?? '').trim();
+    if (!baseUrl) {
+      const message = t('ai_providers.gemini_test_url_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    const modelName = testModel.trim() || availableModels[0] || '';
+    if (!modelName) {
+      const message = t('ai_providers.gemini_test_model_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    const customHeaders = buildHeaderObject(form.headers);
+    const apiKey = form.apiKey.trim();
+    if (
+      !apiKey &&
+      !hasHeader(customHeaders, 'x-goog-api-key') &&
+      !hasHeader(customHeaders, 'authorization')
+    ) {
+      const message = t('ai_providers.gemini_test_key_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestStatus('loading');
+    setTestMessage(t('ai_providers.gemini_test_running'));
+
+    try {
+      await testModelWithRequest(modelName);
+      setModelTestStatuses((prev) => ({ ...prev, [modelName]: 'success' }));
+      const message = t('ai_providers.gemini_test_success');
+      setTestStatus('success');
+      setTestMessage(message);
+      showNotification(message, 'success');
+      selectNextModel(modelName);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      const errorCode =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? String((err as { code?: string }).code)
+          : '';
+      const isTimeout = errorCode === 'ECONNABORTED' || message.toLowerCase().includes('timeout');
+      const resolvedMessage = isTimeout
+        ? t('ai_providers.gemini_test_timeout', { seconds: GEMINI_TEST_TIMEOUT_MS / 1000 })
+        : `${t('ai_providers.gemini_test_failed')}: ${message || t('common.unknown_error')}`;
+      setTestStatus('error');
+      setTestMessage(resolvedMessage);
+      showNotification(resolvedMessage, 'error');
+      removeModelEntryByName(modelName);
+    } finally {
+      setIsTesting(false);
+    }
+  }, [
+    availableModels,
+    form.apiKey,
+    form.baseUrl,
+    form.headers,
+    isTesting,
+    removeModelEntryByName,
+    selectNextModel,
+    showNotification,
+    t,
+    testModel,
+    testModelWithRequest,
+  ]);
+
+  const testAllModels = useCallback(async () => {
+    if (isTesting) return;
+
+    const baseUrl = String(form.baseUrl ?? '').trim();
+    if (!baseUrl) {
+      const message = t('ai_providers.gemini_test_url_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    const customHeaders = buildHeaderObject(form.headers);
+    const apiKey = form.apiKey.trim();
+    if (
+      !apiKey &&
+      !hasHeader(customHeaders, 'x-goog-api-key') &&
+      !hasHeader(customHeaders, 'authorization')
+    ) {
+      const message = t('ai_providers.gemini_test_key_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    const modelEntries = form.modelEntries.filter((entry) => entry.name.trim());
+    if (modelEntries.length === 0) {
+      const message = t('ai_providers.gemini_test_model_required');
+      setTestStatus('error');
+      setTestMessage(message);
+      showNotification(message, 'error');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestStatus('loading');
+
+    const initialStatuses = modelEntries.reduce<Record<string, ModelTestStatus>>((acc, entry) => {
+      acc[entry.name.trim()] = 'loading';
+      return acc;
+    }, {});
+    setModelTestStatuses(initialStatuses);
+
+    let successCount = 0;
+    let failCount = 0;
+    const failedModels = new Set<string>();
+
+    try {
+      for (const entry of modelEntries) {
+        const modelName = entry.name.trim();
+        skipConnectivityResetRef.current = true;
+        setTestModel(modelName);
+        setTestMessage(t('ai_providers.gemini_test_all_models_running', { model: modelName }));
+
+        let success = false;
+        try {
+          await testModelWithRequest(modelName);
+          success = true;
+        } catch {
+          success = false;
+        }
+
+        if (!success) {
+          failCount += 1;
+          failedModels.add(modelName);
+          skipConnectivityResetRef.current = true;
+          setForm((prev) => ({
+            ...prev,
+            modelEntries: prev.modelEntries.filter(
+              (modelEntry) => modelEntry.name.trim() !== modelName
+            ),
+          }));
+          setModelTestStatuses((prev) => {
+            const next = { ...prev };
+            delete next[modelName];
+            return next;
+          });
+        } else {
+          successCount += 1;
+          setModelTestStatuses((prev) => ({ ...prev, [modelName]: 'success' }));
+        }
+      }
+
+      const nextModelEntries = form.modelEntries.filter(
+        (entry) => !failedModels.has(entry.name.trim())
+      );
+      const normalizedNextModelEntries = nextModelEntries.length
+        ? nextModelEntries
+        : [{ name: '', alias: '' }];
+      const nextTestModel =
+        normalizedNextModelEntries.find((entry) => entry.name.trim())?.name.trim() ?? '';
+
+      skipConnectivityResetRef.current = true;
+      setForm((prev) => ({
+        ...prev,
+        modelEntries: normalizedNextModelEntries,
+      }));
+      setTestModel(nextTestModel);
+
+      const message =
+        failCount === 0
+          ? t('ai_providers.gemini_test_all_models_success', { count: successCount })
+          : t('ai_providers.gemini_test_all_models_done', {
+              success: successCount,
+              failed: failCount,
+            });
+      setTestStatus(failCount === 0 ? 'success' : 'error');
+      setTestMessage(message);
+      showNotification(message, failCount === 0 ? 'success' : 'warning');
+    } finally {
+      setIsTesting(false);
+    }
+  }, [
+    form.apiKey,
+    form.baseUrl,
+    form.headers,
+    form.modelEntries,
+    isTesting,
+    showNotification,
+    t,
+    testModelWithRequest,
   ]);
 
   const canOpenModelDiscovery =
@@ -634,12 +1075,99 @@ export function AiProvidersGeminiEditPage() {
                 disabled={disableControls || saving}
                 hideAddButton
                 className={styles.modelInputList}
-                rowClassName={styles.modelInputRow}
+                rowClassName={`${styles.modelInputRow} ${styles.modelInputRowWithStatus}`}
                 inputClassName={styles.modelInputField}
                 removeButtonClassName={styles.modelRowRemoveButton}
                 removeButtonTitle={t('common.delete')}
                 removeButtonAriaLabel={t('common.delete')}
+                renderTrailing={(entry) => {
+                  const status = modelTestStatuses[entry.name.trim()];
+                  return (
+                    <span className={styles.modelTestRowStatus}>
+                      {status ? <StatusIcon status={status} /> : null}
+                    </span>
+                  );
+                }}
               />
+
+              <div className={styles.modelTestPanel}>
+                <div className={styles.modelTestMeta}>
+                  <label className={styles.modelTestLabel}>
+                    {t('ai_providers.gemini_test_title')}
+                  </label>
+                  <span className={styles.modelTestHint}>
+                    {t('ai_providers.gemini_test_hint')}
+                  </span>
+                </div>
+                <div className={styles.modelTestControls}>
+                  <Select
+                    value={testModel}
+                    options={modelSelectOptions}
+                    onChange={(value) => {
+                      setTestModel(value);
+                      setTestStatus('idle');
+                      setTestMessage('');
+                    }}
+                    placeholder={
+                      availableModels.length
+                        ? t('ai_providers.gemini_test_select_placeholder')
+                        : t('ai_providers.gemini_test_select_empty')
+                    }
+                    className={styles.openaiTestSelect}
+                    ariaLabel={t('ai_providers.gemini_test_title')}
+                    disabled={
+                      disableControls || saving || isTesting || availableModels.length === 0
+                    }
+                  />
+                  <Button
+                    variant={testStatus === 'error' ? 'danger' : 'secondary'}
+                    size="sm"
+                    onClick={() => void runGeminiConnectivityTest()}
+                    loading={isTesting}
+                    disabled={
+                      disableControls ||
+                      saving ||
+                      isTesting ||
+                      !hasConfiguredModels ||
+                      !hasTestableKey
+                    }
+                    title={t('ai_providers.gemini_test_action')}
+                    className={styles.modelTestAllButton}
+                  >
+                    {t('ai_providers.gemini_test_action')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void testAllModels()}
+                    loading={isTesting}
+                    disabled={
+                      disableControls ||
+                      saving ||
+                      isTesting ||
+                      !hasConfiguredModels ||
+                      !hasTestableKey
+                    }
+                    title={t('ai_providers.gemini_test_all_models_hint')}
+                    className={styles.modelTestAllButton}
+                  >
+                    {t('ai_providers.gemini_test_all_models_action')}
+                  </Button>
+                </div>
+                {testMessage && (
+                  <div
+                    className={`status-badge ${
+                      testStatus === 'error'
+                        ? 'error'
+                        : testStatus === 'success'
+                          ? 'success'
+                          : 'muted'
+                    }`}
+                  >
+                    {testMessage}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="form-group">
@@ -648,7 +1176,20 @@ export function AiProvidersGeminiEditPage() {
                 className="input"
                 placeholder={t('ai_providers.excluded_models_placeholder')}
                 value={form.excludedText}
-                onChange={(e) => setForm((prev) => ({ ...prev, excludedText: e.target.value }))}
+                onChange={(e) => {
+                  const nextText = e.target.value;
+                  if (!hasDisableAllModelsRule(parseExcludedModels(nextText))) {
+                    setForm((prev) => ({ ...prev, excludedText: nextText }));
+                    return;
+                  }
+                  // The "*" rule is managed internally via `disabled`; typing it in
+                  // the textarea flips that state and drops the rule from the text.
+                  setForm((prev) => ({
+                    ...prev,
+                    disabled: true,
+                    excludedText: excludedModelsToText(stripDisableAllModelsRule(parseExcludedModels(nextText))),
+                  }));
+                }}
                 rows={4}
                 disabled={disableControls || saving}
               />

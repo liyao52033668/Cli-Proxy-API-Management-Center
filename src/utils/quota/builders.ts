@@ -3,10 +3,12 @@
  */
 
 import type {
+  AntigravityQuotaBucket,
   AntigravityQuotaGroup,
   AntigravityQuotaGroupDefinition,
   AntigravityQuotaInfo,
   AntigravityModelsPayload,
+  AntigravityQuotaSummaryPayload,
   GeminiCliParsedBucket,
   GeminiCliQuotaBucketState,
   KimiUsagePayload,
@@ -187,7 +189,87 @@ export function findAntigravityModel(
   return null;
 }
 
+/**
+ * 兼容两种接口返回：
+ * - `retrieveUserQuotaSummary` 新格式：payload.groups（含 displayName/description/buckets）
+ * - `fetchAvailableModels` 旧格式：payload.models（Record<modelId, quotaInfo>）
+ */
 export function buildAntigravityQuotaGroups(
+  payload: AntigravityQuotaSummaryPayload | AntigravityModelsPayload
+): AntigravityQuotaGroup[] {
+  const summary = payload as AntigravityQuotaSummaryPayload;
+  if (Array.isArray(summary.groups)) {
+    return buildAntigravityQuotaGroupsFromSummary(summary);
+  }
+  return buildAntigravityQuotaGroupsFromModels(payload as AntigravityModelsPayload);
+}
+
+const toStableId = (value: string, fallback: string): string => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || fallback;
+};
+
+function buildAntigravityQuotaGroupsFromSummary(
+  payload: AntigravityQuotaSummaryPayload
+): AntigravityQuotaGroup[] {
+  const groups = Array.isArray(payload.groups) ? payload.groups : [];
+
+  return groups
+    .map((group, groupIndex): AntigravityQuotaGroup | null => {
+      const label =
+        normalizeStringValue(group.displayName ?? group.display_name) ??
+        `Quota Group ${groupIndex + 1}`;
+      const groupId = toStableId(label, `quota-group-${groupIndex + 1}`);
+      const buckets = Array.isArray(group.buckets) ? group.buckets : [];
+
+      const parsedBuckets = buckets
+        .map((bucket, bucketIndex): AntigravityQuotaBucket | null => {
+          const remainingFraction = normalizeQuotaFraction(
+            bucket.remainingFraction ?? bucket.remaining_fraction
+          );
+          if (remainingFraction === null) return null;
+
+          const window = normalizeStringValue(bucket.window) ?? undefined;
+          const rawId =
+            normalizeStringValue(bucket.bucketId ?? bucket.bucket_id) ??
+            `${groupId}-${window ?? `bucket-${bucketIndex + 1}`}`;
+          const bucketLabel =
+            normalizeStringValue(bucket.displayName ?? bucket.display_name) ?? rawId;
+          const resetTime =
+            normalizeStringValue(bucket.resetTime ?? bucket.reset_time) ?? undefined;
+
+          return {
+            id: rawId,
+            label: bucketLabel,
+            window,
+            remainingFraction,
+            resetTime,
+            description: normalizeStringValue(bucket.description) ?? undefined,
+          };
+        })
+        .filter((bucket): bucket is AntigravityQuotaBucket => bucket !== null)
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+      if (parsedBuckets.length === 0) return null;
+
+      return {
+        id: groupId,
+        label,
+        models: [],
+        remainingFraction: Math.min(...parsedBuckets.map((bucket) => bucket.remainingFraction)),
+        resetTime: parsedBuckets.map((bucket) => bucket.resetTime).find(Boolean),
+        description: normalizeStringValue(group.description) ?? undefined,
+        buckets: parsedBuckets,
+      };
+    })
+    .filter((group): group is AntigravityQuotaGroup => group !== null);
+}
+
+function buildAntigravityQuotaGroupsFromModels(
   models: AntigravityModelsPayload
 ): AntigravityQuotaGroup[] {
   const groups: AntigravityQuotaGroup[] = [];

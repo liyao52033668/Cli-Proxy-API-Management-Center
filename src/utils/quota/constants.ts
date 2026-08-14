@@ -150,6 +150,10 @@ export const ANTIGRAVITY_REQUEST_HEADERS = {
   'User-Agent': 'antigravity/1.11.5 windows/amd64',
 };
 
+/** Antigravity 订阅/套餐查询端点（loadCodeAssist 返回 currentTier / paidTier）。 */
+export const ANTIGRAVITY_CODE_ASSIST_URL =
+  'https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist';
+
 export const ANTIGRAVITY_QUOTA_GROUPS: AntigravityQuotaGroupDefinition[] = [
   {
     id: 'claude-gpt',

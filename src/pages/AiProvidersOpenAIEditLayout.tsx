@@ -46,6 +46,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   priority: undefined,
   prefix: '',
   baseUrl: '',
+  quotaEndpoint: '',
   disabled: false,
   forceStream: false,
   supportPromptCacheKey: false,
@@ -113,6 +114,7 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
+  quotaEndpoint: String(form.quotaEndpoint ?? '').trim(),
   disabled: Boolean(form.disabled),
   forceStream: Boolean(form.forceStream),
   supportPromptCacheKey: Boolean(form.supportPromptCacheKey),
@@ -306,6 +308,7 @@ export function AiProvidersOpenAIEditLayout() {
         priority: initialData.priority,
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
+        quotaEndpoint: initialData.quotaEndpoint ?? '',
         disabled: Boolean(initialData.disabled),
         forceStream: Boolean(initialData.forceStream),
         supportPromptCacheKey: Boolean(initialData.supportPromptCacheKey),
@@ -434,6 +437,7 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
+      baseline.quotaEndpoint !== form.quotaEndpoint.trim() ||
       baseline.disabled !== Boolean(form.disabled) ||
       baseline.forceStream !== Boolean(form.forceStream) ||
       baseline.supportPromptCacheKey !== Boolean(form.supportPromptCacheKey) ||
@@ -481,6 +485,7 @@ export function AiProvidersOpenAIEditLayout() {
         name,
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
+        quotaEndpoint: form.quotaEndpoint?.trim() || undefined,
         disabled: Boolean(form.disabled),
         forceStream: Boolean(form.forceStream),
         supportPromptCacheKey: Boolean(form.supportPromptCacheKey),

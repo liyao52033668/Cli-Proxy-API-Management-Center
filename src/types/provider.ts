@@ -53,6 +53,8 @@ export interface OpenAIProviderConfig {
   name: string;
   prefix?: string;
   baseUrl: string;
+  /** 额度查询端点：填写后自动使用 apiKey 查询并展示余额；留空则不进行额度查询。 */
+  quotaEndpoint?: string;
   apiKeyEntries: ApiKeyEntry[];
   headers?: Record<string, string>;
   models?: ModelAlias[];

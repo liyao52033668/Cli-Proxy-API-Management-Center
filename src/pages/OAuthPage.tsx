@@ -6,7 +6,7 @@ import iconCodebuddyAI from '@/assets/icons/codebuddy-ai.svg';
 import iconCodebuddy from '@/assets/icons/codebuddy.svg';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
-import iconGemini from '@/assets/icons/gemini.svg';
+// import iconGemini from '@/assets/icons/gemini.svg';
 import iconGitHub from '@/assets/icons/github.svg';
 import iconGitLab from '@/assets/icons/gitlab.svg';
 import iconGrok from '@/assets/icons/grok.svg';
@@ -87,7 +87,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codex', titleKey: 'auth_login.codex_oauth_title', hintKey: 'auth_login.codex_oauth_hint', urlLabelKey: 'auth_login.codex_oauth_url_label', icon: iconCodex },
   { id: 'anthropic', titleKey: 'auth_login.anthropic_oauth_title', hintKey: 'auth_login.anthropic_oauth_hint', urlLabelKey: 'auth_login.anthropic_oauth_url_label', icon: iconClaude },
   { id: 'antigravity', titleKey: 'auth_login.antigravity_oauth_title', hintKey: 'auth_login.antigravity_oauth_hint', urlLabelKey: 'auth_login.antigravity_oauth_url_label', icon: iconAntigravity },
-  { id: 'gemini-cli', titleKey: 'auth_login.gemini_cli_oauth_title', hintKey: 'auth_login.gemini_cli_oauth_hint', urlLabelKey: 'auth_login.gemini_cli_oauth_url_label', icon: iconGemini },
+  // { id: 'gemini-cli', titleKey: 'auth_login.gemini_cli_oauth_title', hintKey: 'auth_login.gemini_cli_oauth_hint', urlLabelKey: 'auth_login.gemini_cli_oauth_url_label', icon: iconGemini },
   { id: 'github', titleKey: 'auth_login.github_oauth_title', hintKey: 'auth_login.github_oauth_hint', urlLabelKey: 'auth_login.github_oauth_url_label', icon: iconGitHub },
   { id: 'gitlab', titleKey: 'auth_login.gitlab_oauth_title', hintKey: 'auth_login.gitlab_oauth_hint', urlLabelKey: 'auth_login.gitlab_oauth_url_label', icon: iconGitLab },
   { id: 'kilo', titleKey: 'auth_login.kilo_oauth_title', hintKey: 'auth_login.kilo_oauth_hint', urlLabelKey: 'auth_login.kilo_oauth_url_label', icon: iconKilo },

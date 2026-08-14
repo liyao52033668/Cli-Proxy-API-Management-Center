@@ -3,12 +3,21 @@
  */
 
 import styles from '@/pages/QuotaPage.module.scss';
-import { apiCallApi, apiClient, authFilesApi, getApiCallErrorMessage } from '@/services/api';
+import {
+  antigravitySubscriptionApi,
+  apiCallApi,
+  apiClient,
+  authFilesApi,
+  getApiCallErrorMessage,
+} from '@/services/api';
+import type { AntigravitySubscriptionSummary } from '@/services/api/antigravitySubscription';
 import { useQuotaStore } from '@/stores';
 import type {
   AntigravityModelsPayload,
   AntigravityQuotaGroup,
   AntigravityQuotaState,
+  AntigravityQuotaSubscription,
+  AntigravityQuotaSummaryPayload,
   AuthFileItem,
   ClaudeExtraUsage,
   ClaudeProfileResponse,
@@ -205,10 +214,22 @@ const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> 
   return DEFAULT_ANTIGRAVITY_PROJECT_ID;
 };
 
+type AntigravityQuotaData = {
+  groups: AntigravityQuotaGroup[];
+  subscription: AntigravityQuotaSubscription | null;
+};
+
+const toAntigravityQuotaSubscription = (
+  summary: AntigravitySubscriptionSummary | null
+): AntigravityQuotaSubscription | null => {
+  if (!summary) return null;
+  return { plan: summary.plan, tierName: summary.tierName, tierId: summary.tierId };
+};
+
 const fetchAntigravityQuota = async (
   file: AuthFileItem,
   t: TFunction
-): Promise<AntigravityQuotaGroup[]> => {
+): Promise<AntigravityQuotaData> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
@@ -217,6 +238,11 @@ const fetchAntigravityQuota = async (
 
   const projectId = await resolveAntigravityProjectId(file);
   const requestBody = JSON.stringify({ project: projectId });
+  // 套餐信息来自独立的 loadCodeAssist 接口，与额度查询并发执行
+  const subscriptionPromise = antigravitySubscriptionApi
+    .get(authIndex)
+    .then(toAntigravityQuotaSubscription)
+    .catch(() => null);
 
   let lastError = '';
   let lastStatus: number | undefined;
@@ -244,19 +270,23 @@ const fetchAntigravityQuota = async (
 
       hadSuccess = true;
       const payload = parseAntigravityPayload(result.body ?? result.bodyText);
-      const models = payload?.models;
-      if (!models || typeof models !== 'object' || Array.isArray(models)) {
+      if (!payload) {
         lastError = t('antigravity_quota.empty_models');
         continue;
       }
 
-      const groups = buildAntigravityQuotaGroups(models as AntigravityModelsPayload);
+      const groups = buildAntigravityQuotaGroups(
+        payload as AntigravityQuotaSummaryPayload | AntigravityModelsPayload
+      );
       if (groups.length === 0) {
         lastError = t('antigravity_quota.empty_models');
         continue;
       }
 
-      return groups;
+      return {
+        groups,
+        subscription: await subscriptionPromise,
+      };
     } catch (err: unknown) {
       lastError = err instanceof Error ? err.message : t('common.unknown_error');
       const status = getStatusFromError(err);
@@ -270,7 +300,7 @@ const fetchAntigravityQuota = async (
   }
 
   if (hadSuccess) {
-    return [];
+    return { groups: [], subscription: await subscriptionPromise };
   }
 
   throw createStatusError(lastError || t('common.unknown_error'), priorityStatus ?? lastStatus);
@@ -867,6 +897,62 @@ const fetchGeminiCliQuota = async (
   };
 };
 
+const ANTIGRAVITY_GROUP_LABEL_KEYS = new Map<string, string>([
+  ['gemini models', 'group_gemini_models'],
+  ['claude and gpt models', 'group_claude_gpt_models'],
+]);
+
+const ANTIGRAVITY_BUCKET_LABEL_KEYS = new Map<string, string>([
+  ['weekly limit', 'weekly_limit'],
+  ['daily limit', 'daily_limit'],
+  ['5 hour limit', 'five_hour_limit'],
+  ['5-hour limit', 'five_hour_limit'],
+  ['five hour limit', 'five_hour_limit'],
+  ['monthly limit', 'monthly_limit'],
+]);
+
+const normalizeAntigravityQuotaText = (value: string): string =>
+  value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const translateAntigravityQuotaLabel = (
+  value: string,
+  keys: Map<string, string>,
+  t: TFunction
+): string => {
+  const key = keys.get(normalizeAntigravityQuotaText(value));
+  return key ? t(`antigravity_quota.${key}`) : value;
+};
+
+const translateAntigravityQuotaDescription = (
+  value: string | undefined,
+  t: TFunction
+): string | undefined => {
+  if (!value) return undefined;
+  const modelsMatch = value.match(/^models within this group:\s*(.+)$/i);
+  if (modelsMatch) {
+    return t('antigravity_quota.group_models_description', {
+      models: modelsMatch[1].trim(),
+    });
+  }
+  return value;
+};
+
+const getAntigravityPlanLabel = (
+  subscription: AntigravityQuotaSubscription | null | undefined,
+  t: TFunction
+): string | null => {
+  if (!subscription) return null;
+  if (subscription.plan === 'free') return t('antigravity_subscription.plan_free');
+  if (subscription.plan === 'pro') return t('antigravity_subscription.plan_pro');
+  if (subscription.plan === 'ultra') return t('antigravity_subscription.plan_ultra');
+  if (subscription.plan === 'ultra-lite') return t('antigravity_subscription.plan_ultra_lite');
+  return (
+    subscription.tierName ||
+    subscription.tierId ||
+    (subscription.plan === 'unknown' ? t('antigravity_subscription.plan_unknown') : null)
+  );
+};
+
 const renderAntigravityItems = (
   quota: AntigravityQuotaState,
   t: TFunction,
@@ -875,37 +961,135 @@ const renderAntigravityItems = (
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h } = React;
   const groups = quota.groups ?? [];
+  const planLabel = getAntigravityPlanLabel(quota.subscription, t);
+  const isPremiumPlan =
+    quota.subscription?.plan === 'ultra' || quota.subscription?.plan === 'ultra-lite';
 
-  if (groups.length === 0) {
-    return h('div', { className: styleMap.quotaMessage }, t('antigravity_quota.empty_models'));
-  }
+  const nodes: ReactNode[] = [];
 
-  return groups.map((group) => {
-    const clamped = Math.max(0, Math.min(1, group.remainingFraction));
-    const percent = Math.round(clamped * 100);
-    const resetLabel = formatQuotaResetTime(group.resetTime);
-
-    return h(
-      'div',
-      { key: group.id, className: styleMap.quotaRow },
+  if (planLabel) {
+    nodes.push(
       h(
         'div',
-        { className: styleMap.quotaRowHeader },
-        h('span', { className: styleMap.quotaModel, title: group.models.join(', ') }, group.label),
+        { key: 'antigravity-plan', className: styleMap.codexPlan },
+        h('span', { className: styleMap.codexPlanLabel }, t('antigravity_quota.plan_label')),
+        h(
+          'span',
+          { className: isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue },
+          planLabel
+        )
+      )
+    );
+  }
+
+  if (groups.length === 0) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'antigravity-empty', className: styleMap.quotaMessage },
+        t('antigravity_quota.empty_models')
+      )
+    );
+    return nodes;
+  }
+
+  groups.forEach((group) => {
+    const groupLabel = translateAntigravityQuotaLabel(
+      group.label,
+      ANTIGRAVITY_GROUP_LABEL_KEYS,
+      t
+    );
+    const groupDescription =
+      translateAntigravityQuotaDescription(group.description, t) ??
+      (group.models.length > 0
+        ? t('antigravity_quota.group_models_description', {
+            models: group.models.join(', '),
+          })
+        : undefined);
+
+    nodes.push(
+      h(
+        'div',
+        { key: `group-${group.id}`, className: styleMap.antigravityQuotaGroup },
         h(
           'div',
-          { className: styleMap.quotaMeta },
-          h('span', { className: styleMap.quotaPercent }, `${percent}%`),
-          h('span', { className: styleMap.quotaReset }, resetLabel)
-        )
-      ),
-      h(QuotaProgressBar, {
-        percent,
-        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
-      })
+          { className: styleMap.antigravityQuotaGroupHeader },
+          h('span', { className: styleMap.antigravityQuotaGroupTitle }, groupLabel),
+          groupDescription && h(
+            'span',
+            { className: styleMap.antigravityQuotaGroupDescription },
+            groupDescription
+          )
+        ),
+        ...(group.buckets && group.buckets.length > 0
+          ? group.buckets.map((bucket) =>
+              h(
+                'div',
+                { key: bucket.id, className: styleMap.quotaRow },
+                h(
+                  'div',
+                  { className: styleMap.quotaRowHeader },
+                  h(
+                    'span',
+                    {
+                      className: styleMap.quotaModel,
+                      title: bucket.description,
+                    },
+                    translateAntigravityQuotaLabel(bucket.label, ANTIGRAVITY_BUCKET_LABEL_KEYS, t)
+                  ),
+                  h(
+                    'div',
+                    { className: styleMap.quotaMeta },
+                    h(
+                      'span',
+                      { className: styleMap.quotaPercent },
+                      `${Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100)}%`
+                    ),
+                    h('span', { className: styleMap.quotaReset }, formatQuotaResetTime(bucket.resetTime))
+                  )
+                ),
+                h(QuotaProgressBar, {
+                  percent: Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100),
+                  highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+                  mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+                })
+              )
+            )
+          : [
+              h(
+                'div',
+                { key: group.id, className: styleMap.quotaRow },
+                h(
+                  'div',
+                  { className: styleMap.quotaRowHeader },
+                  h('span', { className: styleMap.quotaModel }, groupLabel),
+                  h(
+                    'div',
+                    { className: styleMap.quotaMeta },
+                    h(
+                      'span',
+                      { className: styleMap.quotaPercent },
+                      `${Math.round(Math.max(0, Math.min(1, group.remainingFraction)) * 100)}%`
+                    ),
+                    h(
+                      'span',
+                      { className: styleMap.quotaReset },
+                      formatQuotaResetTime(group.resetTime)
+                    )
+                  )
+                ),
+                h(QuotaProgressBar, {
+                  percent: Math.round(Math.max(0, Math.min(1, group.remainingFraction)) * 100),
+                  highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+                  mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+                })
+              ),
+            ])
+      )
     );
   });
+
+  return nodes;
 };
 
 const PREMIUM_GEMINI_CLI_TIER_IDS = new Set(['g1-ultra-tier']);
@@ -1367,7 +1551,7 @@ export const CLAUDE_CONFIG: QuotaConfig<
   renderQuotaItems: renderClaudeItems,
 };
 
-export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQuotaGroup[]> = {
+export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQuotaData> = {
   type: 'antigravity',
   i18nPrefix: 'antigravity_quota',
   cardIdleMessageKey: 'quota_management.card_idle_hint',
@@ -1375,11 +1559,16 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
   fetchQuota: fetchAntigravityQuota,
   storeSelector: (state) => state.antigravityQuota,
   storeSetter: 'setAntigravityQuota',
-  buildLoadingState: () => ({ status: 'loading', groups: [] }),
-  buildSuccessState: (groups) => ({ status: 'success', groups }),
+  buildLoadingState: () => ({ status: 'loading', groups: [], subscription: null }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    groups: data.groups,
+    subscription: data.subscription,
+  }),
   buildErrorState: (message, status) => ({
     status: 'error',
     groups: [],
+    subscription: null,
     error: message,
     errorStatus: status,
   }),

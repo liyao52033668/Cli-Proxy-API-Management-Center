@@ -813,6 +813,14 @@ export function AiProvidersOpenAIEditPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
               disabled={saving || disableControls || isTestingKeys}
             />
+            <Input
+              label={t('ai_providers.openai_quota_endpoint_label')}
+              placeholder={t('ai_providers.openai_quota_endpoint_placeholder')}
+              value={form.quotaEndpoint ?? ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, quotaEndpoint: e.target.value }))}
+              hint={t('ai_providers.openai_quota_endpoint_hint')}
+              disabled={saving || disableControls || isTestingKeys}
+            />
             <div className={styles.modelConfigSection}>
               <div className={styles.modelConfigHeader}>
                 <label className={styles.modelConfigTitle}>{t('ai_providers.config_toggle_label')}</label>
