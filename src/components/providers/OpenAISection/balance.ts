@@ -77,12 +77,20 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   JPY: '¥',
 };
 
+/** 将数值四舍五入并保留两位小数。 */
+const roundMoney = (value: string): string => {
+  const num = Number.parseFloat(value);
+  if (!Number.isFinite(num)) return value;
+  return (Math.round((num + Number.EPSILON) * 100) / 100).toFixed(2);
+};
+
 export const formatQuotaBalance = (info: QuotaBalanceInfo): string => {
+  const rounded = roundMoney(info.total);
   const symbol = CURRENCY_SYMBOLS[info.currency.toUpperCase()] ?? '';
   if (symbol) {
-    return `${symbol}${info.total}`;
+    return `${symbol}${rounded}`;
   }
-  return info.currency ? `${info.total} ${info.currency}` : info.total;
+  return info.currency ? `${rounded} ${info.currency}` : rounded;
 };
 
 /** 将原始额度值除以换算除数（保留最多 8 位小数并去除尾随 0）。 */
