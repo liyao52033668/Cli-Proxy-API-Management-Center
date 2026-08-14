@@ -53,8 +53,12 @@ export interface OpenAIProviderConfig {
   name: string;
   prefix?: string;
   baseUrl: string;
-  /** 额度查询端点：填写后自动使用 apiKey 查询并展示余额；留空则不进行额度查询。 */
+  /** 额度查询端点：填写后自动查询并展示余额；留空则不进行额度查询。 */
   quotaEndpoint?: string;
+  /** 额度查询鉴权 token：留空时依次使用下方 apiKey 进行查询。 */
+  quotaToken?: string;
+  /** 额度换算除数：将原始额度值除以该值得到余额（如 NEW API 的 quota 需除以 500000）。 */
+  quotaDivisor?: number;
   apiKeyEntries: ApiKeyEntry[];
   headers?: Record<string, string>;
   models?: ModelAlias[];

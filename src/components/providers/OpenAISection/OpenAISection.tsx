@@ -409,19 +409,25 @@ export function OpenAISection({
       providerKey: string;
       apiKeys: string[];
       endpoint: string | null;
+      token?: string;
+      divisor?: number;
       headers?: Record<string, string>;
     }> = [];
     configs.forEach((provider, index) => {
       const endpoint = resolveQuotaEndpoint(provider.quotaEndpoint);
       if (!endpoint) return;
+      const token = String(provider.quotaToken ?? '').trim();
       const apiKeys = (provider.apiKeyEntries || [])
         .map((entry) => entry.apiKey.trim())
         .filter(Boolean);
-      if (apiKeys.length === 0) return;
+      // 未配置 token 且无 apiKey 时不进行额度查询
+      if (!token && apiKeys.length === 0) return;
       targets.push({
         providerKey: getOpenAIProviderKey(provider, index),
         apiKeys,
         endpoint,
+        token: token || undefined,
+        divisor: provider.quotaDivisor,
         headers: provider.headers,
       });
     });
@@ -442,7 +448,7 @@ export function OpenAISection({
       return next;
     });
 
-    quotaTargets.forEach(({ providerKey, apiKeys, endpoint, headers }) => {
+    quotaTargets.forEach(({ providerKey, apiKeys, endpoint, token, divisor, headers }) => {
       if (!endpoint) return;
       const requestId = (quotaRequestIdsRef.current[providerKey] ?? 0) + 1;
       quotaRequestIdsRef.current[providerKey] = requestId;
@@ -452,14 +458,16 @@ export function OpenAISection({
         [providerKey]: { status: 'loading' },
       }));
 
-      void fetchQuotaBalance(apiKeys, endpoint, (payload) => apiCallApi.request(payload), headers).then(
-        (state) => {
-          if (quotaRequestIdsRef.current[providerKey] !== requestId) {
-            return;
-          }
-          setQuotaBalanceByKey((prev) => ({ ...prev, [providerKey]: state }));
+      void fetchQuotaBalance(apiKeys, endpoint, (payload) => apiCallApi.request(payload), {
+        token,
+        divisor,
+        extraHeaders: headers,
+      }).then((state) => {
+        if (quotaRequestIdsRef.current[providerKey] !== requestId) {
+          return;
         }
-      );
+        setQuotaBalanceByKey((prev) => ({ ...prev, [providerKey]: state }));
+      });
     });
   }, [quotaTargets]);
 
@@ -816,6 +824,7 @@ export function OpenAISection({
       : null;
     const providerKey = getOpenAIProviderKey(provider, originalIndex);
     const quotaEndpoint = resolveQuotaEndpoint(provider.quotaEndpoint);
+    const quotaToken = String(provider.quotaToken ?? '').trim();
     const quotaApiKeys = (provider.apiKeyEntries || [])
       .map((entry) => entry.apiKey.trim())
       .filter(Boolean);
@@ -944,7 +953,7 @@ export function OpenAISection({
             <span className={`${styles.statPill} ${styles.statTokens}`}>
               {t('stats.tokens')}: {stats.tokens == null ? '-' : formatCompactNumber(stats.tokens)}
             </span>
-            {quotaEndpoint && quotaApiKeys.length > 0 && (
+            {quotaEndpoint && (quotaApiKeys.length > 0 || quotaToken) && (
               <span className={`${styles.statPill} ${styles.statBalance}`}>
                 {quotaBalance?.status === 'success' && quotaBalance.balances.length > 0
                   ? `${t('ai_providers.openai_balance')}: ${quotaBalance.balances

@@ -936,8 +936,12 @@ const ANTIGRAVITY_BUCKET_LABEL_KEYS = new Map<string, string>([
   ['monthly limit', 'monthly_limit'],
 ]);
 
-const normalizeAntigravityQuotaText = (value: string): string =>
-  value.trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeAntigravityQuotaText = (value: string): string => {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  // 接口 bucket label 可能带 "Remaining" 后缀（如 "Weekly Limit Remaining"），
+  // 去掉末尾 "remaining" 以命中基础 key 映射（weekly_limit 等）。
+  return normalized.replace(/\s+remaining$/, '');
+};
 
 const translateAntigravityQuotaLabel = (
   value: string,
