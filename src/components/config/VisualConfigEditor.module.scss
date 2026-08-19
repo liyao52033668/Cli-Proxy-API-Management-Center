@@ -50,6 +50,87 @@
     margin-top: 10px;
   }
 
+  // 模型选择相关样式
+  .modelSelectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 12px;
+
+    .modelSelectionActions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+
+  .modelSearchWrapper {
+    margin-bottom: 12px;
+
+    input {
+      width: 100%;
+    }
+  }
+
+  :global(.model-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  }
+
+  :global(.addable-model-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px dashed var(--primary-color);
+    border-radius: 12px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+    margin-bottom: 12px;
+  }
+
+  :global(.model-item) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    }
+  }
+
+  :global(.model-name) {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  }
+
+  :global(.loading-state) {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  :global(.empty-state) {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+
   :global(.item-row) {
     border-radius: 18px;
     padding: 14px 16px;
@@ -61,6 +142,50 @@
     gap: 4px;
   }
 
+  :global(.item-row .item-models) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  :global(.item-row .item-models-label) {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  :global(.item-row .item-models-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  :global(.item-row .item-model-tag) {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
+    white-space: nowrap;
+  }
+
+  :global(.item-row .item-model-more) {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+    color: var(--text-secondary);
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+    white-space: nowrap;
+  }
+
   :global(.item-row .item-actions) {
     flex-wrap: wrap;
   }
@@ -70,6 +195,66 @@
     border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
     color: var(--text-secondary);
   }
+}
+
+// Modal 内的模型列表样式（Modal 渲染在 portal 中，需要全局样式）
+:global(.model-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+}
+
+:global(.addable-model-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px dashed var(--primary-color);
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+  margin-bottom: 12px;
+}
+
+:global(.model-item) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+  }
+}
+
+:global(.model-name) {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+:global(.loading-state) {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+:global(.empty-state) {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .expandableInputWrapper {

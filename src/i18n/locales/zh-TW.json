@@ -55,7 +55,10 @@
     "model_alias_placeholder": "模型別名（選填）",
     "invalid_provider_index": "無效的供應商索引。",
     "unsaved_changes_title": "未儲存的變更",
-    "unsaved_changes_message": "你有未儲存的變更，離開後將遺失這些變更。確定要離開嗎？"
+    "unsaved_changes_message": "你有未儲存的變更，離開後將遺失這些變更。確定要離開嗎？",
+    "select_all": "全選",
+    "deselect_all": "取消全選",
+    "models": "模型"
   },
   "title": {
     "main": "CLI Proxy API Management Center",
@@ -1781,7 +1784,8 @@
         "input_placeholder": "貼上你的 API 金鑰",
         "input_hint": "此處僅修改本地設定檔內容，不會自動同步到 API 金鑰管理介面",
         "error_empty": "請輸入 API 金鑰",
-        "error_invalid": "API 金鑰包含無效字元"
+        "error_invalid": "API 金鑰包含無效字元",
+        "models_search_placeholder": "搜尋模型..."
       },
       "payload_rules": {
         "rule": "規則",
@@ -1831,7 +1835,8 @@
         "delete": "刪除",
         "cancel": "取消",
         "update": "更新",
-        "add": "新增"
+        "add": "新增",
+        "save": "儲存"
       }
     }
   },
@@ -2049,7 +2054,10 @@
     "claude_api_key": "Claude API 金鑰",
     "commercial_mode_restart_required": "商業模式開關已變更，請重啟服務後生效",
     "copy_failed": "複製失敗",
-    "link_copied": "已複製"
+    "link_copied": "已複製",
+    "error_loading_models": "載入可用模型失敗",
+    "models_saved": "模型白名單儲存成功",
+    "error_saving_models": "儲存模型白名單失敗"
   },
   "language": {
     "switch": "語言",

@@ -55,7 +55,10 @@
     "model_alias_placeholder": "Model alias (optional)",
     "invalid_provider_index": "Invalid provider index.",
     "unsaved_changes_title": "Unsaved changes",
-    "unsaved_changes_message": "You have unsaved changes. Leaving now will discard them. Do you want to leave?"
+    "unsaved_changes_message": "You have unsaved changes. Leaving now will discard them. Do you want to leave?",
+    "select_all": "Select All",
+    "deselect_all": "Deselect All",
+    "models": "Models"
   },
   "title": {
     "main": "CLI Proxy API Management Center",
@@ -1761,7 +1764,12 @@
         "input_placeholder": "Paste your API key",
         "input_hint": "This only modifies the local config file content, it will not sync to the API Key Management interface",
         "error_empty": "Please enter an API key",
-        "error_invalid": "API key contains invalid characters"
+        "error_invalid": "API key contains invalid characters",
+        "models": "Models",
+        "models_title": "Select Available Models",
+        "models_hint": "Select available models for this API key. No selection means all models are shown.",
+        "no_models": "No available models",
+        "models_search_placeholder": "Search models..."
       },
       "payload_rules": {
         "rule": "Rule",
@@ -1811,7 +1819,8 @@
         "delete": "Delete",
         "cancel": "Cancel",
         "update": "Update",
-        "add": "Add"
+        "add": "Add",
+        "save": "Save"
       }
     }
   },
@@ -2029,7 +2038,10 @@
     "claude_api_key": "Claude API key",
     "commercial_mode_restart_required": "Commercial mode setting changed. Please restart the service for it to take effect",
     "copy_failed": "Copy failed",
-    "link_copied": "Link copied to clipboard"
+    "link_copied": "Link copied to clipboard",
+    "error_loading_models": "Failed to load available models",
+    "models_saved": "Model whitelist saved successfully",
+    "error_saving_models": "Failed to save model whitelist"
   },
   "language": {
     "switch": "Language",

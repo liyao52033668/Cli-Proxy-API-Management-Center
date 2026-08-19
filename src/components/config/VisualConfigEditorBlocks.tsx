@@ -1,9 +1,11 @@
-import { memo, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useId, useLayoutEffect, useMemo, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
-import { useNotificationStore } from '@/stores';
+import { useNotificationStore, useAuthStore } from '@/stores';
+import { modelsApi } from '@/services/api/models';
+import { apiKeysApi } from '@/services/api/apiKeys';
 import styles from './VisualConfigEditor.module.scss';
 import { copyToClipboard } from '@/utils/clipboard';
 import type {
@@ -169,6 +171,8 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
 }) {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
+  const apiBase = useAuthStore((state) => state.apiBase);
+  const managementKey = useAuthStore((state) => state.managementKey);
   const apiKeys = useMemo(
     () =>
       value
@@ -194,6 +198,46 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
   const [editingApiKeyId, setEditingApiKeyId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [formError, setFormError] = useState('');
+
+  // 模型选择相关状态
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+  const [selectedApiKey, setSelectedApiKey] = useState<string>('');
+  const [associatedModels, setAssociatedModels] = useState<string[]>([]);
+  const [allAvailableModels, setAllAvailableModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [apiKeyModels, setApiKeyModels] = useState<Map<string, string[]>>(new Map());
+  const [showAddModelDropdown, setShowAddModelDropdown] = useState(false);
+
+  // 加载所有 API 密钥的模型白名单
+  useEffect(() => {
+    const loadApiKeyModels = async () => {
+      try {
+        const response = await fetch(`${apiBase}/v0/management/api-keys`, {
+          headers: {
+            'Authorization': `Bearer ${managementKey}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const modelsMap = new Map<string, string[]>();
+          // 后端返回格式: { "api-keys": [{key: "...", models: [...]}, ...] }
+          const apiKeysList = data['api-keys'] || [];
+          if (Array.isArray(apiKeysList)) {
+            apiKeysList.forEach((item: any) => {
+              if (item.key && Array.isArray(item.models)) {
+                modelsMap.set(item.key, item.models);
+              }
+            });
+          }
+          setApiKeyModels(modelsMap);
+        }
+      } catch (error) {
+        console.error('Failed to load API key models:', error);
+      }
+    };
+    loadApiKeyModels();
+  }, [apiBase, managementKey]);
 
   function generateSecureApiKey(): string {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -273,6 +317,106 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
     setFormError('');
   };
 
+  // 打开模型选择弹窗
+  const openModelModal = async (apiKey: string) => {
+    setSelectedApiKey(apiKey);
+    setModelModalOpen(true);
+    setModelSearchQuery('');
+    setShowAddModelDropdown(false);
+    setAllAvailableModels([]);
+
+    // 从后端获取最新的 API 密钥白名单配置
+    try {
+      const response = await fetch(`${apiBase}/v0/management/api-keys`, {
+        headers: {
+          'Authorization': `Bearer ${managementKey}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const apiKeysList = data['api-keys'] || [];
+        const keyEntry = apiKeysList.find((item: any) => item.key === apiKey);
+        const configuredModels = keyEntry?.models || [];
+        setAssociatedModels(configuredModels);
+
+        // 同时更新本地缓存
+        setApiKeyModels(prev => {
+          const next = new Map(prev);
+          next.set(apiKey, configuredModels);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load API key models:', error);
+      // 降级到本地缓存
+      const configuredModels = apiKeyModels.get(apiKey) || [];
+      setAssociatedModels(configuredModels);
+    }
+  };
+
+  // 点击添加按钮时，用 management key 获取所有可用模型
+  const handleOpenAddModelDropdown = async () => {
+    if (!showAddModelDropdown && allAvailableModels.length === 0) {
+      setLoadingModels(true);
+      try {
+        const models = await modelsApi.fetchModels(apiBase, managementKey);
+        setAllAvailableModels(models.map((m) => m.name));
+      } catch (error) {
+        console.error('Failed to load all available models:', error);
+        showNotification(t('notification.error_loading_models'), 'error');
+      } finally {
+        setLoadingModels(false);
+      }
+    }
+    setShowAddModelDropdown(!showAddModelDropdown);
+    setModelSearchQuery('');
+  };
+
+  // 切换模型选择状态（多选框）
+  const handleToggleModel = (modelId: string) => {
+    setAssociatedModels(prev => {
+      if (prev.includes(modelId)) {
+        return prev.filter(m => m !== modelId);
+      } else {
+        return [...prev, modelId];
+      }
+    });
+  };
+
+  const closeModelModal = () => {
+    setModelModalOpen(false);
+    setSelectedApiKey('');
+    setAssociatedModels([]);
+    setAllAvailableModels([]);
+    setModelSearchQuery('');
+    setShowAddModelDropdown(false);
+  };
+
+  const handleSaveModels = async () => {
+    if (!selectedApiKey) return;
+
+    try {
+      await apiKeysApi.setModels(selectedApiKey, associatedModels);
+
+      // 更新本地状态
+      setApiKeyModels(prev => {
+        const next = new Map(prev);
+        next.set(selectedApiKey, associatedModels);
+        return next;
+      });
+
+      showNotification(t('notification.models_saved'), 'success');
+      closeModelModal();
+    } catch (error) {
+      showNotification(t('notification.error_saving_models'), 'error');
+    }
+  };
+
+  // 过滤可添加的模型（显示全部模型，用复选框区分已关联状态）
+  const addableModels = allAvailableModels.filter(model =>
+    model.toLowerCase().includes(modelSearchQuery.toLowerCase())
+  );
+
   return (
     <div className="form-group" style={{ marginBottom: 0 }}>
       <div className={styles.blockHeaderRow}>
@@ -286,43 +430,67 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
         <div className={styles.emptyState}>{t('config_management.visual.api_keys.empty')}</div>
       ) : (
         <div className="item-list" style={{ marginTop: 4 }}>
-          {apiKeys.map((key, index) => (
-            <div key={renderApiKeyIds[index] ?? `${key}-${index}`} className="item-row">
-              <div className="item-meta">
-                <div className="pill">#{index + 1}</div>
-                <div className="item-title">
-                  {t('config_management.visual.api_keys.input_label')}
+          {apiKeys.map((key, index) => {
+            const models = apiKeyModels.get(key) || [];
+            return (
+              <div key={renderApiKeyIds[index] ?? `${key}-${index}`} className="item-row">
+                <div className="item-meta">
+                  <div className="pill">#{index + 1}</div>
+                  <div className="item-title">
+                    {t('config_management.visual.api_keys.input_label')}
+                  </div>
+                  <div className="item-subtitle">{maskApiKey(String(key || ''))}</div>
                 </div>
-                <div className="item-subtitle">{maskApiKey(String(key || ''))}</div>
+                {models.length > 0 && (
+                  <div className="item-models">
+                    <div className="item-models-label">{t('common.models')}:</div>
+                    <div className="item-models-list">
+                      {models.slice(0, 3).map(model => (
+                        <span key={model} className="item-model-tag">{model}</span>
+                      ))}
+                      {models.length > 3 && (
+                        <span className="item-model-more">+{models.length - 3}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="item-actions">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleCopy(key)}
+                    disabled={disabled}
+                  >
+                    {t('common.copy')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => openModelModal(key)}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.api_keys.models')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => openEditModal(renderApiKeyIds[index] ?? '')}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.common.edit')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDelete(renderApiKeyIds[index] ?? '')}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.common.delete')}
+                  </Button>
+                </div>
               </div>
-              <div className="item-actions">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleCopy(key)}
-                  disabled={disabled}
-                >
-                  {t('common.copy')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => openEditModal(renderApiKeyIds[index] ?? '')}
-                  disabled={disabled}
-                >
-                  {t('config_management.visual.common.edit')}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleDelete(renderApiKeyIds[index] ?? '')}
-                  disabled={disabled}
-                >
-                  {t('config_management.visual.common.delete')}
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -382,6 +550,128 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
               {formError}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* 模型选择弹窗 */}
+      <Modal
+        open={modelModalOpen}
+        onClose={closeModelModal}
+        title={t('config_management.visual.api_keys.models_title')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModelModal} disabled={disabled}>
+              {t('config_management.visual.common.cancel')}
+            </Button>
+            <Button onClick={handleSaveModels} disabled={disabled || loadingModels}>
+              {t('config_management.visual.common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <div className="hint">{t('config_management.visual.api_keys.models_hint')}</div>
+
+          {/* 已关联的模型列表 */}
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ fontWeight: 500, marginBottom: '8px', display: 'block' }}>{t('config_management.visual.api_keys.associated_models', '已关联的模型')}</label>
+
+            {/* 搜索框 + 添加按钮同一行 */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
+              <input
+                type="text"
+                className="input"
+                placeholder={showAddModelDropdown ? t('config_management.visual.api_keys.models_search_all_placeholder', '搜索全部模型...') : t('config_management.visual.api_keys.models_search_placeholder', '搜索关联模型...')}
+                value={modelSearchQuery}
+                onChange={(e) => setModelSearchQuery(e.target.value)}
+                disabled={loadingModels}
+                style={{ flex: 1 }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleOpenAddModelDropdown}
+                disabled={disabled || loadingModels}
+              >
+                {showAddModelDropdown ? t('common.cancel', '取消') : t('common.add', '添加')}
+              </Button>
+            </div>
+
+            {/* 添加模型的多选列表 */}
+            {showAddModelDropdown && (
+              <div className="addable-model-list">
+                {loadingModels ? (
+                  <div className="loading-state">{t('common.loading')}</div>
+                ) : addableModels.length === 0 ? (
+                  <div className="empty-state">{t('config_management.visual.api_keys.no_available_models', '没有可添加的模型')}</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const newModels = new Set(associatedModels);
+                          addableModels.forEach(m => newModels.add(m));
+                          setAssociatedModels(Array.from(newModels));
+                        }}
+                        disabled={disabled}
+                      >
+                        {t('common.select_all', '全选')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const removeSet = new Set(addableModels);
+                          setAssociatedModels(associatedModels.filter(m => !removeSet.has(m)));
+                        }}
+                        disabled={disabled}
+                      >
+                        {t('common.deselect_all', '取消全选')}
+                      </Button>
+                    </div>
+                    {addableModels.map((modelId) => (
+                      <div key={modelId} className="model-item">
+                        <input
+                          type="checkbox"
+                          checked={associatedModels.includes(modelId)}
+                          onChange={() => handleToggleModel(modelId)}
+                          disabled={disabled}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span className="model-name">{modelId}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 已关联模型列表 */}
+            {loadingModels && !showAddModelDropdown ? (
+              <div className="loading-state">{t('common.loading')}</div>
+            ) : associatedModels.length === 0 ? (
+              <div className="empty-state">{t('config_management.visual.api_keys.no_associated_models', '暂无关联模型')}</div>
+            ) : (
+              <div className="model-list">
+                {associatedModels
+                  .filter(modelId => !modelSearchQuery || modelId.toLowerCase().includes(modelSearchQuery.toLowerCase()))
+                  .map((modelId) => (
+                    <div key={modelId} className="model-item">
+                      <input
+                        type="checkbox"
+                        checked={true}
+                        onChange={() => handleToggleModel(modelId)}
+                        disabled={disabled}
+                        style={{ marginRight: '8px' }}
+                      />
+                      <span className="model-name">{modelId}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </div>

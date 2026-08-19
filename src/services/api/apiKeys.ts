@@ -15,5 +15,13 @@ export const apiKeysApi = {
 
   update: (index: number, value: string) => apiClient.patch('/api-keys', { index, value }),
 
-  delete: (index: number) => apiClient.delete(`/api-keys?index=${index}`)
+  delete: (index: number) => apiClient.delete(`/api-keys?index=${index}`),
+
+  /**
+   * 设置指定 API key 的模型白名单
+   * @param key API key
+   * @param models 模型列表，空数组表示显示所有模型
+   */
+  setModels: (key: string, models: string[]) =>
+    apiClient.patch('/api-keys/models', { key, models })
 };
