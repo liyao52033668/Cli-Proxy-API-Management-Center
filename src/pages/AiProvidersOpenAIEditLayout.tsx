@@ -47,8 +47,6 @@ const buildEmptyForm = (): OpenAIFormState => ({
   prefix: '',
   baseUrl: '',
   quotaEndpoint: '',
-  quotaToken: '',
-  quotaDivisor: '',
   disabled: false,
   forceStream: false,
   supportPromptCacheKey: false,
@@ -68,14 +66,6 @@ const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
   return '';
-};
-
-/** 解析额度换算除数：留空或非法时返回 undefined。 */
-const parseQuotaDivisor = (raw: unknown): number | undefined => {
-  const text = String(raw ?? '').trim();
-  if (!text) return undefined;
-  const parsed = Number(text);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
 const normalizeModelEntries = (entries: ModelEntry[]) =>
@@ -125,8 +115,6 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
   prefix: String(form.prefix ?? '').trim(),
   baseUrl: String(form.baseUrl ?? '').trim(),
   quotaEndpoint: String(form.quotaEndpoint ?? '').trim(),
-  quotaToken: String(form.quotaToken ?? '').trim(),
-  quotaDivisor: String(form.quotaDivisor ?? '').trim(),
   disabled: Boolean(form.disabled),
   forceStream: Boolean(form.forceStream),
   supportPromptCacheKey: Boolean(form.supportPromptCacheKey),
@@ -321,8 +309,6 @@ export function AiProvidersOpenAIEditLayout() {
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
         quotaEndpoint: initialData.quotaEndpoint ?? '',
-        quotaToken: initialData.quotaToken ?? '',
-        quotaDivisor: initialData.quotaDivisor != null ? String(initialData.quotaDivisor) : '',
         disabled: Boolean(initialData.disabled),
         forceStream: Boolean(initialData.forceStream),
         supportPromptCacheKey: Boolean(initialData.supportPromptCacheKey),
@@ -452,8 +438,6 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
       baseline.quotaEndpoint !== form.quotaEndpoint.trim() ||
-      baseline.quotaToken !== form.quotaToken.trim() ||
-      baseline.quotaDivisor !== form.quotaDivisor.trim() ||
       baseline.disabled !== Boolean(form.disabled) ||
       baseline.forceStream !== Boolean(form.forceStream) ||
       baseline.supportPromptCacheKey !== Boolean(form.supportPromptCacheKey) ||
@@ -502,8 +486,6 @@ export function AiProvidersOpenAIEditLayout() {
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
         quotaEndpoint: form.quotaEndpoint?.trim() || undefined,
-        quotaToken: form.quotaToken?.trim() || undefined,
-        quotaDivisor: parseQuotaDivisor(form.quotaDivisor),
         disabled: Boolean(form.disabled),
         forceStream: Boolean(form.forceStream),
         supportPromptCacheKey: Boolean(form.supportPromptCacheKey),

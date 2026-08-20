@@ -431,7 +431,7 @@ export function useAuthFilesPrefixProxyEditor(
     if (!prefixProxyDirty) return;
 
     const name = prefixProxyEditor.fileName;
-    let fields: AuthFilePatchFields | null = null;
+    let fields: AuthFilePatchFields | null;
     try {
       fields = buildPrefixProxyUpdatedJson(prefixProxyEditor, (key) => t(key));
     } catch (err: unknown) {
