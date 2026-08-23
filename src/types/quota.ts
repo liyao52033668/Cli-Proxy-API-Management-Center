@@ -649,6 +649,7 @@ export interface CursorQuotaState {
 
 export interface CodebuddyResourceAccount {
   AccountId?: number | string;
+  CapacityType?: number | string;
   PackageCode?: string;
   PackageName?: string;
   CapacityUnit?: string;
@@ -687,6 +688,8 @@ export interface CodebuddyQuotaRow {
   unit?: string;
   packageCode?: string;
   packageName?: string;
+  capacityType?: number;
+  inUsage?: boolean;
   cycleStart?: string;
   cycleEnd?: string;
 }

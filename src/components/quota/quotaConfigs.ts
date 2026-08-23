@@ -1740,20 +1740,20 @@ const parseCodebuddyResourcePayload = (value: unknown): CodebuddyResourceRespons
 const resolveCodebuddyPackageLabel = (
   packageCode: unknown,
   packageName: unknown,
-  t: TFunction
+  t: TFunction,
+  isPrimaryUsage: boolean
 ): string => {
   const code = typeof packageCode === 'string' ? packageCode.trim() : '';
   const name = typeof packageName === 'string' ? packageName.trim() : '';
 
-  // These are the actual PackageName values returned by CodeBuddy's resource API.
-  if (name === 'CodeBuddy个人体验版') {
+  if (isPrimaryUsage) {
     return t('codebuddy_quota.base_usage');
   }
-  if (name === 'CodeBuddy个人版国内运营裂变包') {
+  if (code === 'TCACA_code_007_nzdH5h4Nl0') {
     return t('codebuddy_quota.gift_package');
   }
   // The official catalog identifies this product as the extra/add-on package.
-  if (code === 'TCACA_code_009_0XmEQc2xOf' && name === 'CodeBuddy个人版加量包') {
+  if (code === 'TCACA_code_009_0XmEQc2xOf') {
     return t('codebuddy_quota.top_up_package');
   }
   return name || code || t('codebuddy_quota.base_usage');
@@ -1772,6 +1772,8 @@ const buildCodebuddyQuotaData = (
     .map((account, index) => {
       // Capacity* is the lifetime/account total. Use CycleCapacity* for the
       // currently active billing cycle when CodeBuddy provides those fields.
+      const isPrimaryUsage =
+        account.InUsage === true || Number(account.CapacityType) === 4;
       const hasCycleValues =
         account.CycleCapacitySize !== undefined ||
         account.CycleCapacityRemain !== undefined ||
@@ -1789,21 +1791,26 @@ const buildCodebuddyQuotaData = (
 
       return {
         id: String(account.AccountId ?? account.PackageCode ?? index),
-        label: resolveCodebuddyPackageLabel(account.PackageCode, account.PackageName, t),
+        label: resolveCodebuddyPackageLabel(
+          account.PackageCode,
+          account.PackageName,
+          t,
+          isPrimaryUsage
+        ),
         used,
         limit,
         remaining,
         unit: account.CapacityUnit,
         packageCode: account.PackageCode,
         packageName: account.PackageName,
+        capacityType: Number(account.CapacityType),
+        inUsage: account.InUsage,
         cycleStart: account.CycleStartTime,
         cycleEnd: account.CycleEndTime
       };
     })
     .filter(
-      (row) =>
-        row.remaining > 0 ||
-        row.label === t('codebuddy_quota.base_usage')
+      (row) => row.remaining > 0 || row.inUsage === true || row.capacityType === 4
     );
 
   if (rows.length === 0) throw new Error(t('codebuddy_quota.empty_data'));
@@ -1868,7 +1875,7 @@ const renderCodebuddyItems = (
   const { createElement: h, Fragment } = React;
   const rows = quota.rows ?? [];
   const baseUsageRow = rows.find(
-    (row) => row.packageName === 'CodeBuddy个人体验版'
+    (row) => row.inUsage === true || row.capacityType === 4
   );
   const summary = h(
     'div',
@@ -1877,11 +1884,6 @@ const renderCodebuddyItems = (
       'span',
       { className: styleMap.codexPlanLabel },
       baseUsageRow?.packageName ?? t('codebuddy_quota.remaining')
-    ),
-    h(
-      'span',
-      { className: styleMap.codexPlanValue },
-      `${baseUsageRow?.remaining ?? quota.totalRemaining ?? 0}`
     )
   );
 
@@ -1889,7 +1891,10 @@ const renderCodebuddyItems = (
     const remainingPercent = row.limit > 0
       ? Math.max(0, Math.min(100, Math.round((row.remaining / row.limit) * 100)))
       : null;
-    const period = row.cycleEnd ? formatQuotaResetDate(row.cycleEnd) : '';
+    const period =
+      (row.inUsage === true || row.capacityType === 4) && row.cycleEnd
+        ? formatQuotaResetDate(row.cycleEnd)
+        : '';
     return h(
       'div',
       { key: row.id, className: styleMap.quotaRow },
@@ -1900,7 +1905,7 @@ const renderCodebuddyItems = (
         h(
           'div',
           { className: styleMap.quotaMeta },
-          h('span', { className: styleMap.quotaPercent }, `${row.remaining}`),
+          h('span', { className: styleMap.quotaPercent }, `${row.limit}`),
           h(
             'span',
             { className: styleMap.quotaAmount },
