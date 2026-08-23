@@ -1769,18 +1769,42 @@ const buildCodebuddyQuotaData = (
 
   const accounts = payload.data?.Response?.Data?.Accounts ?? [];
   const rows: CodebuddyQuotaRow[] = accounts
-    .filter((account) => toCodebuddyNumber(account.CapacityRemain) > 0)
-    .map((account, index) => ({
-      id: String(account.AccountId ?? account.PackageCode ?? index),
-      label: resolveCodebuddyPackageLabel(account.PackageCode, account.PackageName, t),
-      used: toCodebuddyNumber(account.CapacityUsed),
-      limit: toCodebuddyNumber(account.CapacitySize),
-      remaining: toCodebuddyNumber(account.CapacityRemain),
-      unit: account.CapacityUnit,
-      packageCode: account.PackageCode,
-      cycleStart: account.CycleStartTime,
-      cycleEnd: account.CycleEndTime
-    }));
+    .map((account, index) => {
+      // Capacity* is the lifetime/account total. Use CycleCapacity* for the
+      // currently active billing cycle when CodeBuddy provides those fields.
+      const hasCycleValues =
+        account.CycleCapacitySize !== undefined ||
+        account.CycleCapacityRemain !== undefined ||
+        account.CycleCapacityUsed !== undefined;
+      const limit = toCodebuddyNumber(account.CycleCapacitySize ?? account.CapacitySize);
+      const remaining = toCodebuddyNumber(
+        account.CycleCapacityRemain ?? account.CapacityRemain
+      );
+      const used =
+        account.CycleCapacityUsed !== undefined
+          ? toCodebuddyNumber(account.CycleCapacityUsed)
+          : hasCycleValues
+            ? Math.max(0, limit - remaining)
+            : toCodebuddyNumber(account.CapacityUsed);
+
+      return {
+        id: String(account.AccountId ?? account.PackageCode ?? index),
+        label: resolveCodebuddyPackageLabel(account.PackageCode, account.PackageName, t),
+        used,
+        limit,
+        remaining,
+        unit: account.CapacityUnit,
+        packageCode: account.PackageCode,
+        packageName: account.PackageName,
+        cycleStart: account.CycleStartTime,
+        cycleEnd: account.CycleEndTime
+      };
+    })
+    .filter(
+      (row) =>
+        row.remaining > 0 ||
+        row.label === t('codebuddy_quota.base_usage')
+    );
 
   if (rows.length === 0) throw new Error(t('codebuddy_quota.empty_data'));
   return {
@@ -1843,11 +1867,22 @@ const renderCodebuddyItems = (
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h, Fragment } = React;
   const rows = quota.rows ?? [];
+  const baseUsageRow = rows.find(
+    (row) => row.packageName === 'CodeBuddy个人体验版'
+  );
   const summary = h(
     'div',
     { key: 'summary', className: styleMap.codexPlan },
-    h('span', { className: styleMap.codexPlanLabel }, t('codebuddy_quota.remaining')),
-    h('span', { className: styleMap.codexPlanValue }, `${quota.totalRemaining ?? 0}`)
+    h(
+      'span',
+      { className: styleMap.codexPlanLabel },
+      baseUsageRow?.packageName ?? t('codebuddy_quota.remaining')
+    ),
+    h(
+      'span',
+      { className: styleMap.codexPlanValue },
+      `${baseUsageRow?.remaining ?? quota.totalRemaining ?? 0}`
+    )
   );
 
   const rowNodes = rows.map((row) => {
@@ -1866,7 +1901,11 @@ const renderCodebuddyItems = (
           'div',
           { className: styleMap.quotaMeta },
           h('span', { className: styleMap.quotaPercent }, `${row.remaining}`),
-          h('span', { className: styleMap.quotaAmount }, `${row.used} / ${row.limit}`),
+          h(
+            'span',
+            { className: styleMap.quotaAmount },
+            remainingPercent == null ? '-' : `${remainingPercent}%`
+          ),
           period ? h('span', { className: styleMap.quotaReset }, period) : null
         )
       ),

@@ -655,6 +655,9 @@ export interface CodebuddyResourceAccount {
   CapacityRemain?: number | string;
   CapacityUsed?: number | string;
   CapacitySize?: number | string;
+  CycleCapacityRemain?: number | string;
+  CycleCapacityUsed?: number | string;
+  CycleCapacitySize?: number | string;
   CycleStartTime?: string;
   CycleEndTime?: string;
   Status?: number | string;
@@ -683,6 +686,7 @@ export interface CodebuddyQuotaRow {
   remaining: number;
   unit?: string;
   packageCode?: string;
+  packageName?: string;
   cycleStart?: string;
   cycleEnd?: string;
 }
