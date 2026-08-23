@@ -113,6 +113,7 @@ export type AuthFileIconAsset = string | { light: string; dark: string };
 export type QuotaProviderType =
   | 'antigravity'
   | 'claude'
+  | 'codebuddy'
   | 'codex'
   | 'copilot'
   | 'cursor'
@@ -125,6 +126,7 @@ export type QuotaProviderType =
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
   'claude',
+  'codebuddy',
   'codex',
   'copilot',
   'cursor',

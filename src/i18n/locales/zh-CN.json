@@ -2115,5 +2115,17 @@
     "plan_ultra": "Ultra",
     "plan_team": "Team",
     "plan_enterprise": "Enterprise"
+  },
+  "codebuddy_quota": {
+    "title": "CodeBuddy 额度",
+    "empty_title": "暂无 CodeBuddy 凭证",
+    "empty_desc": "添加 CodeBuddy 凭证后即可查询额度。",
+    "idle": "点击查询 CodeBuddy 额度",
+    "loading": "正在查询 CodeBuddy 额度…",
+    "load_failed": "CodeBuddy 额度查询失败：{{message}}",
+    "missing_auth_index": "凭证缺少 auth index",
+    "empty_data": "未找到有效的 CodeBuddy 额度数据",
+    "credits": "额度",
+    "remaining": "剩余额度"
   }
 }

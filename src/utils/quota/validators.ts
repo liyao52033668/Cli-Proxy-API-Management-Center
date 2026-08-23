@@ -20,6 +20,10 @@ export function isClaudeFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'claude';
 }
 
+export function isCodebuddyFile(file: AuthFileItem): boolean {
+  return resolveAuthProvider(file) === 'codebuddy';
+}
+
 export function isClaudeOAuthFile(file: AuthFileItem): boolean {
   if (!isClaudeFile(file)) return false;
   const metadata =

@@ -646,3 +646,60 @@ export interface CursorQuotaState {
   error?: string;
   errorStatus?: number;
 }
+
+export interface CodebuddyResourceAccount {
+  AccountId?: number | string;
+  PackageCode?: string;
+  PackageName?: string;
+  CapacityUnit?: string;
+  CapacityRemain?: number | string;
+  CapacityUsed?: number | string;
+  CapacitySize?: number | string;
+  CycleStartTime?: string;
+  CycleEndTime?: string;
+  Status?: number | string;
+  InUsage?: boolean;
+}
+
+export interface CodebuddyResourceResponse {
+  code?: number | string;
+  msg?: string;
+  data?: {
+    Response?: {
+      Data?: {
+        TotalCount?: number | string;
+        TotalDosage?: number | string;
+        Accounts?: CodebuddyResourceAccount[];
+      };
+    };
+  };
+}
+
+export interface CodebuddyQuotaRow {
+  id: string;
+  label: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  unit?: string;
+  packageCode?: string;
+  cycleStart?: string;
+  cycleEnd?: string;
+}
+
+export interface CodebuddyQuotaData {
+  rows: CodebuddyQuotaRow[];
+  totalUsed: number;
+  totalLimit: number;
+  totalRemaining: number;
+}
+
+export interface CodebuddyQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  rows: CodebuddyQuotaRow[];
+  totalUsed?: number;
+  totalLimit?: number;
+  totalRemaining?: number;
+  error?: string;
+  errorStatus?: number;
+}

@@ -22,6 +22,10 @@ import type {
   ClaudeExtraUsage,
   ClaudeProfileResponse,
   ClaudeQuotaState,
+  CodebuddyQuotaData,
+  CodebuddyQuotaRow,
+  CodebuddyQuotaState,
+  CodebuddyResourceResponse,
   ClaudeQuotaWindow,
   ClaudeUsagePayload,
   CodexQuotaState,
@@ -84,6 +88,7 @@ import {
   getStatusFromError,
   isAntigravityFile,
   isClaudeFile,
+  isCodebuddyFile,
   isCodexFile,
   isCopilotFile,
   isCursorFile,
@@ -127,7 +132,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
 
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
@@ -140,6 +145,7 @@ const geminiCliSupplementaryCache = new Map<
 export interface QuotaStore {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
+  codebuddyQuota: Record<string, CodebuddyQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
@@ -150,6 +156,7 @@ export interface QuotaStore {
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
+  setCodebuddyQuota: (updater: QuotaUpdater<Record<string, CodebuddyQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
@@ -1693,6 +1700,179 @@ export const GEMINI_CLI_CONFIG: QuotaConfig<
   controlClassName: styles.geminiCliControl,
   gridClassName: styles.geminiCliGrid,
   renderQuotaItems: renderGeminiCliItems,
+};
+
+const CODEBUDDY_RESOURCE_URL = 'https://www.codebuddy.cn/billing/meter/get-user-resource';
+const CODEBUDDY_PACKAGE_CODES = [
+  'TCACA_code_008_cfWoLwvjU4',
+  'TCACA_code_009_0XmEQc2xOf',
+  'TCACA_code_038_OhvqZtiPKr',
+  'TCACA_code_007_nzdH5h4Nl0',
+  'TCACA_code_028_NtpWi0jzXs',
+  'TCACA_code_029_6wCGEWquYy',
+  'TCACA_code_030_BjSt89qTvr'
+];
+const CODEBUDDY_REQUEST_HEADERS = {
+  Accept: 'application/json, text/plain, */*',
+  'Content-Type': 'application/json',
+  'x-client-platform': 'web'
+};
+
+const toCodebuddyNumber = (value: unknown): number => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+};
+
+const parseCodebuddyResourcePayload = (value: unknown): CodebuddyResourceResponse | null => {
+  if (typeof value === 'string') {
+    try {
+      return parseCodebuddyResourcePayload(JSON.parse(value));
+    } catch {
+      return null;
+    }
+  }
+  if (!value || typeof value !== 'object') return null;
+  return value as CodebuddyResourceResponse;
+};
+
+const buildCodebuddyQuotaData = (
+  payload: CodebuddyResourceResponse | null,
+  t: TFunction
+): CodebuddyQuotaData => {
+  if (!payload || Number(payload.code) !== 0) {
+    throw new Error(payload?.msg || t('codebuddy_quota.empty_data'));
+  }
+
+  const accounts = payload.data?.Response?.Data?.Accounts ?? [];
+  const rows: CodebuddyQuotaRow[] = accounts
+    .filter((account) => toCodebuddyNumber(account.CapacityRemain) > 0)
+    .map((account, index) => ({
+      id: String(account.AccountId ?? account.PackageCode ?? index),
+      label: account.PackageName || account.PackageCode || t('codebuddy_quota.credits'),
+      used: toCodebuddyNumber(account.CapacityUsed),
+      limit: toCodebuddyNumber(account.CapacitySize),
+      remaining: toCodebuddyNumber(account.CapacityRemain),
+      unit: account.CapacityUnit,
+      packageCode: account.PackageCode,
+      cycleStart: account.CycleStartTime,
+      cycleEnd: account.CycleEndTime
+    }));
+
+  if (rows.length === 0) throw new Error(t('codebuddy_quota.empty_data'));
+  return {
+    rows,
+    totalUsed: rows.reduce((sum, row) => sum + row.used, 0),
+    totalLimit: rows.reduce((sum, row) => sum + row.limit, 0),
+    totalRemaining: rows.reduce((sum, row) => sum + row.remaining, 0)
+  };
+};
+
+const fetchCodebuddyQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<CodebuddyQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) throw new Error(t('codebuddy_quota.missing_auth_index'));
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'POST',
+    url: CODEBUDDY_RESOURCE_URL,
+    header: CODEBUDDY_REQUEST_HEADERS,
+    data: JSON.stringify({
+      PageNumber: 1,
+      PageSize: 200,
+      ProductCode: 'p_tcaca',
+      Status: [0, 3],
+      OnlyValidPeriod: true,
+      PackageCodes: CODEBUDDY_PACKAGE_CODES,
+      NeedInUsage: true
+    })
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+  return buildCodebuddyQuotaData(
+    parseCodebuddyResourcePayload(result.body ?? result.bodyText),
+    t
+  );
+};
+
+const renderCodebuddyItems = (
+  quota: CodebuddyQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+  const rows = quota.rows ?? [];
+  const summary = h(
+    'div',
+    { key: 'summary', className: styleMap.codexPlan },
+    h('span', { className: styleMap.codexPlanLabel }, t('codebuddy_quota.remaining')),
+    h('span', { className: styleMap.codexPlanValue }, `${quota.totalRemaining ?? 0}`)
+  );
+
+  const rowNodes = rows.map((row) => {
+    const remainingPercent = row.limit > 0
+      ? Math.max(0, Math.min(100, Math.round((row.remaining / row.limit) * 100)))
+      : null;
+    const period = row.cycleEnd ? formatQuotaResetDate(row.cycleEnd) : '';
+    return h(
+      'div',
+      { key: row.id, className: styleMap.quotaRow },
+      h(
+        'div',
+        { className: styleMap.quotaRowHeader },
+        h('span', { className: styleMap.quotaModel }, row.label),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          h('span', { className: styleMap.quotaPercent }, `${row.remaining}`),
+          h('span', { className: styleMap.quotaAmount }, `${row.used} / ${row.limit}`),
+          period ? h('span', { className: styleMap.quotaReset }, period) : null
+        )
+      ),
+      h(QuotaProgressBar, {
+        percent: remainingPercent,
+        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD
+      })
+    );
+  });
+
+  return h(Fragment, null, summary, ...rowNodes);
+};
+
+export const CODEBUDDY_CONFIG: QuotaConfig<CodebuddyQuotaState, CodebuddyQuotaData> = {
+  type: 'codebuddy',
+  i18nPrefix: 'codebuddy_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isCodebuddyFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchCodebuddyQuota,
+  storeSelector: (state) => state.codebuddyQuota,
+  storeSetter: 'setCodebuddyQuota',
+  buildLoadingState: () => ({ status: 'loading', rows: [] }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    rows: data.rows,
+    totalUsed: data.totalUsed,
+    totalLimit: data.totalLimit,
+    totalRemaining: data.totalRemaining
+  }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    rows: [],
+    error: message,
+    errorStatus: status
+  }),
+  cardClassName: styles.kimiCard,
+  controlsClassName: styles.kimiControls,
+  controlClassName: styles.kimiControl,
+  gridClassName: styles.kimiGrid,
+  renderQuotaItems: renderCodebuddyItems
 };
 
 const fetchKimiQuota = async (

@@ -2100,5 +2100,17 @@
     "plan_ultra": "Ultra",
     "plan_team": "Team",
     "plan_enterprise": "Enterprise"
+  },
+  "codebuddy_quota": {
+    "title": "Квота CodeBuddy",
+    "empty_title": "Нет учетных данных CodeBuddy",
+    "empty_desc": "Добавьте учетные данные CodeBuddy для проверки квоты.",
+    "idle": "Нажмите, чтобы проверить квоту CodeBuddy",
+    "loading": "Загрузка квоты CodeBuddy…",
+    "load_failed": "Ошибка квоты CodeBuddy: {{message}}",
+    "missing_auth_index": "В учетных данных отсутствует auth index",
+    "empty_data": "Нет данных о квоте CodeBuddy",
+    "credits": "Кредиты",
+    "remaining": "Остаток"
   }
 }

@@ -2111,5 +2111,17 @@
     "plan_ultra": "Ultra",
     "plan_team": "Team",
     "plan_enterprise": "Enterprise"
+  },
+  "codebuddy_quota": {
+    "title": "CodeBuddy Quota",
+    "empty_title": "No CodeBuddy credentials",
+    "empty_desc": "Add a CodeBuddy credential to query quota.",
+    "idle": "Click to query CodeBuddy quota",
+    "loading": "Loading CodeBuddy quota…",
+    "load_failed": "CodeBuddy quota failed: {{message}}",
+    "missing_auth_index": "Credential is missing auth index",
+    "empty_data": "No valid CodeBuddy quota data",
+    "credits": "Credits",
+    "remaining": "Remaining"
   }
 }

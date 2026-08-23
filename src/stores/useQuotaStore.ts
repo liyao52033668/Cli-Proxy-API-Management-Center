@@ -5,6 +5,7 @@
 import type {
   AntigravityQuotaState,
   ClaudeQuotaState,
+  CodebuddyQuotaState,
   CodexQuotaState,
   CopilotQuotaState,
   CursorQuotaState,
@@ -21,6 +22,7 @@ type QuotaUpdater<T> = T | ((prev: T) => T);
 interface QuotaStoreState {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
+  codebuddyQuota: Record<string, CodebuddyQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
@@ -31,6 +33,7 @@ interface QuotaStoreState {
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
+  setCodebuddyQuota: (updater: QuotaUpdater<Record<string, CodebuddyQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
@@ -52,6 +55,7 @@ const resolveUpdater = <T,>(updater: QuotaUpdater<T>, prev: T): T => {
 export const useQuotaStore = create<QuotaStoreState>((set) => ({
   antigravityQuota: {},
   claudeQuota: {},
+  codebuddyQuota: {},
   codexQuota: {},
   copilotQuota: {},
   cursorQuota: {},
@@ -67,6 +71,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   setClaudeQuota: (updater) =>
     set((state) => ({
       claudeQuota: resolveUpdater(updater, state.claudeQuota)
+    })),
+  setCodebuddyQuota: (updater) =>
+    set((state) => ({
+      codebuddyQuota: resolveUpdater(updater, state.codebuddyQuota)
     })),
   setCodexQuota: (updater) =>
     set((state) => ({
@@ -104,6 +112,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     set({
       antigravityQuota: {},
       claudeQuota: {},
+      codebuddyQuota: {},
       codexQuota: {},
       copilotQuota: {},
       cursorQuota: {},

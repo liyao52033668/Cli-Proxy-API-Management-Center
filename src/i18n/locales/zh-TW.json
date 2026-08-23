@@ -2127,5 +2127,17 @@
     "plan_ultra": "Ultra",
     "plan_team": "Team",
     "plan_enterprise": "Enterprise"
+  },
+  "codebuddy_quota": {
+    "title": "CodeBuddy 配額",
+    "empty_title": "暫無 CodeBuddy 憑證",
+    "empty_desc": "新增 CodeBuddy 憑證後即可查詢配額。",
+    "idle": "點擊查詢 CodeBuddy 配額",
+    "loading": "正在查詢 CodeBuddy 配額…",
+    "load_failed": "CodeBuddy 配額查詢失敗：{{message}}",
+    "missing_auth_index": "憑證缺少 auth index",
+    "empty_data": "找不到有效的 CodeBuddy 配額資料",
+    "credits": "配額",
+    "remaining": "剩餘配額"
   }
 }
