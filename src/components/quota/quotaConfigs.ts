@@ -1715,6 +1715,8 @@ const CODEBUDDY_PACKAGE_CODES = [
 const CODEBUDDY_REQUEST_HEADERS = {
   Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',
+  Origin: 'https://www.codebuddy.cn',
+  Referer: 'https://www.codebuddy.cn/profile/plans-usage',
   'x-client-platform': 'web'
 };
 
@@ -1735,6 +1737,28 @@ const parseCodebuddyResourcePayload = (value: unknown): CodebuddyResourceRespons
   return value as CodebuddyResourceResponse;
 };
 
+const resolveCodebuddyPackageLabel = (
+  packageCode: unknown,
+  packageName: unknown,
+  t: TFunction
+): string => {
+  const code = typeof packageCode === 'string' ? packageCode.trim() : '';
+  const name = typeof packageName === 'string' ? packageName.trim() : '';
+
+  // These are the actual PackageName values returned by CodeBuddy's resource API.
+  if (name === 'CodeBuddy个人体验版') {
+    return t('codebuddy_quota.base_usage');
+  }
+  if (name === 'CodeBuddy个人版国内运营裂变包') {
+    return t('codebuddy_quota.gift_package');
+  }
+  // The official catalog identifies this product as the extra/add-on package.
+  if (code === 'TCACA_code_009_0XmEQc2xOf' && name === 'CodeBuddy个人版加量包') {
+    return t('codebuddy_quota.top_up_package');
+  }
+  return name || code || t('codebuddy_quota.base_usage');
+};
+
 const buildCodebuddyQuotaData = (
   payload: CodebuddyResourceResponse | null,
   t: TFunction
@@ -1748,7 +1772,7 @@ const buildCodebuddyQuotaData = (
     .filter((account) => toCodebuddyNumber(account.CapacityRemain) > 0)
     .map((account, index) => ({
       id: String(account.AccountId ?? account.PackageCode ?? index),
-      label: account.PackageName || account.PackageCode || t('codebuddy_quota.credits'),
+      label: resolveCodebuddyPackageLabel(account.PackageCode, account.PackageName, t),
       used: toCodebuddyNumber(account.CapacityUsed),
       limit: toCodebuddyNumber(account.CapacitySize),
       remaining: toCodebuddyNumber(account.CapacityRemain),
@@ -1773,13 +1797,24 @@ const fetchCodebuddyQuota = async (
 ): Promise<CodebuddyQuotaData> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
-  if (!authIndex) throw new Error(t('codebuddy_quota.missing_auth_index'));
+  const rawAccessToken = file['access_token'] ?? file['accessToken'];
+  const accessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
+  if (!authIndex && !accessToken) {
+    throw new Error(t('codebuddy_quota.missing_auth_index'));
+  }
 
   const result = await apiCallApi.request({
-    authIndex,
+    ...(authIndex ? { authIndex } : {}),
     method: 'POST',
     url: CODEBUDDY_RESOURCE_URL,
-    header: CODEBUDDY_REQUEST_HEADERS,
+    header: {
+      ...CODEBUDDY_REQUEST_HEADERS,
+      ...(authIndex
+        ? { Authorization: 'Bearer $TOKEN$' }
+        : accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {})
+    },
     data: JSON.stringify({
       PageNumber: 1,
       PageSize: 200,

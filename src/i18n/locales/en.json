@@ -2122,6 +2122,9 @@
     "missing_auth_index": "Credential is missing auth index",
     "empty_data": "No valid CodeBuddy quota data",
     "credits": "Credits",
+    "base_usage": "Base usage",
+    "gift_package": "Gift package",
+    "top_up_package": "Top-up package",
     "remaining": "Remaining"
   }
 }

@@ -2138,6 +2138,9 @@
     "missing_auth_index": "憑證缺少 auth index",
     "empty_data": "找不到有效的 CodeBuddy 配額資料",
     "credits": "配額",
+    "base_usage": "基礎用量",
+    "gift_package": "權益贈送包",
+    "top_up_package": "加量包",
     "remaining": "剩餘配額"
   }
 }

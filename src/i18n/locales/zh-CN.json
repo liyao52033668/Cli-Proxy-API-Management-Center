@@ -2126,6 +2126,9 @@
     "missing_auth_index": "凭证缺少 auth index",
     "empty_data": "未找到有效的 CodeBuddy 额度数据",
     "credits": "额度",
+    "base_usage": "基础用量",
+    "gift_package": "权益赠送包",
+    "top_up_package": "加量包",
     "remaining": "剩余额度"
   }
 }

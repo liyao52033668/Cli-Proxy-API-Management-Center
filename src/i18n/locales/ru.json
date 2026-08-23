@@ -2111,6 +2111,9 @@
     "missing_auth_index": "В учетных данных отсутствует auth index",
     "empty_data": "Нет данных о квоте CodeBuddy",
     "credits": "Кредиты",
+    "base_usage": "Базовое использование",
+    "gift_package": "Подарочный пакет",
+    "top_up_package": "Пакет пополнения",
     "remaining": "Остаток"
   }
 }
