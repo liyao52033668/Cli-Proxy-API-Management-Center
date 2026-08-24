@@ -13,10 +13,34 @@ export type QuotaBalanceState =
   | { status: 'success'; balances: QuotaBalanceInfo[] }
   | { status: 'error' };
 
-/** 额度端点解析：仅当显式填写了 quotaEndpoint 时才进行额度查询，留空返回 null。 */
-export const resolveQuotaEndpoint = (quotaEndpoint?: string): string | null => {
+/**
+ * 额度端点解析：
+ * - 留空返回 null，不进行额度查询。
+ * - 填写完整地址（http/https 开头）时直接使用。
+ * - 只填接口路径时，自动复用 baseUrl 的 host（origin）拼接；
+ *   交接处的斜杠会被规范化，避免出现两个 /。
+ */
+export const resolveQuotaEndpoint = (quotaEndpoint?: string, baseUrl?: string): string | null => {
   const custom = String(quotaEndpoint ?? '').trim();
-  return custom || null;
+  if (!custom) return null;
+
+  // 已是完整地址（含协议）直接使用
+  if (/^https?:\/\//i.test(custom)) return custom;
+
+  // 只填了接口路径：复用 baseUrl 的 host（origin）
+  const base = String(baseUrl ?? '').trim();
+  if (!base) return custom;
+
+  let origin: string;
+  try {
+    origin = new URL(base).origin;
+  } catch {
+    origin = base;
+  }
+
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const path = custom.replace(/^\/+/, '');
+  return `${cleanOrigin}/${path}`;
 };
 
 const asString = (value: unknown): string => {
@@ -113,7 +137,27 @@ export const formatQuotaBalance = (info: QuotaBalanceInfo): string => {
   return info.currency ? `${rounded} ${info.currency}` : rounded;
 };
 
+/** 将原始额度值除以换算除数（保留最多 8 位小数并去除尾随 0）。 */
+const applyQuotaDivisor = (info: QuotaBalanceInfo, divisor: number): QuotaBalanceInfo => {
+  const divide = (value: string): string => {
+    const num = Number.parseFloat(value);
+    if (!Number.isFinite(num) || !Number.isFinite(divisor) || divisor === 0) return value;
+    const result = num / divisor;
+    return String(Math.round(result * 1e8) / 1e8);
+  };
+  return {
+    currency: info.currency,
+    total: divide(info.total),
+    granted: divide(info.granted),
+    toppedUp: divide(info.toppedUp),
+  };
+};
+
 export interface QuotaQueryOptions {
+  /** 额度查询鉴权 token：填写后仅使用该 token（Bearer）查询；留空则依次尝试 apiKeys。 */
+  token?: string;
+  /** 额度换算除数：将原始额度值除以该值得到余额（如 NEW API 的 quota 需除以 500000）。 */
+  divisor?: number;
   /** 附加请求头。 */
   extraHeaders?: Record<string, string>;
 }
@@ -127,7 +171,7 @@ type BalanceRequester = (payload: {
 /**
  * 请求额度端点，返回第一个成功的结果。
  * 通用逻辑：只需填写额度端点即可自动查询额度。
- * 鉴权：依次使用 apiKeys。
+ * 鉴权：优先使用配置的 token，否则依次使用 apiKeys。
  */
 export const fetchQuotaBalance = async (
   apiKeys: string[],
@@ -135,9 +179,10 @@ export const fetchQuotaBalance = async (
   request: BalanceRequester,
   options?: QuotaQueryOptions
 ): Promise<QuotaBalanceState> => {
-  const { extraHeaders } = options ?? {};
+  const { token, divisor, extraHeaders } = options ?? {};
+  const authTokens = token?.trim() ? [token.trim()] : apiKeys;
 
-  for (const authToken of apiKeys) {
+  for (const authToken of authTokens) {
     const key = authToken.trim();
     if (!key) continue;
     try {
@@ -150,7 +195,10 @@ export const fetchQuotaBalance = async (
         },
       });
       if (result.statusCode >= 200 && result.statusCode < 300) {
-        const balances = parseQuotaBalance(result.body ?? result.bodyText);
+        let balances = parseQuotaBalance(result.body ?? result.bodyText);
+        if (divisor !== undefined && Number.isFinite(divisor) && divisor > 0) {
+          balances = balances.map((info) => applyQuotaDivisor(info, divisor));
+        }
         if (balances.length > 0) {
           return { status: 'success', balances };
         }

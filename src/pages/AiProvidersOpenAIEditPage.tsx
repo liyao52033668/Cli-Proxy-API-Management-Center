@@ -688,6 +688,37 @@ export function AiProvidersOpenAIEditPage() {
               hint={t('ai_providers.openai_quota_endpoint_hint')}
               disabled={saving || disableControls || isTestingKeys}
             />
+            <Input
+              label={t('ai_providers.openai_quota_token_label')}
+              placeholder={t('ai_providers.openai_quota_token_placeholder')}
+              value={form.quotaToken ?? ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, quotaToken: e.target.value }))}
+              hint={t('ai_providers.openai_quota_token_hint')}
+              disabled={saving || disableControls || isTestingKeys}
+            />
+            <Input
+              label={t('ai_providers.openai_quota_divisor_label')}
+              placeholder={t('ai_providers.openai_quota_divisor_placeholder')}
+              type="number"
+              step="any"
+              value={form.quotaDivisor ?? ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, quotaDivisor: e.target.value }))}
+              hint={t('ai_providers.openai_quota_divisor_hint')}
+              disabled={saving || disableControls || isTestingKeys}
+            />
+            <div className={styles.quotaDivisorPresets}>
+              <span className={styles.quotaDivisorPresetLabel}>
+                {t('ai_providers.openai_quota_divisor_preset_label')}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setForm((prev) => ({ ...prev, quotaDivisor: '500000' }))}
+                disabled={saving || disableControls || isTestingKeys}
+              >
+                500000
+              </Button>
+            </div>
             <div className={styles.modelConfigSection}>
               <div className={styles.modelConfigHeader}>
                 <label className={styles.modelConfigTitle}>{t('ai_providers.config_toggle_label')}</label>

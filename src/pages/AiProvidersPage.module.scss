@@ -1166,6 +1166,20 @@ $openai-toolbar-control-height: 36px;
   color: var(--text-secondary);
 }
 
+.quotaDivisorPresets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: -$spacing-xs;
+  margin-bottom: $spacing-md;
+}
+
+.quotaDivisorPresetLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .openaiModelsContent {
   display: flex;
   flex-direction: column;

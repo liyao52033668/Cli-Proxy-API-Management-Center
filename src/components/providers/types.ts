@@ -13,6 +13,8 @@ export interface OpenAIFormState {
   prefix: string;
   baseUrl: string;
   quotaEndpoint: string;
+  quotaToken: string;
+  quotaDivisor: string;
   disabled: boolean;
   forceStream: boolean;
   supportPromptCacheKey: boolean;

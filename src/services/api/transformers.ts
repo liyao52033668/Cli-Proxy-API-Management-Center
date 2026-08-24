@@ -256,6 +256,7 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   const priority = provider.priority ?? provider['priority'];
   const testModel = provider['test-model'] ?? provider.testModel;
   const quotaEndpoint = provider['quota-endpoint'] ?? provider.quotaEndpoint ?? provider['quota_endpoint'];
+  const quotaToken = provider['quota-token'] ?? provider.quotaToken ?? provider['quota_token'];
 
   const result: OpenAIProviderConfig = {
     name: String(name),
@@ -274,6 +275,18 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   if (priority !== undefined) result.priority = Number(priority);
   if (testModel) result.testModel = String(testModel);
   if (typeof quotaEndpoint === 'string' && quotaEndpoint.trim()) result.quotaEndpoint = quotaEndpoint.trim();
+  if (typeof quotaToken === 'string' && quotaToken.trim()) result.quotaToken = quotaToken.trim();
+  const quotaDivisorRaw =
+    provider['quota-divisor'] ?? provider.quotaDivisor ?? provider['quota_divisor'];
+  const parsedDivisor = Number(quotaDivisorRaw);
+  if (
+    quotaDivisorRaw !== undefined &&
+    quotaDivisorRaw !== null &&
+    Number.isFinite(parsedDivisor) &&
+    parsedDivisor > 0
+  ) {
+    result.quotaDivisor = parsedDivisor;
+  }
   const authIndex = normalizeAuthIndex(
     provider['auth-index'] ?? provider.authIndex ?? provider['auth_index']
   );
