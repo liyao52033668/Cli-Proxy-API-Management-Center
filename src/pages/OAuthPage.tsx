@@ -5,6 +5,7 @@ import iconCodearts from '@/assets/icons/codearts.svg';
 import iconCodebuddyAI from '@/assets/icons/codebuddy-ai.svg';
 import iconCodebuddy from '@/assets/icons/codebuddy.svg';
 import iconCodex from '@/assets/icons/codex.svg';
+import iconCommandCode from '@/assets/icons/commandcode.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
 // import iconGemini from '@/assets/icons/gemini.svg';
 import iconGitHub from '@/assets/icons/github.svg';
@@ -100,8 +101,9 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codebuddy-ai', titleKey: 'auth_login.codebuddy_ai_oauth_title', hintKey: 'auth_login.codebuddy_ai_oauth_hint', urlLabelKey: 'auth_login.codebuddy_ai_oauth_url_label', icon: iconCodebuddyAI },
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconJoycode },
+  { id: 'commandcode', titleKey: 'auth_login.commandcode_oauth_title', hintKey: 'auth_login.commandcode_oauth_hint', urlLabelKey: 'auth_login.commandcode_oauth_url_label', icon: iconCommandCode },
   { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
- 
+
 ];
 
 // Qoder uses device-code polling (no qoder:// callback). Keep callback UI only for
@@ -225,6 +227,8 @@ export function OAuthPage() {
       };
     });
   };
+
+
 
 
   const resetProviderAttempt = (provider: OAuthProvider) => {
@@ -364,6 +368,51 @@ export function OAuthPage() {
         }
         return;
       }
+    }
+
+    if (provider === 'commandcode') {
+      const commandCodeState = states[provider];
+      const apiKey = (commandCodeState?.personalAccessToken || '').trim();
+
+      if (!apiKey) {
+        showNotification(t('auth_login.commandcode_token_required', { defaultValue: '请输入 CommandCode API Key' }), 'warning');
+        return;
+      }
+
+      updateProviderState(provider, {
+        url: undefined,
+        state: undefined,
+        status: 'waiting',
+        polling: true,
+        error: undefined,
+        deviceCode: undefined,
+        callbackStatus: undefined,
+        callbackError: undefined,
+        callbackUrl: '',
+        callbackToken: ''
+      });
+
+      try {
+        const res = await oauthApi.commandCodeTokenAuth(apiKey);
+        if (res.status === 'ok') {
+          completeProviderAuth(provider);
+          showNotification(t('auth_login.commandcode_oauth_status_success', { defaultValue: 'CommandCode 登录成功' }), 'success');
+        } else if (res.status === 'error') {
+          updateProviderState(provider, { status: 'error', error: res.error, polling: false });
+          showNotification(
+            `${t('auth_login.commandcode_oauth_status_error', { defaultValue: 'CommandCode 登录失败' })}${res.error ? ` ${res.error}` : ''}`,
+            'error'
+          );
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        updateProviderState(provider, { status: 'error', error: message, polling: false });
+        showNotification(
+          `${t('auth_login.commandcode_oauth_status_error', { defaultValue: 'CommandCode 登录失败' })}${message ? ` ${message}` : ''}`,
+          'error'
+        );
+      }
+      return;
     }
 
     if (provider === 'bt') {
@@ -668,6 +717,7 @@ export function OAuthPage() {
         {PROVIDERS.map((provider) => {
           const state = states[provider.id] || {};
           const isQoder = provider.id === 'qoder';
+          const isCommandCode = provider.id === 'commandcode';
           const qoderAuthMode = isQoder ? getQoderAuthMode(state) : undefined;
           const isQoderTokenMode = qoderAuthMode === 'token';
           const isQoderOAuthMode = qoderAuthMode === 'oauth';
@@ -678,7 +728,9 @@ export function OAuthPage() {
               ? t('auth_login.login_another_account')
               : isQoderTokenMode
                 ? t('auth_login.qoder_token_button', { defaultValue: '使用 Token 登录' })
-                : t(getAuthKey(provider.id, 'oauth_button'));
+                : isCommandCode
+                  ? t('auth_login.commandcode_token_button', { defaultValue: '保存 API Key 登录' })
+                  : t(getAuthKey(provider.id, 'oauth_button'));
           const statusBadgeClassName = [
             'status-badge',
             state.status === 'success' ? 'success' : '',
@@ -711,8 +763,37 @@ export function OAuthPage() {
                       ? t('auth_login.qoder_token_hint', {
                         defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可使用浏览器设备授权。'
                       })
-                      : t(provider.hintKey)}
+                      : isCommandCode
+                        ? t('auth_login.commandcode_token_hint', {
+                          defaultValue: '输入 CommandCode API Key 直接完成登录，可前往控制台生成 Key。'
+                        })
+                        : t(provider.hintKey)}
                   </div>
+                  {isCommandCode && (
+                    <div className={styles.qoderTokenField}>
+                      <Input
+                        type="password"
+                        label={t('auth_login.commandcode_token_label', {
+                          defaultValue: 'CommandCode API Key'
+                        })}
+                        hint={t('auth_login.commandcode_token_input_hint', {
+                          defaultValue: '请输入 user_ 开头的 CommandCode API Key（可前往 https://commandcode.ai/ 获取）'
+                        })}
+                        value={state.personalAccessToken || ''}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            personalAccessToken: e.target.value,
+                            status: undefined,
+                            error: undefined
+                          })
+                        }
+                        placeholder={t('auth_login.commandcode_token_placeholder', {
+                          defaultValue: 'user_...'
+                        })}
+                      />
+                    </div>
+                  )}
                   {isQoder && (
                     <div className={styles.qoderModeField}>
                       <label className={styles.formItemLabel} htmlFor="qoder-auth-mode">

@@ -86,6 +86,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#cffafe', text: '#0e7490', border: '1px solid #67e8f9' },
     dark: { bg: '#164e63', text: '#67e8f9', border: '1px solid #06b6d4' },
   },
+  commandcode: {
+    light: { bg: '#e0e7ff', text: '#3730a3', border: '1px solid #a5b4fc' },
+    dark: { bg: '#1e1b4b', text: '#a5b4fc', border: '1px solid #4338ca' },
+  },
   // Qoder: brand green (#2BD85C)
   qoder: {
     light: { bg: '#ecfdf3', text: '#147a3d', border: '1px solid #86efac' },
@@ -341,3 +345,16 @@ export const CURSOR_REQUEST_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
 };
+
+// Command Code API configuration (uses Web session cookie or Bearer token fallback)
+export const COMMAND_CODE_USAGE_SUMMARY_URL = 'https://api.commandcode.ai/internal/usage/summary';
+export const COMMAND_CODE_SUBSCRIPTIONS_URL = 'https://api.commandcode.ai/internal/billing/subscriptions';
+export const COMMAND_CODE_CREDITS_URL = 'https://api.commandcode.ai/internal/billing/credits';
+
+export const COMMAND_CODE_REQUEST_HEADERS = {
+  Cookie: '__Secure-commandcode_prod_.session_token=$TOKEN$',
+  Accept: 'application/json',
+  'Content-Type': 'application/json',
+  Origin: 'https://commandcode.ai',
+};
+

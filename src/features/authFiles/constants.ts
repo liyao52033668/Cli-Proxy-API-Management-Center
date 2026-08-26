@@ -7,6 +7,7 @@ import iconCodearts from '@/assets/icons/codearts.svg';
 import iconCodebuddy from '@/assets/icons/codebuddy.svg';
 import iconCodebuddyAi from '@/assets/icons/codebuddy-ai.svg';
 import iconCodex from '@/assets/icons/codex.svg';
+import iconCommandCode from '@/assets/icons/commandcode.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
 import iconDeepseek from '@/assets/icons/deepseek.svg';
 import iconGemini from '@/assets/icons/gemini.svg';
@@ -114,6 +115,7 @@ export type QuotaProviderType =
   | 'antigravity'
   | 'claude'
   | 'codebuddy'
+  | 'commandcode'
   | 'codex'
   | 'copilot'
   | 'cursor'
@@ -127,6 +129,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
   'claude',
   'codebuddy',
+  'commandcode',
   'codex',
   'copilot',
   'cursor',
@@ -164,11 +167,16 @@ export const normalizeProviderLookupKey = (type: string): string => {
   if (key === 'grok') return 'xai';
   if (key === 'openai' || key === 'chatgpt') return 'openai';
   if (key === 'codebuddyai') return 'codebuddy-ai';
+  if (key === 'command-code' || key === 'command_code') return 'commandcode';
   return key;
 };
 
 // Brand colors + solid borders for every provider badge/avatar (similar to Kiro).
 export const TYPE_COLORS: Record<string, TypeColorSet> = {
+  commandcode: {
+    light: { bg: '#fef3c7', text: '#b45309', border: '1px solid #fcd34d' },
+    dark: { bg: '#78350f', text: '#fcd34d', border: '1px solid #f59e0b' },
+  },
   qwen: {
     light: { bg: '#ede5fd', text: '#5530c7', border: '1px solid #c4b5fd' },
     dark: { bg: '#36208a', text: '#b5a3f0', border: '1px solid #7c6ad4' },
@@ -318,6 +326,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   codebuddy: iconCodebuddy,
   'codebuddy-ai': iconCodebuddyAi,
   codex: iconCodex,
+  commandcode: iconCommandCode,
   copilot: iconGithub,
   cursor: iconCursor,
   deepseek: iconDeepseek,
@@ -553,3 +562,4 @@ export const isModelExcluded = (
     return pattern.toLowerCase() === modelId.toLowerCase();
   });
 };
+

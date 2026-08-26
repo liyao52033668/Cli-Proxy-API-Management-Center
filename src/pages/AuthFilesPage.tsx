@@ -155,6 +155,7 @@ export function AuthFilesPage() {
     selectAllVisible,
     invertVisibleSelection,
     deselectAll,
+    batchRefresh,
     batchDownload,
     batchSetStatus,
     batchDelete,
@@ -1070,6 +1071,14 @@ export function AuthFilesPage() {
                 </Button>
               </div>
               <div className={styles.batchActionRight}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void batchRefresh(selectedNames)}
+                  disabled={disableControls || selectedNames.length === 0}
+                >
+                  {t('auth_files.batch_refresh')}
+                </Button>
                 <Button
                   variant="secondary"
                   size="sm"

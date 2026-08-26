@@ -6,6 +6,7 @@ import {
   CLAUDE_CONFIG,
   CODEBUDDY_CONFIG,
   CODEX_CONFIG,
+  COMMAND_CODE_CONFIG,
   COPILOT_CONFIG,
   CURSOR_CONFIG,
   GEMINI_CLI_CONFIG,
@@ -44,6 +45,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'antigravity') return ANTIGRAVITY_CONFIG;
   if (type === 'claude') return CLAUDE_CONFIG;
   if (type === 'codebuddy') return CODEBUDDY_CONFIG;
+  if (type === 'commandcode') return COMMAND_CODE_CONFIG;
   if (type === 'codex') return CODEX_CONFIG;
   if (type === 'copilot') return COPILOT_CONFIG;
   if (type === 'cursor') return CURSOR_CONFIG;
@@ -71,6 +73,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'antigravity') return state.antigravityQuota[file.name] as QuotaState;
     if (quotaType === 'claude') return state.claudeQuota[file.name] as QuotaState;
     if (quotaType === 'codebuddy') return state.codebuddyQuota[file.name] as QuotaState;
+    if (quotaType === 'commandcode') return state.commandCodeQuota[file.name] as QuotaState;
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
     if (quotaType === 'copilot') return state.copilotQuota[file.name] as QuotaState;
     if (quotaType === 'cursor') return state.cursorQuota[file.name] as QuotaState;
@@ -85,6 +88,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'antigravity') return state.setAntigravityQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'claude') return state.setClaudeQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'codebuddy') return state.setCodebuddyQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'commandcode') return state.setCommandCodeQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'codex') return state.setCodexQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'copilot') return state.setCopilotQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'cursor') return state.setCursorQuota as unknown as (updater: unknown) => void;

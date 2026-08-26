@@ -49,6 +49,7 @@ export type UseAuthFilesDataResult = {
   selectAllVisible: (visibleFiles: AuthFileItem[]) => void;
   invertVisibleSelection: (visibleFiles: AuthFileItem[]) => void;
   deselectAll: () => void;
+  batchRefresh: (names: string[]) => Promise<void>;
   batchDownload: (names: string[]) => Promise<void>;
   batchSetStatus: (names: string[], enabled: boolean) => Promise<void>;
   batchDelete: (names: string[]) => void;
@@ -596,6 +597,44 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     [deselectAll, files, showNotification, statusUpdating, t]
   );
 
+  const batchRefresh = useCallback(
+    async (names: string[]) => {
+      const uniqueNames = Array.from(new Set(names));
+      if (uniqueNames.length === 0) return;
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const name of uniqueNames) {
+        try {
+          const result = await authFilesApi.refreshAuthFile(name);
+          if (result?.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch {
+          failCount++;
+        }
+      }
+
+      await loadFiles();
+
+      if (failCount === 0) {
+        showNotification(
+          t('auth_files.batch_refresh_success', { count: successCount }),
+          'success'
+        );
+      } else {
+        showNotification(
+          t('auth_files.batch_refresh_partial', { success: successCount, failed: failCount }),
+          'warning'
+        );
+      }
+    },
+    [loadFiles, showNotification, t]
+  );
+
   const batchDownload = useCallback(
     async (names: string[]) => {
       const uniqueNames = Array.from(new Set(names));
@@ -720,6 +759,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     selectAllVisible,
     invertVisibleSelection,
     deselectAll,
+    batchRefresh,
     batchDownload,
     batchSetStatus,
     batchDelete,

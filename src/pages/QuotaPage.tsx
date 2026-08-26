@@ -7,6 +7,7 @@ import {
   CLAUDE_CONFIG,
   CODEBUDDY_CONFIG,
   CODEX_CONFIG,
+  COMMAND_CODE_CONFIG,
   COPILOT_CONFIG,
   CURSOR_CONFIG,
   GEMINI_CLI_CONFIG,
@@ -115,6 +116,12 @@ export function QuotaPage() {
       />
       <QuotaSection
         config={QODER_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={COMMAND_CODE_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}

@@ -26,6 +26,8 @@ import type {
   CodebuddyQuotaRow,
   CodebuddyQuotaState,
   CodebuddyResourceResponse,
+  CommandCodeQuotaData,
+  CommandCodeQuotaState,
   ClaudeQuotaWindow,
   ClaudeUsagePayload,
   CodexQuotaState,
@@ -59,9 +61,14 @@ import type {
 import {
   ANTIGRAVITY_QUOTA_URLS,
   ANTIGRAVITY_REQUEST_HEADERS,
+  COMMAND_CODE_REQUEST_HEADERS,
+  COMMAND_CODE_SUBSCRIPTIONS_URL,
+  COMMAND_CODE_USAGE_SUMMARY_URL,
+  COMMAND_CODE_CREDITS_URL,
   CURSOR_REQUEST_HEADERS,
   CURSOR_USAGE_SUMMARY_URL,
   buildAntigravityQuotaGroups,
+  buildCommandCodeQuotaData,
   buildGeminiCliQuotaBuckets,
   buildKimiQuotaRows,
   buildQoderQuotaRows,
@@ -89,6 +96,7 @@ import {
   isAntigravityFile,
   isClaudeFile,
   isCodebuddyFile,
+  isCommandCodeFile,
   isCodexFile,
   isCopilotFile,
   isCursorFile,
@@ -115,6 +123,8 @@ import {
   parseAntigravityPayload,
   parseClaudeUsagePayload,
   parseCodexUsagePayload,
+  parseCommandCodeCreditsPayload,
+  parseCommandCodeUsagePayload,
   parseGeminiCliCodeAssistPayload,
   parseGeminiCliQuotaPayload,
   parseKimiUsagePayload,
@@ -132,7 +142,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'commandcode' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
 
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
@@ -146,6 +156,7 @@ export interface QuotaStore {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
   codebuddyQuota: Record<string, CodebuddyQuotaState>;
+  commandCodeQuota: Record<string, CommandCodeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
@@ -157,6 +168,7 @@ export interface QuotaStore {
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodebuddyQuota: (updater: QuotaUpdater<Record<string, CodebuddyQuotaState>>) => void;
+  setCommandCodeQuota: (updater: QuotaUpdater<Record<string, CommandCodeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
@@ -3321,3 +3333,236 @@ export const CURSOR_CONFIG: QuotaConfig<CursorQuotaState, CursorQuotaData> = {
   gridClassName: styles.cursorGrid,
   renderQuotaItems: renderCursorItems,
 };
+
+const parseCommandCodeSubscription = (body: unknown): { planId: string | null; currentPeriodEnd: string | null } => {
+  if (!body) return { planId: null, currentPeriodEnd: null };
+  const data = typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return null; } })() : body;
+  if (!data || typeof data !== 'object') return { planId: null, currentPeriodEnd: null };
+  // Response: { success: true, data: { planId: "individual-go", currentPeriodEnd: "2026-09-25T09:01:14.000Z", ... } }
+  const record = (data as Record<string, unknown>).data as Record<string, unknown> | undefined;
+  if (!record || typeof record !== 'object') return { planId: null, currentPeriodEnd: null };
+  const planId = record.planId;
+  const currentPeriodEnd = record.currentPeriodEnd;
+  return {
+    planId: typeof planId === 'string' && planId ? planId : null,
+    currentPeriodEnd: typeof currentPeriodEnd === 'string' && currentPeriodEnd ? currentPeriodEnd : null,
+  };
+};
+
+const fetchCommandCodeQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<CommandCodeQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('commandcode_quota.missing_auth_index'));
+  }
+
+  // Fetch usage summary, subscriptions, and credits in parallel
+  const [usageResult, subscriptionsResult, creditsResult] = await Promise.all([
+    apiCallApi.request({
+      authIndex,
+      method: 'GET',
+      url: COMMAND_CODE_USAGE_SUMMARY_URL,
+      header: { ...COMMAND_CODE_REQUEST_HEADERS },
+    }),
+    apiCallApi.request({
+      authIndex,
+      method: 'GET',
+      url: COMMAND_CODE_SUBSCRIPTIONS_URL,
+      header: { ...COMMAND_CODE_REQUEST_HEADERS },
+    }),
+    apiCallApi.request({
+      authIndex,
+      method: 'GET',
+      url: COMMAND_CODE_CREDITS_URL,
+      header: { ...COMMAND_CODE_REQUEST_HEADERS },
+    }),
+  ]);
+
+  if (usageResult.statusCode < 200 || usageResult.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(usageResult), usageResult.statusCode);
+  }
+
+  const payload = parseCommandCodeUsagePayload(usageResult.body ?? usageResult.bodyText);
+
+  // Extract planId and currentPeriodEnd from subscriptions response
+  let planType: string | null = null;
+  let currentPeriodEnd: string | null = null;
+  if (subscriptionsResult.statusCode >= 200 && subscriptionsResult.statusCode < 300) {
+    const subscriptionsBody = subscriptionsResult.body ?? subscriptionsResult.bodyText;
+    const subscription = parseCommandCodeSubscription(subscriptionsBody);
+    if (subscription.planId) {
+      // Remove "individual-" prefix if present, keep only the plan type (e.g., "go")
+      planType = subscription.planId.startsWith('individual-') ? subscription.planId.slice('individual-'.length) : subscription.planId;
+    }
+    currentPeriodEnd = subscription.currentPeriodEnd;
+  }
+
+  const data = buildCommandCodeQuotaData(payload, planType);
+  if (!data) {
+    throw new Error(t('commandcode_quota.empty_data'));
+  }
+  data.planType = planType;
+  data.currentPeriodEnd = currentPeriodEnd;
+
+  // Parse window limits from credits response
+  if (creditsResult.statusCode >= 200 && creditsResult.statusCode < 300) {
+    const creditsBody = creditsResult.body ?? creditsResult.bodyText;
+    const creditsData = parseCommandCodeCreditsPayload(creditsBody);
+    if (creditsData?.windowLimits) {
+      const { parseCommandCodeWindowLimit, getCommandCodePlanFiveHourLimit, getCommandCodePlanWeeklyLimit } = await import('@/utils/quota/builders');
+
+      const fiveHourLimit = getCommandCodePlanFiveHourLimit(planType);
+      const weeklyLimit = getCommandCodePlanWeeklyLimit(planType);
+
+      if (creditsData.windowLimits.fiveHour) {
+        data.fiveHourWindow = parseCommandCodeWindowLimit(creditsData.windowLimits.fiveHour, fiveHourLimit);
+      }
+      if (creditsData.windowLimits.weekly) {
+        data.weeklyWindow = parseCommandCodeWindowLimit(creditsData.windowLimits.weekly, weeklyLimit);
+      }
+    }
+  }
+
+  return data;
+};
+
+const renderCommandCodeItems = (
+  quota: CommandCodeQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+  const data = quota.data;
+  if (!data || !data.rows || data.rows.length === 0) {
+    return h('div', { className: styleMap.quotaMessage }, t('commandcode_quota.empty_data'));
+  }
+
+  const nodes: ReactNode[] = [];
+
+  // Calculate remaining credit percentage for progress bar
+  const totalCredits = data.totalCredits ?? 0;
+  const totalMonthlyCredits = data.totalMonthlyCredits ?? null;
+  const remainingCredits = totalMonthlyCredits !== null ? Math.max(0, totalMonthlyCredits - totalCredits) : null;
+  const remainingPercent = totalMonthlyCredits && totalMonthlyCredits > 0 && remainingCredits !== null
+    ? Math.min(100, (remainingCredits / totalMonthlyCredits) * 100)
+    : null;
+
+  // Display plan type and expiration if available
+  const planType = data.planType ?? null;
+  const currentPeriodEnd = data.currentPeriodEnd ?? null;
+  if (planType || currentPeriodEnd) {
+    const planNodes: ReactNode[] = [];
+    if (planType) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('commandcode_quota.plan_label')),
+        h('span', { key: 'plan-value', className: styleMap.codexPlanValue }, planType)
+      );
+    }
+    if (currentPeriodEnd) {
+      const endDate = new Date(currentPeriodEnd);
+      const endDateStr = endDate.toLocaleDateString();
+      if (planType) {
+        planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
+      }
+      planNodes.push(
+        h('span', { key: 'expires-label', className: styleMap.codexPlanLabel }, t('commandcode_quota.expires_label')),
+        h('span', { key: 'expires-value', className: styleMap.codexPlanValue }, endDateStr)
+      );
+    }
+    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
+  }
+
+  // Render rolling window limit progress bars (5-hour and weekly) above total cost
+  const renderWindowBar = (windowData: CommandCodeQuotaData['fiveHourWindow'], labelKey: string, key: string) => {
+    if (!windowData || windowData.cap <= 0) return null;
+    const remainingLabel = `${Math.round(windowData.remainingPercent)}%`;
+    const resetTime = windowData.resetAt > 0
+      ? new Date(windowData.resetAt).toLocaleString()
+      : null;
+    return h(
+      'div',
+      { key, className: styleMap.quotaRow },
+      h(
+        'div',
+        { className: styleMap.quotaRowHeader },
+        h('span', { className: styleMap.quotaModel }, t(labelKey)),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          h('span', { className: styleMap.quotaPercent }, remainingLabel),
+          resetTime ? h('span', { className: styleMap.quotaAmount }, resetTime) : null
+        )
+      ),
+      h(QuotaProgressBar, {
+        percent: windowData.remainingPercent,
+        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+      })
+    );
+  };
+
+  const fiveHourNode = renderWindowBar(data.fiveHourWindow, 'commandcode_quota.five_hour_label', 'five-hour');
+  const weeklyNode = renderWindowBar(data.weeklyWindow, 'commandcode_quota.weekly_label', 'weekly');
+  if (fiveHourNode) nodes.push(fiveHourNode);
+  if (weeklyNode) nodes.push(weeklyNode);
+
+  nodes.push(
+    ...data.rows.map((row) => {
+      const label = row.labelKey ? t(row.labelKey) : row.label;
+      const showProgressBar = row.id === 'total_credits' && remainingPercent !== null;
+
+      return h(
+        'div',
+        { key: row.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, label),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h('span', { className: styleMap.quotaPercent }, String(row.value)),
+            row.subValue ? h('span', { className: styleMap.quotaAmount }, row.subValue) : null
+          )
+        ),
+        showProgressBar
+          ? h(QuotaProgressBar, {
+              percent: remainingPercent,
+              highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+              mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+            })
+          : null
+      );
+    })
+  );
+
+  return h(Fragment, null, ...nodes);
+};
+
+export const COMMAND_CODE_CONFIG: QuotaConfig<CommandCodeQuotaState, CommandCodeQuotaData> = {
+  type: 'commandcode',
+  i18nPrefix: 'commandcode_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isCommandCodeFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchCommandCodeQuota,
+  storeSelector: (state) => state.commandCodeQuota,
+  storeSetter: 'setCommandCodeQuota',
+  buildLoadingState: () => ({ status: 'loading', data: null }),
+  buildSuccessState: (data) => ({ status: 'success', data }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    data: null,
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.commandCodeCard,
+  controlsClassName: styles.qoderControls,
+  controlClassName: styles.qoderControl,
+  gridClassName: styles.qoderGrid,
+  renderQuotaItems: renderCommandCodeItems,
+};
+

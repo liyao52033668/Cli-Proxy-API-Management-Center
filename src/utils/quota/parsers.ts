@@ -6,6 +6,7 @@ import type {
   ClaudeUsagePayload,
   CodexRateLimitResetCredit,
   CodexUsagePayload,
+  CommandCodeUsagePayload,
   GeminiCliCodeAssistPayload,
   GeminiCliQuotaPayload,
   KimiUsagePayload,
@@ -330,3 +331,65 @@ export function parseXaiBillingPayload(payload: unknown): XaiBillingPayload | nu
   }
   return null;
 }
+
+export function parseCommandCodeUsagePayload(payload: unknown): CommandCodeUsagePayload | null {
+  if (payload === undefined || payload === null) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as CommandCodeUsagePayload;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as CommandCodeUsagePayload;
+  }
+  return null;
+}
+
+export interface CommandCodeCreditsResponse {
+  credits?: {
+    belowThreshold?: boolean;
+    creditThreshold?: number;
+    monthlyCredits?: number;
+    purchasedCredits?: number;
+    premiumMonthlyCredits?: number;
+    opensourceMonthlyCredits?: number;
+  };
+  windowLimits?: {
+    limited?: boolean;
+    exceeded?: string;
+    fiveHour?: {
+      used?: number;
+      cap?: number;
+      exceeded?: boolean;
+      resetAt?: number;
+    };
+    weekly?: {
+      used?: number;
+      cap?: number;
+      exceeded?: boolean;
+      resetAt?: number;
+    };
+  };
+}
+
+export function parseCommandCodeCreditsPayload(payload: unknown): CommandCodeCreditsResponse | null {
+  if (payload === undefined || payload === null) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as CommandCodeCreditsResponse;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as CommandCodeCreditsResponse;
+  }
+  return null;
+}
+

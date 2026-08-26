@@ -39,7 +39,8 @@ const OAUTH_PROVIDER_PRESETS = [
   'gitlab',
   'kilo',
   'kiro',
-  'qoder'
+  'qoder',
+  'commandcode'
 ];
 
 const OAUTH_PROVIDER_EXCLUDES = new Set(['all', 'unknown', 'empty', 'oauth-excluded-models']);

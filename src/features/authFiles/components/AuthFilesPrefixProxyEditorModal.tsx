@@ -201,6 +201,16 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                   disabled={disableControls || editor.saving || !editor.json}
                   onChange={(e) => onChange('note', e.target.value)}
                 />
+                {editor.isCommandCodeFile && (
+                  <Input
+                    label={t('auth_files.session_token_label')}
+                    value={editor.sessionToken}
+                    placeholder={t('auth_files.session_token_placeholder')}
+                    hint={t('auth_files.session_token_hint')}
+                    disabled={disableControls || editor.saving || !editor.json}
+                    onChange={(e) => onChange('sessionToken', e.target.value)}
+                  />
+                )}
                 {editor.isCodexFile && (
                   <div className="form-group">
                     <label>{t('ai_providers.codex_websockets_label')}</label>

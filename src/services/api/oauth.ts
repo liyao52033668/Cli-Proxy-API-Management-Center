@@ -22,7 +22,8 @@ export type OAuthProvider =
   | 'codearts'
   | 'bt'
   | 'joycode'
-  | 'xai';
+  | 'xai'
+  | 'commandcode';
 
 export interface OAuthStartResponse {
   status?: 'ok' | 'wait' | 'error' | 'device_code';
@@ -75,7 +76,8 @@ const WEBUI_SUPPORTED: OAuthProvider[] = [
   'codearts',
   'bt',
   'joycode',
-  'xai'
+  'xai',
+  'commandcode'
 ];
 const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'
@@ -141,5 +143,12 @@ export const oauthApi = {
     return apiClient.post<QoderTokenAuthResponse>('/qoder-auth-url', {
       personal_access_token: personalAccessToken
     });
+  },
+
+  commandCodeTokenAuth: (apiKey: string) => {
+    return apiClient.post<BasicTokenAuthResponse>('/commandcode-auth-url', {
+      api_key: apiKey
+    });
   }
 };
+

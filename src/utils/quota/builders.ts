@@ -9,6 +9,10 @@ import type {
   AntigravityQuotaInfo,
   AntigravityModelsPayload,
   AntigravityQuotaSummaryPayload,
+  CommandCodeQuotaData,
+  CommandCodeQuotaRow,
+  CommandCodeUsagePayload,
+  CommandCodeWindowLimit,
   GeminiCliParsedBucket,
   GeminiCliQuotaBucketState,
   KimiUsagePayload,
@@ -716,4 +720,117 @@ export function mergeXaiBillingSummaries(
     usedPercent: primary.usedPercent ?? fallback.usedPercent,
   };
 }
+
+// Command Code plan monthly credits based on pricing documentation
+// https://commandcode.ai/docs/resources/pricing-limits
+const COMMAND_CODE_PLAN_MONTHLY_CREDITS: Record<string, number> = {
+  'go': 10,
+  'goat': 70,
+  'pro': 80,
+  'max 10x': 150,
+  'max 20x': 300,
+};
+
+// Command Code plan rolling window limits based on pricing documentation
+// https://commandcode.ai/docs/resources/pricing-limits#usage-beyond-your-limit
+const COMMAND_CODE_PLAN_FIVE_HOUR_LIMITS: Record<string, number> = {
+  'go': 3,
+  'goat': 14,
+  'pro': 16,
+  'max 10x': 45,
+  'max 20x': 90,
+};
+
+const COMMAND_CODE_PLAN_WEEKLY_LIMITS: Record<string, number> = {
+  'go': 6,
+  'goat': 35,
+  'pro': 40,
+  'max 10x': 90,
+  'max 20x': 180,
+};
+
+export function getCommandCodePlanMonthlyCredits(planType: string | null | undefined): number | null {
+  if (!planType) return null;
+  const normalized = planType.toLowerCase().trim();
+  return COMMAND_CODE_PLAN_MONTHLY_CREDITS[normalized] ?? null;
+}
+
+export function getCommandCodePlanFiveHourLimit(planType: string | null | undefined): number | null {
+  if (!planType) return null;
+  const normalized = planType.toLowerCase().trim();
+  return COMMAND_CODE_PLAN_FIVE_HOUR_LIMITS[normalized] ?? null;
+}
+
+export function getCommandCodePlanWeeklyLimit(planType: string | null | undefined): number | null {
+  if (!planType) return null;
+  const normalized = planType.toLowerCase().trim();
+  return COMMAND_CODE_PLAN_WEEKLY_LIMITS[normalized] ?? null;
+}
+
+export function parseCommandCodeWindowLimit(
+  windowData: unknown,
+  planLimit: number | null
+): CommandCodeWindowLimit | null {
+  if (!windowData || typeof windowData !== 'object') return null;
+
+  const record = windowData as Record<string, unknown>;
+  const used = toFiniteNumber(record.used) ?? 0;
+  const cap = toFiniteNumber(record.cap) ?? planLimit ?? 0;
+  const exceeded = Boolean(record.exceeded);
+  const resetAt = toFiniteNumber(record.resetAt) ?? 0;
+
+  const remaining = Math.max(0, cap - used);
+  const remainingPercent = cap > 0 ? Math.min(100, (remaining / cap) * 100) : 0;
+
+  return {
+    used,
+    cap,
+    exceeded,
+    resetAt,
+    remainingPercent,
+  };
+}
+
+export function buildCommandCodeQuotaData(
+  payload: CommandCodeUsagePayload | null,
+  planType?: string | null
+): CommandCodeQuotaData | null {
+  if (!payload) return null;
+
+  const totalCredits = toFiniteNumber(payload.totalCredits ?? payload.total_credits ?? payload.totalCost ?? payload.total_cost) ?? 0;
+  // Use plan-based monthly credits from mapping table
+  const totalMonthlyCredits = getCommandCodePlanMonthlyCredits(planType);
+  const totalFreeCredits = toFiniteNumber(payload.totalFreeCredits ?? payload.total_free_credits);
+
+  // Calculate remaining percentage
+  const remainingPercent = totalMonthlyCredits && totalMonthlyCredits > 0
+    ? Math.max(0, Math.min(100, ((totalMonthlyCredits - totalCredits) / totalMonthlyCredits) * 100))
+    : null;
+
+  const rows: CommandCodeQuotaRow[] = [
+    {
+      id: 'total_credits',
+      label: 'Total Cost',
+      labelKey: 'commandcode_quota.total_credits',
+      value: remainingPercent !== null ? `${Math.round(remainingPercent)}%` : '--',
+      subValue: totalMonthlyCredits !== null ? `Monthly: $${totalMonthlyCredits.toFixed(4)}` : undefined,
+    },
+  ];
+
+  if (totalFreeCredits !== null && totalFreeCredits > 0) {
+    rows.push({
+      id: 'free_credits',
+      label: 'Free Credits',
+      labelKey: 'commandcode_quota.free_credits',
+      value: `$${totalFreeCredits.toFixed(4)}`,
+    });
+  }
+
+  return {
+    rows,
+    totalCredits,
+    totalMonthlyCredits,
+  };
+}
+
 

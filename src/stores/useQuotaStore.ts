@@ -7,6 +7,7 @@ import type {
   ClaudeQuotaState,
   CodebuddyQuotaState,
   CodexQuotaState,
+  CommandCodeQuotaState,
   CopilotQuotaState,
   CursorQuotaState,
   GeminiCliQuotaState,
@@ -23,6 +24,7 @@ interface QuotaStoreState {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
   codebuddyQuota: Record<string, CodebuddyQuotaState>;
+  commandCodeQuota: Record<string, CommandCodeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
@@ -34,6 +36,7 @@ interface QuotaStoreState {
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodebuddyQuota: (updater: QuotaUpdater<Record<string, CodebuddyQuotaState>>) => void;
+  setCommandCodeQuota: (updater: QuotaUpdater<Record<string, CommandCodeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
@@ -56,6 +59,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   antigravityQuota: {},
   claudeQuota: {},
   codebuddyQuota: {},
+  commandCodeQuota: {},
   codexQuota: {},
   copilotQuota: {},
   cursorQuota: {},
@@ -75,6 +79,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   setCodebuddyQuota: (updater) =>
     set((state) => ({
       codebuddyQuota: resolveUpdater(updater, state.codebuddyQuota)
+    })),
+  setCommandCodeQuota: (updater) =>
+    set((state) => ({
+      commandCodeQuota: resolveUpdater(updater, state.commandCodeQuota)
     })),
   setCodexQuota: (updater) =>
     set((state) => ({
@@ -113,6 +121,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       antigravityQuota: {},
       claudeQuota: {},
       codebuddyQuota: {},
+      commandCodeQuota: {},
       codexQuota: {},
       copilotQuota: {},
       cursorQuota: {},
