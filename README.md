@@ -167,12 +167,3 @@ npm run format     # Prettier
 npm run type-check # tsc --noEmit
 ```
 
-## 贡献
-
-欢迎提 Issue 与 PR。建议附上：
-
-- 复现步骤（服务端版本 + UI 版本）
-- UI 改动截图
-- 验证记录（`npm run lint`、`npm run type-check`）
-
-
