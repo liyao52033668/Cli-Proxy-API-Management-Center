@@ -175,6 +175,4 @@ npm run type-check # tsc --noEmit
 - UI 改动截图
 - 验证记录（`npm run lint`、`npm run type-check`）
 
-## 许可证
 
-MIT
