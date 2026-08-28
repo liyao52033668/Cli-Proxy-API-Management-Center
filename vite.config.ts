@@ -24,7 +24,7 @@ function getVersion(): string {
 
   // 3. Fall back to package.json version
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8'));
     if (pkg.version && pkg.version !== '0.0.0') {
       return pkg.version;
     }
@@ -59,7 +59,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(import.meta.dirname, './src')
     }
   },
   css: {
