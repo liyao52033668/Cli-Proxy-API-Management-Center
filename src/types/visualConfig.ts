@@ -35,6 +35,12 @@ export type PayloadModelEntry = {
   id: string;
   name: string;
   protocol?: string;
+  /**
+   * Original YAML value (string or object) this entry was parsed from. Re-emitted on
+   * save when the entry is untouched so fields the visual editor does not model
+   * (headers, from-protocol, match, not-match, exist, not-exist) survive the round trip.
+   */
+  raw?: unknown;
 };
 
 export type PayloadRule = {

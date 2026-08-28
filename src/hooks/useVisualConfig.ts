@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useReducer } from 'react';
-import { isMap, parse as parseYaml, parseDocument } from 'yaml';
+import { isMap, isScalar, isSeq, parse as parseYaml, parseDocument } from 'yaml';
 import type {
   DisableImageGenerationValue,
   PayloadFilterRule,
+  PayloadModelEntry,
   PayloadParamEntry,
   PayloadParamValueType,
   PayloadRule,
@@ -326,6 +327,43 @@ function deleteLegacyApiKeysProvider(doc: YamlDocument): void {
   deleteIfMapEmpty(doc, ['auth']);
 }
 
+/** Field names an api-keys object entry may use for the key string (mirrors extractApiKeyValue). */
+const API_KEY_FIELD_NAMES = ['api-key', 'apiKey', 'key', 'Key'] as const;
+
+function extractApiKeyEntryKeyValue(item: unknown): string | null {
+  if (!isMap(item)) return null;
+
+  const valuesByField = new Map<string, unknown>();
+  for (const pair of item.items) {
+    if (isScalar(pair.key) && typeof pair.key.value === 'string') {
+      valuesByField.set(pair.key.value, isScalar(pair.value) ? pair.value.value : pair.value);
+    }
+  }
+
+  for (const fieldName of API_KEY_FIELD_NAMES) {
+    const candidate = valuesByField.get(fieldName);
+    if (typeof candidate === 'string' && candidate.trim() !== '') return candidate.trim();
+  }
+  return null;
+}
+
+/**
+ * Collects object-form entries from the current `api-keys` sequence, keyed by key string.
+ * Used to preserve per-key fields the visual editor does not model (e.g. the models
+ * whitelist) when the key list is rewritten.
+ */
+function collectApiKeyEntryNodes(doc: YamlDocument): Map<string, unknown> {
+  const entryNodes = new Map<string, unknown>();
+  const seqNode = doc.getIn(['api-keys'], true);
+  if (!isSeq(seqNode)) return entryNodes;
+
+  for (const item of seqNode.items) {
+    const keyValue = extractApiKeyEntryKeyValue(item);
+    if (keyValue && !entryNodes.has(keyValue)) entryNodes.set(keyValue, item);
+  }
+  return entryNodes;
+}
+
 function parsePayloadRules(rules: unknown): PayloadRule[] {
   if (!Array.isArray(rules)) return [];
 
@@ -343,6 +381,7 @@ function parsePayloadRules(rules: unknown): PayloadRule[] {
             id: `model-${index}-${modelIndex}`,
             name,
             protocol: parsePayloadProtocol(modelRecord?.protocol),
+            raw: deepClone(model),
           };
         })
       : [];
@@ -381,6 +420,7 @@ function parsePayloadFilterRules(rules: unknown): PayloadFilterRule[] {
             id: `filter-model-${index}-${modelIndex}`,
             name,
             protocol: parsePayloadProtocol(modelRecord?.protocol),
+            raw: deepClone(model),
           };
         })
       : [];
@@ -409,6 +449,7 @@ function parseRawPayloadRules(rules: unknown): PayloadRule[] {
             id: `raw-model-${index}-${modelIndex}`,
             name,
             protocol: parsePayloadProtocol(modelRecord?.protocol),
+            raw: deepClone(model),
           };
         })
       : [];
@@ -427,16 +468,59 @@ function parseRawPayloadRules(rules: unknown): PayloadRule[] {
   });
 }
 
+/**
+ * True when the parsed entry still matches what it was parsed from, meaning the user
+ * did not edit the model name or protocol in the visual editor.
+ */
+function rawPayloadModelEntryMatches(
+  raw: unknown,
+  name: string,
+  protocol: string | undefined
+): boolean {
+  if (typeof raw === 'string') return raw === name && protocol === undefined;
+
+  const record = asRecord(raw);
+  if (!record) return false;
+
+  const rawNameValue = record.name ?? record.id;
+  const rawName = rawNameValue == null ? '' : String(rawNameValue);
+  if (rawName !== name) return false;
+
+  const rawProtocol =
+    typeof record.protocol === 'string' && record.protocol.trim() !== ''
+      ? record.protocol
+      : undefined;
+  return rawProtocol === protocol;
+}
+
+/**
+ * Serializes model entries while re-emitting the original YAML value for untouched
+ * entries, so advanced fields (headers, match filters, ...) are not lost on save.
+ */
+function serializePayloadModelEntries(
+  entries: PayloadModelEntry[]
+): Array<Record<string, unknown> | string> {
+  const serialized: Array<Record<string, unknown> | string> = [];
+  for (const entry of entries || []) {
+    if (!entry.name?.trim()) continue;
+    if (
+      entry.raw !== undefined &&
+      rawPayloadModelEntryMatches(entry.raw, entry.name, entry.protocol)
+    ) {
+      serialized.push(entry.raw as Record<string, unknown> | string);
+      continue;
+    }
+    const obj: Record<string, unknown> = { name: entry.name.trim() };
+    if (entry.protocol) obj.protocol = entry.protocol;
+    serialized.push(obj);
+  }
+  return serialized;
+}
+
 function serializePayloadRulesForYaml(rules: PayloadRule[]): Array<Record<string, unknown>> {
   return rules
     .map((rule) => {
-      const models = (rule.models || [])
-        .filter((m) => m.name?.trim())
-        .map((m) => {
-          const obj: Record<string, unknown> = { name: m.name.trim() };
-          if (m.protocol) obj.protocol = m.protocol;
-          return obj;
-        });
+      const models = serializePayloadModelEntries(rule.models);
 
       const params: Record<string, unknown> = {};
       for (const param of rule.params || []) {
@@ -467,13 +551,7 @@ function serializePayloadFilterRulesForYaml(
 ): Array<Record<string, unknown>> {
   return rules
     .map((rule) => {
-      const models = (rule.models || [])
-        .filter((m) => m.name?.trim())
-        .map((m) => {
-          const obj: Record<string, unknown> = { name: m.name.trim() };
-          if (m.protocol) obj.protocol = m.protocol;
-          return obj;
-        });
+      const models = serializePayloadModelEntries(rule.models);
 
       const params = (Array.isArray(rule.params) ? rule.params : [])
         .map((path) => String(path).trim())
@@ -487,13 +565,7 @@ function serializePayloadFilterRulesForYaml(
 function serializeRawPayloadRulesForYaml(rules: PayloadRule[]): Array<Record<string, unknown>> {
   return rules
     .map((rule) => {
-      const models = (rule.models || [])
-        .filter((m) => m.name?.trim())
-        .map((m) => {
-          const obj: Record<string, unknown> = { name: m.name.trim() };
-          if (m.protocol) obj.protocol = m.protocol;
-          return obj;
-        });
+      const models = serializePayloadModelEntries(rule.models);
 
       const params: Record<string, unknown> = {};
       for (const param of rule.params || []) {
@@ -858,7 +930,7 @@ export function useVisualConfig() {
     undefined,
     createInitialVisualConfigState
   );
-  const { visualValues, visualParseError } = state;
+  const { visualValues, visualParseError, dirtyFields } = state;
   const visualDirty = state.dirtyFields.size > 0;
   const visualValidationErrors = useMemo(
     () => getVisualConfigValidationErrors(visualValues),
@@ -1002,16 +1074,18 @@ export function useVisualConfig() {
           doc.contents = doc.createNode({}) as unknown as typeof doc.contents;
         }
         const values = visualValues;
+        // Only write back fields the user actually changed; untouched parts of the YAML
+        // (per-key model whitelists, payload rule match filters, comments, ...) survive.
+        const isDirty = (...keys: string[]) => keys.some((key) => dirtyFields.has(key));
 
-        setStringInDoc(doc, ['host'], values.host);
-        setIntFromStringInDoc(doc, ['port'], values.port);
+        if (isDirty('host')) {
+          setStringInDoc(doc, ['host'], values.host);
+        }
+        if (isDirty('port')) {
+          setIntFromStringInDoc(doc, ['port'], values.port);
+        }
 
-        if (
-          docHas(doc, ['tls']) ||
-          values.tlsEnable ||
-          values.tlsCert.trim() ||
-          values.tlsKey.trim()
-        ) {
+        if (isDirty('tlsEnable', 'tlsCert', 'tlsKey')) {
           ensureMapInDoc(doc, ['tls']);
           setBooleanInDoc(doc, ['tls', 'enable'], values.tlsEnable);
           setStringInDoc(doc, ['tls', 'cert'], values.tlsCert);
@@ -1020,13 +1094,14 @@ export function useVisualConfig() {
         }
 
         if (
-          docHas(doc, ['remote-management']) ||
-          values.rmAllowRemote ||
-          values.rmSecretKey.trim() ||
-          values.rmDisableControlPanel ||
-          values.rmDisableAutoUpdatePanel ||
-          values.rmPanelRepo.trim() ||
-          values.corsAllowedOrigins.length > 0
+          isDirty(
+            'rmAllowRemote',
+            'rmSecretKey',
+            'rmDisableControlPanel',
+            'rmDisableAutoUpdatePanel',
+            'rmPanelRepo',
+            'corsAllowedOrigins'
+          )
         ) {
           ensureMapInDoc(doc, ['remote-management']);
           setBooleanInDoc(doc, ['remote-management', 'allow-remote'], values.rmAllowRemote);
@@ -1056,71 +1131,127 @@ export function useVisualConfig() {
           deleteIfMapEmpty(doc, ['remote-management']);
         }
 
-        setStringInDoc(doc, ['auth-dir'], values.authDir);
-        setBooleanInDoc(doc, ['incognito-browser'], values.incognitoBrowser);
-        const ignoredAuthJsonPaths = values.ignoredAuthJsonPaths
-          .map((path) => path.trim())
-          .filter(Boolean);
-        if (ignoredAuthJsonPaths.length > 0) {
-          doc.setIn(['ignored-auth-json-paths'], ignoredAuthJsonPaths);
-        } else if (docHas(doc, ['ignored-auth-json-paths'])) {
-          doc.deleteIn(['ignored-auth-json-paths']);
+        if (isDirty('authDir')) {
+          setStringInDoc(doc, ['auth-dir'], values.authDir);
         }
-        const apiKeys = values.apiKeysText
-          .split('\n')
-          .map((key) => key.trim())
-          .filter(Boolean);
-        if (apiKeys.length > 0) {
-          doc.setIn(['api-keys'], apiKeys);
-        } else if (docHas(doc, ['api-keys'])) {
-          doc.deleteIn(['api-keys']);
+        if (isDirty('incognitoBrowser')) {
+          setBooleanInDoc(doc, ['incognito-browser'], values.incognitoBrowser);
         }
-        deleteLegacyApiKeysProvider(doc);
-
-        setBooleanInDoc(doc, ['debug'], values.debug);
-
-        setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
-        setBooleanInDoc(doc, ['request-log'], values.requestLog);
-        setBooleanInDoc(doc, ['logging-to-file'], values.loggingToFile);
-        setIntFromStringInDoc(doc, ['logs-max-total-size-mb'], values.logsMaxTotalSizeMb);
-        setIntFromStringInDoc(doc, ['error-logs-max-files'], values.errorLogsMaxFiles);
-        setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
-        setBooleanInDoc(doc, ['allow-query-api-key'], values.allowQueryApiKey);
-        setIntFromStringInDoc(
-          doc,
-          ['redis-usage-queue-retention-seconds'],
-          values.redisUsageQueueRetentionSeconds
-        );
-
-        setStringInDoc(doc, ['proxy-url'], values.proxyUrl);
-        setBooleanInDoc(doc, ['force-model-prefix'], values.forceModelPrefix);
-        setBooleanInDoc(doc, ['passthrough-headers'], values.passthroughHeaders);
-        setBooleanInDoc(doc, ['enable-gemini-cli-endpoint'], values.enableGeminiCliEndpoint);
-        setBooleanInDoc(doc, ['disable-utls'], values.disableUtls);
-        if (values.disableImageGeneration === 'true') {
-          doc.setIn(['disable-image-generation'], true);
-        } else if (values.disableImageGeneration === 'chat') {
-          doc.setIn(['disable-image-generation'], 'chat');
-        } else if (docHas(doc, ['disable-image-generation'])) {
-          doc.setIn(['disable-image-generation'], false);
+        if (isDirty('ignoredAuthJsonPaths')) {
+          const ignoredAuthJsonPaths = values.ignoredAuthJsonPaths
+            .map((path) => path.trim())
+            .filter(Boolean);
+          if (ignoredAuthJsonPaths.length > 0) {
+            doc.setIn(['ignored-auth-json-paths'], ignoredAuthJsonPaths);
+          } else if (docHas(doc, ['ignored-auth-json-paths'])) {
+            doc.deleteIn(['ignored-auth-json-paths']);
+          }
         }
-        setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
-        setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
-        setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
-        setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
-        setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
+        if (isDirty('apiKeysText')) {
+          // Preserve object-form entries (and their model whitelists) for keys that still exist.
+          const preservedEntries = collectApiKeyEntryNodes(doc);
+          const usedEntryKeys = new Set<string>();
+          const apiKeys = values.apiKeysText
+            .split('\n')
+            .map((key) => key.trim())
+            .filter(Boolean);
+          if (apiKeys.length > 0) {
+            const nextEntries: Array<unknown> = apiKeys.map((key) => {
+              const preserved = preservedEntries.get(key);
+              if (preserved && !usedEntryKeys.has(key)) {
+                usedEntryKeys.add(key);
+                return preserved;
+              }
+              return key;
+            });
+            doc.setIn(['api-keys'], nextEntries);
+          } else if (docHas(doc, ['api-keys'])) {
+            doc.deleteIn(['api-keys']);
+          }
+          deleteLegacyApiKeysProvider(doc);
+        }
 
-        if (docHas(doc, ['xai']) || values.xaiInjectXSearch) {
+        if (isDirty('debug')) {
+          setBooleanInDoc(doc, ['debug'], values.debug);
+        }
+
+        if (isDirty('commercialMode')) {
+          setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
+        }
+        if (isDirty('requestLog')) {
+          setBooleanInDoc(doc, ['request-log'], values.requestLog);
+        }
+        if (isDirty('loggingToFile')) {
+          setBooleanInDoc(doc, ['logging-to-file'], values.loggingToFile);
+        }
+        if (isDirty('logsMaxTotalSizeMb')) {
+          setIntFromStringInDoc(doc, ['logs-max-total-size-mb'], values.logsMaxTotalSizeMb);
+        }
+        if (isDirty('errorLogsMaxFiles')) {
+          setIntFromStringInDoc(doc, ['error-logs-max-files'], values.errorLogsMaxFiles);
+        }
+        if (isDirty('usageStatisticsEnabled')) {
+          setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
+        }
+        if (isDirty('allowQueryApiKey')) {
+          setBooleanInDoc(doc, ['allow-query-api-key'], values.allowQueryApiKey);
+        }
+        if (isDirty('redisUsageQueueRetentionSeconds')) {
+          setIntFromStringInDoc(
+            doc,
+            ['redis-usage-queue-retention-seconds'],
+            values.redisUsageQueueRetentionSeconds
+          );
+        }
+
+        if (isDirty('proxyUrl')) {
+          setStringInDoc(doc, ['proxy-url'], values.proxyUrl);
+        }
+        if (isDirty('forceModelPrefix')) {
+          setBooleanInDoc(doc, ['force-model-prefix'], values.forceModelPrefix);
+        }
+        if (isDirty('passthroughHeaders')) {
+          setBooleanInDoc(doc, ['passthrough-headers'], values.passthroughHeaders);
+        }
+        if (isDirty('enableGeminiCliEndpoint')) {
+          setBooleanInDoc(doc, ['enable-gemini-cli-endpoint'], values.enableGeminiCliEndpoint);
+        }
+        if (isDirty('disableUtls')) {
+          setBooleanInDoc(doc, ['disable-utls'], values.disableUtls);
+        }
+        if (isDirty('disableImageGeneration')) {
+          if (values.disableImageGeneration === 'true') {
+            doc.setIn(['disable-image-generation'], true);
+          } else if (values.disableImageGeneration === 'chat') {
+            doc.setIn(['disable-image-generation'], 'chat');
+          } else if (docHas(doc, ['disable-image-generation'])) {
+            doc.setIn(['disable-image-generation'], false);
+          }
+        }
+        if (isDirty('requestRetry')) {
+          setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
+        }
+        if (isDirty('maxRetryCredentials')) {
+          setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
+        }
+        if (isDirty('maxRetryInterval')) {
+          setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
+        }
+        if (isDirty('disableCooling')) {
+          setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
+        }
+        if (isDirty('wsAuth')) {
+          setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
+        }
+
+        if (isDirty('xaiInjectXSearch')) {
           ensureMapInDoc(doc, ['xai']);
           setBooleanInDoc(doc, ['xai', 'inject-x-search'], values.xaiInjectXSearch);
           deleteIfMapEmpty(doc, ['xai']);
         }
 
         if (
-          docHas(doc, ['quota-exceeded']) ||
-          !values.quotaSwitchProject ||
-          !values.quotaSwitchPreviewModel ||
-          !values.quotaAntigravityCredits
+          isDirty('quotaSwitchProject', 'quotaSwitchPreviewModel', 'quotaAntigravityCredits')
         ) {
           ensureMapInDoc(doc, ['quota-exceeded']);
           doc.setIn(['quota-exceeded', 'switch-project'], values.quotaSwitchProject);
@@ -1132,12 +1263,7 @@ export function useVisualConfig() {
           deleteIfMapEmpty(doc, ['quota-exceeded']);
         }
 
-        if (
-          docHas(doc, ['routing']) ||
-          values.routingStrategy !== 'round-robin' ||
-          values.routingSessionAffinity ||
-          values.routingSessionAffinityTTL.trim()
-        ) {
+        if (isDirty('routingStrategy', 'routingSessionAffinity', 'routingSessionAffinityTTL')) {
           ensureMapInDoc(doc, ['routing']);
           doc.setIn(['routing', 'strategy'], values.routingStrategy);
           setBooleanInDoc(doc, ['routing', 'session-affinity'], values.routingSessionAffinity);
@@ -1162,24 +1288,25 @@ export function useVisualConfig() {
             ? values.streaming.nonstreamKeepaliveInterval
             : '';
 
-        const streamingDefined =
-          docHas(doc, ['streaming']) || keepaliveSeconds.trim() || bootstrapRetries.trim();
-        if (streamingDefined) {
+        if (isDirty('streaming.keepaliveSeconds', 'streaming.bootstrapRetries')) {
           ensureMapInDoc(doc, ['streaming']);
           setIntFromStringInDoc(doc, ['streaming', 'keepalive-seconds'], keepaliveSeconds);
           setIntFromStringInDoc(doc, ['streaming', 'bootstrap-retries'], bootstrapRetries);
           deleteIfMapEmpty(doc, ['streaming']);
         }
 
-        setIntFromStringInDoc(doc, ['nonstream-keepalive-interval'], nonstreamKeepaliveInterval);
+        if (isDirty('streaming.nonstreamKeepaliveInterval')) {
+          setIntFromStringInDoc(doc, ['nonstream-keepalive-interval'], nonstreamKeepaliveInterval);
+        }
 
         if (
-          docHas(doc, ['payload']) ||
-          values.payloadDefaultRules.length > 0 ||
-          values.payloadDefaultRawRules.length > 0 ||
-          values.payloadOverrideRules.length > 0 ||
-          values.payloadOverrideRawRules.length > 0 ||
-          values.payloadFilterRules.length > 0
+          isDirty(
+            'payloadDefaultRules',
+            'payloadDefaultRawRules',
+            'payloadOverrideRules',
+            'payloadOverrideRawRules',
+            'payloadFilterRules'
+          )
         ) {
           ensureMapInDoc(doc, ['payload']);
           if (values.payloadDefaultRules.length > 0) {
@@ -1230,7 +1357,7 @@ export function useVisualConfig() {
         return currentYaml;
       }
     },
-    [visualValues]
+    [visualValues, dirtyFields]
   );
 
   const setVisualValues = useCallback((newValues: Partial<VisualConfigValues>) => {
