@@ -98,6 +98,20 @@ export const parseQuotaBalance = (body: unknown): QuotaBalanceInfo[] => {
     ];
   }
 
+  // token_usage 额度格式：{ data: { total_available, total_granted, total_used } }
+  // total_available 为剩余可用额度，除以换算除数后即为余额
+  const usageHolder = data ?? record;
+  if (usageHolder.total_available !== undefined) {
+    return [
+      {
+        currency: asString(usageHolder.currency),
+        total: asString(usageHolder.total_available),
+        granted: asString(usageHolder.total_granted),
+        toppedUp: asString(usageHolder.total_used),
+      },
+    ];
+  }
+
   // 简化格式：{ balance, currency } / { quota } / { data: { balance, currency } } 等
   const holder = data ?? record;
   const balanceValue = holder.quota ?? holder.balance ?? holder.total_balance ?? holder.amount;
