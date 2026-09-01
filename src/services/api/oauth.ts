@@ -108,12 +108,16 @@ export const oauthApi = {
       params: { state }
     }),
 
-  submitCallback: (provider: OAuthProvider, redirectUrl: string) => {
+  submitCallback: (provider: OAuthProvider, redirectUrl: string, state?: string) => {
     const callbackProvider = CALLBACK_PROVIDER_MAP[provider] ?? provider;
-    return apiClient.post<OAuthCallbackResponse>('/oauth-callback', {
+    const body: Record<string, string> = {
       provider: callbackProvider,
       redirect_url: redirectUrl
-    });
+    };
+    if (state) {
+      body.state = state;
+    }
+    return apiClient.post<OAuthCallbackResponse>('/oauth-callback', body);
   },
 
   submitCode: (provider: OAuthProvider, state: string, code: string) => {

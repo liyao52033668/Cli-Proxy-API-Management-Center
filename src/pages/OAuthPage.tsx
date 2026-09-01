@@ -109,6 +109,9 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
 
 // Qoder uses device-code polling (no qoder:// callback). Keep callback UI only for
 // providers that still require pasting a local redirect URL.
+// CodeArts uses the PKCE flow with is_redirect=true: HuaweiCloud redirects back to
+// the local /oauth/callback. For remote deployments, users must manually copy the
+// redirect URL from the browser address bar and paste it here.
 const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
@@ -595,7 +598,7 @@ export function OAuthPage() {
       callbackError: undefined
     });
     try {
-      await oauthApi.submitCallback(provider, redirectUrl);
+      await oauthApi.submitCallback(provider, redirectUrl, states[provider]?.state);
       updateProviderState(provider, { callbackSubmitting: false, callbackStatus: 'success' });
       showNotification(t('auth_login.oauth_callback_success'), 'success');
     } catch (err: unknown) {
