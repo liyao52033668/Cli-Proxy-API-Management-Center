@@ -1179,6 +1179,8 @@
     "oauth_callback_hint": "遠端瀏覽器模式：當授權跳轉到 http://localhost:... 後，複製完整 URL 並提交到這裡。",
     "oauth_callback_button": "提交回調 URL",
     "oauth_callback_required": "請先貼上完整的回調 URL。",
+    "oauth_callback_invalid_url": "請貼上有效的 URL 地址。",
+    "oauth_callback_localhost_only": "CodeArts 回調 URL 必須是 localhost 地址。",
     "oauth_callback_success": "回調 URL 已提交，請繼續等待驗證。",
     "oauth_callback_error": "提交回調 URL 失敗:",
     "oauth_callback_upgrade_hint": "請更新 CLI Proxy API 或檢查連線",

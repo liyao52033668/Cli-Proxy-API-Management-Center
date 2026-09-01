@@ -1174,6 +1174,8 @@
     "oauth_callback_hint": "Remote browser mode: after the provider redirects to http://localhost:..., copy the full URL and submit it here.",
     "oauth_callback_button": "Submit Callback URL",
     "oauth_callback_required": "Please paste the full redirect URL first.",
+    "oauth_callback_invalid_url": "Please paste a valid URL.",
+    "oauth_callback_localhost_only": "CodeArts callback URL must be a localhost address.",
     "oauth_callback_success": "Callback URL submitted. Continue waiting for authentication.",
     "oauth_callback_error": "Failed to submit callback URL:",
     "oauth_callback_upgrade_hint": "Please update CLI Proxy API or check the connection.",

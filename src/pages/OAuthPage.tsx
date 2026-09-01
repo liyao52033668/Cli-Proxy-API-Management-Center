@@ -26,6 +26,7 @@ import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
 import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
 import { useNotificationStore, useThemeStore } from '@/stores';
 import { copyToClipboard } from '@/utils/clipboard';
+import { isLocalhost } from '@/utils/connection';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -108,7 +109,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
 
 // Qoder uses device-code polling (no qoder:// callback). Keep callback UI only for
 // providers that still require pasting a local redirect URL.
-const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli'];
+const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>
@@ -575,6 +576,18 @@ export function OAuthPage() {
     if (!redirectUrl) {
       showNotification(t('auth_login.oauth_callback_required'), 'warning');
       return;
+    }
+    if (provider === 'codearts') {
+      try {
+        const parsed = new URL(redirectUrl);
+        if (!isLocalhost(parsed.hostname)) {
+          showNotification(t('auth_login.oauth_callback_localhost_only'), 'warning');
+          return;
+        }
+      } catch {
+        showNotification(t('auth_login.oauth_callback_invalid_url'), 'warning');
+        return;
+      }
     }
     updateProviderState(provider, {
       callbackSubmitting: true,
