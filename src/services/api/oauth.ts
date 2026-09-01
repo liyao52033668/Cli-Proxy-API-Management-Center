@@ -36,6 +36,12 @@ export interface OAuthStartResponse {
 
 export interface OAuthCallbackResponse {
   status: 'ok';
+  /**
+   * CodeArts remote-deployment flow: the pasted callback URL carries a nested
+   * redirect back to the provider that still has to be opened in the same
+   * browser that authorized, because it relies on that browser's session.
+   */
+  finalize_url?: string;
 }
 
 interface BasicTokenAuthResponse {

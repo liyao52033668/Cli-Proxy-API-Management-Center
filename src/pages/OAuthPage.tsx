@@ -26,7 +26,6 @@ import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
 import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
 import { useNotificationStore, useThemeStore } from '@/stores';
 import { copyToClipboard } from '@/utils/clipboard';
-import { isLocalhost } from '@/utils/connection';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +45,8 @@ interface ProviderState {
   callbackSubmitting?: boolean;
   callbackStatus?: 'success' | 'error';
   callbackError?: string;
+  /** Follow-up URL that must be opened to finish authorization (CodeArts remote flow). */
+  finalizeUrl?: string;
   phone?: string;
   password?: string;
   authMode?: 'token' | 'oauth';
@@ -202,6 +203,7 @@ export function OAuthPage() {
       callbackStatus: undefined,
       callbackError: undefined,
       callbackSubmitting: false,
+      finalizeUrl: undefined,
       deviceCode: undefined,
       polling: false
     };
@@ -272,7 +274,8 @@ export function OAuthPage() {
       callbackToken: '',
       callbackSubmitting: false,
       callbackStatus: undefined,
-      callbackError: undefined
+      callbackError: undefined,
+      finalizeUrl: undefined
     });
     successResetTimers.current[provider] = window.setTimeout(() => {
       resetProviderAttempt(provider);
@@ -298,11 +301,18 @@ export function OAuthPage() {
             polling: true
           });
         } else if (res.status === 'auth_url') {
-          // Handle auth URL flow (social auth)
-          updateProviderState(provider, {
-            url: res.url,
-            status: 'waiting',
-            polling: true
+          // Handle auth URL flow (social auth). The server also uses this to hand
+          // back a follow-up URL after a callback was submitted, so notify the user
+          // whenever the link they are supposed to open changes.
+          setStates((prev) => {
+            const current = prev[provider] ?? {};
+            if (res.url && current.url && res.url !== current.url) {
+              showNotification(t('auth_login.oauth_auth_url_changed'), 'warning');
+            }
+            return {
+              ...prev,
+              [provider]: { ...current, url: res.url, status: 'waiting', polling: true }
+            };
           });
         } else if (res.status === 'error') {
           updateProviderState(provider, { status: 'error', error: res.error, polling: false });
@@ -580,27 +590,33 @@ export function OAuthPage() {
       showNotification(t('auth_login.oauth_callback_required'), 'warning');
       return;
     }
-    if (provider === 'codearts') {
-      try {
-        const parsed = new URL(redirectUrl);
-        if (!isLocalhost(parsed.hostname)) {
-          showNotification(t('auth_login.oauth_callback_localhost_only'), 'warning');
-          return;
-        }
-      } catch {
-        showNotification(t('auth_login.oauth_callback_invalid_url'), 'warning');
-        return;
-      }
+    try {
+      new URL(redirectUrl);
+    } catch {
+      showNotification(t('auth_login.oauth_callback_invalid_url'), 'warning');
+      return;
     }
     updateProviderState(provider, {
       callbackSubmitting: true,
       callbackStatus: undefined,
-      callbackError: undefined
+      callbackError: undefined,
+      finalizeUrl: undefined
     });
     try {
-      await oauthApi.submitCallback(provider, redirectUrl, states[provider]?.state);
-      updateProviderState(provider, { callbackSubmitting: false, callbackStatus: 'success' });
-      showNotification(t('auth_login.oauth_callback_success'), 'success');
+      const res = await oauthApi.submitCallback(provider, redirectUrl, states[provider]?.state);
+      const finalizeUrl = res.finalize_url;
+      updateProviderState(provider, {
+        callbackSubmitting: false,
+        callbackStatus: 'success',
+        finalizeUrl
+      });
+      if (finalizeUrl) {
+        // The login only finalizes once this URL is opened in the same browser
+        // that authorized, so make the extra step explicit.
+        showNotification(t('auth_login.oauth_callback_finalize_required'), 'warning');
+      } else {
+        showNotification(t('auth_login.oauth_callback_success'), 'success');
+      }
     } catch (err: unknown) {
       const status = getErrorStatus(err);
       const message = getErrorMessage(err);
@@ -1034,7 +1050,35 @@ export function OAuthPage() {
                           {t('auth_login.oauth_callback_button')}
                         </Button>
                       </div>
-                      {state.callbackStatus === 'success' && state.status === 'waiting' && (
+                      {state.finalizeUrl && (
+                        <div className={styles.finalizeBox}>
+                          <div className={styles.finalizeTitle}>
+                            {t('auth_login.oauth_finalize_title')}
+                          </div>
+                          <div className={styles.finalizeHint}>
+                            {t('auth_login.oauth_finalize_hint')}
+                          </div>
+                          <div className={styles.authUrlValue}>{state.finalizeUrl}</div>
+                          <div className={styles.authUrlActions}>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                window.open(state.finalizeUrl, '_blank', 'noopener,noreferrer')
+                              }
+                            >
+                              {t('auth_login.oauth_finalize_open')}
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => copyLink(state.finalizeUrl)}
+                            >
+                              {t(getAuthKey(provider.id, 'copy_link'))}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {state.callbackStatus === 'success' && state.status === 'waiting' && !state.finalizeUrl && (
                         <div className="status-badge success">
                           {t('auth_login.oauth_callback_status_success')}
                         </div>

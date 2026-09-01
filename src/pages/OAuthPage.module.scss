@@ -112,6 +112,27 @@
   gap: $spacing-md;
 }
 
+.finalizeBox {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.finalizeTitle {
+  font-weight: 700;
+  color: var(--warning-text);
+}
+
+.finalizeHint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .authUrlBox {
   background: var(--bg-secondary);
   border: 1px dashed var(--border-color);
