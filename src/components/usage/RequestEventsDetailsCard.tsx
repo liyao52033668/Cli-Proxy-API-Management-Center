@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
 import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
+import { useUsageStatsStore } from '@/stores';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
@@ -67,7 +68,9 @@ export function RequestEventsDetailsCard({
   const [eventSource, setEventSource] = useState<'memory' | 'history'>('memory');
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
-  const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}`;
+  const [statusFilter, setStatusFilter] = useState(ALL_FILTER);
+  const [discoveredSources, setDiscoveredSources] = useState<Map<string, string>>(new Map());
+  const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}::${statusFilter}`;
   const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -106,6 +109,8 @@ export function RequestEventsDetailsCard({
     };
   }, []);
 
+  const keyStats = useUsageStatsStore((state) => state.keyStats);
+
   useEffect(() => {
     if (eventSource === 'history') return;
     let cancelled = false;
@@ -136,6 +141,7 @@ export function RequestEventsDetailsCard({
           pageSize: PAGE_SIZE,
           model: modelFilter === ALL_FILTER ? undefined : modelFilter,
           source: sourceFilter === ALL_FILTER ? undefined : sourceFilter,
+          result: statusFilter === ALL_FILTER ? undefined : statusFilter,
         },
         eventSource
       )
@@ -172,6 +178,7 @@ export function RequestEventsDetailsCard({
     queryIdentity,
     queryKey,
     sourceFilter,
+    statusFilter,
     timeRange,
   ]);
 
@@ -225,6 +232,56 @@ export function RequestEventsDetailsCard({
     [authFileMap, events, i18n.language, sourceInfoMap]
   );
 
+  useEffect(() => {
+    if (!rows.length) return;
+    setDiscoveredSources((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      rows.forEach((row) => {
+        if (row.sourceRaw && !next.has(row.sourceRaw)) {
+          next.set(row.sourceRaw, row.source);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    const candidates = new Map<string, string>();
+    if (keyStats?.credentials && keyStats.credentials.length > 0) {
+      keyStats.credentials.forEach((cred) => {
+        const raw = String(cred.source || '').trim();
+        if (raw) {
+          const info = resolveSourceDisplay(raw, cred.authIndex, sourceInfoMap, authFileMap);
+          candidates.set(raw, info.displayName);
+        }
+      });
+    }
+    if (keyStats?.bySource) {
+      Object.keys(keyStats.bySource).forEach((rawSource) => {
+        const raw = rawSource.trim();
+        if (raw) {
+          const info = resolveSourceDisplay(raw, undefined, sourceInfoMap, authFileMap);
+          candidates.set(raw, info.displayName);
+        }
+      });
+    }
+    if (candidates.size > 0) {
+      setDiscoveredSources((prev) => {
+        let changed = false;
+        const next = new Map(prev);
+        candidates.forEach((name, raw) => {
+          if (!next.has(raw)) {
+            next.set(raw, name);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [authFileMap, keyStats, sourceInfoMap]);
+
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
   const hasFirstTokenData = useMemo(() => rows.some((row) => row.firstTokenMs !== null), [rows]);
   const modelOptions = useMemo(
@@ -235,7 +292,7 @@ export function RequestEventsDetailsCard({
     [modelNames, t]
   );
   const sourceOptions = useMemo(() => {
-    const options = new Map<string, string>();
+    const options = new Map<string, string>(discoveredSources);
     rows.forEach((row) => {
       if (row.sourceRaw) options.set(row.sourceRaw, row.source);
     });
@@ -246,13 +303,24 @@ export function RequestEventsDetailsCard({
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
       ...Array.from(options, ([value, label]) => ({ value, label })),
     ];
-  }, [rows, sourceFilter, t]);
+  }, [discoveredSources, rows, sourceFilter, t]);
 
-  const hasActiveFilters = modelFilter !== ALL_FILTER || sourceFilter !== ALL_FILTER;
+  const statusOptions = useMemo(
+    () => [
+      { value: ALL_FILTER, label: t('usage_stats.request_events_status_all') },
+      { value: 'success', label: t('usage_stats.request_events_status_success') },
+      { value: 'failed', label: t('usage_stats.request_events_status_failed') },
+    ],
+    [t]
+  );
+
+  const hasActiveFilters =
+    modelFilter !== ALL_FILTER || sourceFilter !== ALL_FILTER || statusFilter !== ALL_FILTER;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
+    setStatusFilter(ALL_FILTER);
   };
 
   const handleToggleEventSource = () => {
@@ -260,6 +328,7 @@ export function RequestEventsDetailsCard({
     setModelNames([]);
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
+    setStatusFilter(ALL_FILTER);
   };
 
   const handleExportCsv = () => {
@@ -385,6 +454,19 @@ export function RequestEventsDetailsCard({
             onChange={setSourceFilter}
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_source')}
+            fullWidth={false}
+          />
+        </div>
+        <div className={styles.requestEventsFilterItem}>
+          <span className={styles.requestEventsFilterLabel}>
+            {t('usage_stats.request_events_filter_status')}
+          </span>
+          <Select
+            value={statusFilter}
+            options={statusOptions}
+            onChange={setStatusFilter}
+            className={styles.requestEventsSelect}
+            ariaLabel={t('usage_stats.request_events_filter_status')}
             fullWidth={false}
           />
         </div>
