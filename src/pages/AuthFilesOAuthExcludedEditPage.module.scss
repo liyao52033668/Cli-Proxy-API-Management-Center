@@ -186,6 +186,31 @@
   }
 }
 
+.modelItemDisabled {
+  background-color: rgba($error-color, 0.04);
+  border-color: rgba($error-color, 0.15);
+}
+
+.modelHeaderLine {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.modelBadgeDisabled {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--danger-color, #ef4444);
+  background-color: rgba($error-color, 0.1);
+  border: 1px solid rgba($error-color, 0.2);
+}
+
 .modelText {
   display: flex;
   flex-direction: column;
@@ -205,6 +230,163 @@
   font-size: 12px;
   color: var(--text-secondary);
   word-break: break-all;
+}
+
+.customModelSubtext {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.customInputRow {
+  display: flex;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-lg $spacing-sm;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+    padding-left: $spacing-md;
+    padding-right: $spacing-md;
+  }
+}
+
+.customInputControl {
+  flex: 1;
+  min-width: 0;
+}
+
+.customInputBtn {
+  flex-shrink: 0;
+}
+
+.disabledSummarySection {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-lg;
+  background-color: color-mix(in srgb, var(--danger-color) 4%, var(--bg-secondary));
+  border-bottom: 1px solid color-mix(in srgb, var(--danger-color) 15%, var(--border-color));
+
+  @include mobile {
+    padding-left: $spacing-md;
+    padding-right: $spacing-md;
+  }
+}
+
+.disabledSummaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.disabledSummaryTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-color);
+}
+
+.disabledTagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.disabledTagChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger-color) 10%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--danger-color) 30%, transparent);
+  color: var(--danger-color);
+  font-size: 12px;
+  font-family: $font-mono;
+}
+
+.disabledTagRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: var(--danger-color);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 14px;
+  line-height: 1;
+  transition: opacity $transition-fast;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.toolbarRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  padding: $spacing-sm $spacing-lg;
+  border-bottom: 1px solid var(--border-color);
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-sm;
+    padding-left: $spacing-md;
+    padding-right: $spacing-md;
+  }
+}
+
+.filterTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  padding: 2px;
+  border-radius: $radius-md;
+  border: 1px solid var(--border-color);
+}
+
+.filterTab {
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.filterTabActive {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.searchInputWrap {
+  flex: 0 0 auto;
+  width: min(280px, 45%);
+
+  @include mobile {
+    width: 100%;
+  }
 }
 
 .emptyModels {

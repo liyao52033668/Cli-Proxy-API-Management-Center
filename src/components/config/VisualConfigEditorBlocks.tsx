@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { IconArrowUp } from '@/components/ui/icons';
 import { useNotificationStore, useAuthStore } from '@/stores';
 import { modelsApi } from '@/services/api/models';
 import { apiKeysApi } from '@/services/api/apiKeys';
@@ -383,6 +384,19 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
     });
   };
 
+  // 上移模型（与上一个交换位置）
+  const handleMoveModelUp = useCallback((modelId: string) => {
+    setAssociatedModels(prev => {
+      const index = prev.indexOf(modelId);
+      if (index <= 0) return prev;
+      const next = [...prev];
+      const temp = next[index];
+      next[index] = next[index - 1];
+      next[index - 1] = temp;
+      return next;
+    });
+  }, []);
+
   const closeModelModal = () => {
     setModelModalOpen(false);
     setSelectedApiKey('');
@@ -657,18 +671,35 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
               <div className="model-list">
                 {associatedModels
                   .filter(modelId => !modelSearchQuery || modelId.toLowerCase().includes(modelSearchQuery.toLowerCase()))
-                  .map((modelId) => (
-                    <div key={modelId} className="model-item">
-                      <input
-                        type="checkbox"
-                        checked={true}
-                        onChange={() => handleToggleModel(modelId)}
-                        disabled={disabled}
-                        style={{ marginRight: '8px' }}
-                      />
-                      <span className="model-name">{modelId}</span>
-                    </div>
-                  ))}
+                  .map((modelId) => {
+                    const actualIndex = associatedModels.indexOf(modelId);
+                    const isFirst = actualIndex <= 0;
+                    return (
+                      <div key={modelId} className="model-item">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          onChange={() => handleToggleModel(modelId)}
+                          disabled={disabled}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span className="model-name" title={modelId}>{modelId}</span>
+                        <button
+                          type="button"
+                          className="model-sort-btn"
+                          title={t('config_management.visual.api_keys.move_up', '上移（与上一个交换位置）')}
+                          aria-label={t('config_management.visual.api_keys.move_up', '上移（与上一个交换位置）')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveModelUp(modelId);
+                          }}
+                          disabled={disabled || isFirst}
+                        >
+                          <IconArrowUp size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>
