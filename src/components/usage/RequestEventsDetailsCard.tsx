@@ -7,7 +7,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
 import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
-import { useUsageStatsStore } from '@/stores';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
@@ -69,7 +68,7 @@ export function RequestEventsDetailsCard({
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER);
-  const [discoveredSources, setDiscoveredSources] = useState<Map<string, string>>(new Map());
+  const [availableSources, setAvailableSources] = useState<Map<string, string>>(new Map());
   const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}::${statusFilter}`;
   const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
   const [totalCount, setTotalCount] = useState(0);
@@ -83,6 +82,18 @@ export function RequestEventsDetailsCard({
     field: LATENCY_SOURCE_FIELD,
     unit: t('usage_stats.duration_unit_ms'),
   });
+
+  const sourceInfoMap = useMemo(
+    () =>
+      buildSourceInfoMap({
+        geminiApiKeys: geminiKeys,
+        claudeApiKeys: claudeConfigs,
+        codexApiKeys: codexConfigs,
+        vertexApiKeys: vertexConfigs,
+        openaiCompatibility: openaiProviders,
+      }),
+    [claudeConfigs, codexConfigs, geminiKeys, openaiProviders, vertexConfigs]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -108,8 +119,6 @@ export function RequestEventsDetailsCard({
       cancelled = true;
     };
   }, []);
-
-  const keyStats = useUsageStatsStore((state) => state.keyStats);
 
   useEffect(() => {
     if (eventSource === 'history') return;
@@ -157,7 +166,21 @@ export function RequestEventsDetailsCard({
           setPageState({ queryIdentity, page: nextTotalPages });
           return;
         }
-        setEvents(Array.isArray(response.events) ? response.events : []);
+        const nextEvents = Array.isArray(response.events) ? response.events : [];
+        setEvents(nextEvents);
+        if (sourceFilter === ALL_FILTER && nextEvents.length > 0) {
+          const currentSources = new Map<string, string>();
+          nextEvents.forEach((event) => {
+            const raw = String(event.source_raw || event.source || '').trim();
+            if (raw) {
+              const info = resolveSourceDisplay(raw, event.auth_index, sourceInfoMap, authFileMap);
+              currentSources.set(raw, info.displayName);
+            }
+          });
+          if (currentSources.size > 0) {
+            setAvailableSources(currentSources);
+          }
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -172,27 +195,17 @@ export function RequestEventsDetailsCard({
       cancelled = true;
     };
   }, [
+    authFileMap,
     eventSource,
     modelFilter,
     page,
     queryIdentity,
     queryKey,
     sourceFilter,
+    sourceInfoMap,
     statusFilter,
     timeRange,
   ]);
-
-  const sourceInfoMap = useMemo(
-    () =>
-      buildSourceInfoMap({
-        geminiApiKeys: geminiKeys,
-        claudeApiKeys: claudeConfigs,
-        codexApiKeys: codexConfigs,
-        vertexApiKeys: vertexConfigs,
-        openaiCompatibility: openaiProviders,
-      }),
-    [claudeConfigs, codexConfigs, geminiKeys, openaiProviders, vertexConfigs]
-  );
 
   const rows = useMemo<RequestEventRow[]>(
     () =>
@@ -232,56 +245,6 @@ export function RequestEventsDetailsCard({
     [authFileMap, events, i18n.language, sourceInfoMap]
   );
 
-  useEffect(() => {
-    if (!rows.length) return;
-    setDiscoveredSources((prev) => {
-      let changed = false;
-      const next = new Map(prev);
-      rows.forEach((row) => {
-        if (row.sourceRaw && !next.has(row.sourceRaw)) {
-          next.set(row.sourceRaw, row.source);
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [rows]);
-
-  useEffect(() => {
-    const candidates = new Map<string, string>();
-    if (keyStats?.credentials && keyStats.credentials.length > 0) {
-      keyStats.credentials.forEach((cred) => {
-        const raw = String(cred.source || '').trim();
-        if (raw) {
-          const info = resolveSourceDisplay(raw, cred.authIndex, sourceInfoMap, authFileMap);
-          candidates.set(raw, info.displayName);
-        }
-      });
-    }
-    if (keyStats?.bySource) {
-      Object.keys(keyStats.bySource).forEach((rawSource) => {
-        const raw = rawSource.trim();
-        if (raw) {
-          const info = resolveSourceDisplay(raw, undefined, sourceInfoMap, authFileMap);
-          candidates.set(raw, info.displayName);
-        }
-      });
-    }
-    if (candidates.size > 0) {
-      setDiscoveredSources((prev) => {
-        let changed = false;
-        const next = new Map(prev);
-        candidates.forEach((name, raw) => {
-          if (!next.has(raw)) {
-            next.set(raw, name);
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
-      });
-    }
-  }, [authFileMap, keyStats, sourceInfoMap]);
-
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
   const hasFirstTokenData = useMemo(() => rows.some((row) => row.firstTokenMs !== null), [rows]);
   const modelOptions = useMemo(
@@ -292,7 +255,7 @@ export function RequestEventsDetailsCard({
     [modelNames, t]
   );
   const sourceOptions = useMemo(() => {
-    const options = new Map<string, string>(discoveredSources);
+    const options = new Map<string, string>(availableSources);
     rows.forEach((row) => {
       if (row.sourceRaw) options.set(row.sourceRaw, row.source);
     });
@@ -303,7 +266,7 @@ export function RequestEventsDetailsCard({
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
       ...Array.from(options, ([value, label]) => ({ value, label })),
     ];
-  }, [discoveredSources, rows, sourceFilter, t]);
+  }, [availableSources, rows, sourceFilter, t]);
 
   const statusOptions = useMemo(
     () => [
@@ -321,6 +284,7 @@ export function RequestEventsDetailsCard({
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
     setStatusFilter(ALL_FILTER);
+    setAvailableSources(new Map());
   };
 
   const handleToggleEventSource = () => {
@@ -329,6 +293,7 @@ export function RequestEventsDetailsCard({
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
     setStatusFilter(ALL_FILTER);
+    setAvailableSources(new Map());
   };
 
   const handleExportCsv = () => {
