@@ -49,10 +49,13 @@ interface ProviderState {
   finalizeUrl?: string;
   phone?: string;
   password?: string;
-  authMode?: 'token' | 'oauth';
+  authMode?: 'token' | 'oauth' | 'aksk';
   personalAccessToken?: string;
   gitlabPersonalAccessToken?: string;
   gitlabBaseUrl?: string;
+  /** CodeArts 永久 IAM 访问密钥（AK/SK 模式）。 */
+  codeartsAccessKeyId?: string;
+  codeartsSecretAccessKey?: string;
 }
 
 interface VertexImportResult {
@@ -234,6 +237,59 @@ export function OAuthPage() {
     });
   };
 
+  // CodeArts 默认使用永久 IAM AK/SK：OAuth 凭据 24 小时后即失效，AK/SK 不会过期。
+  const getCodeArtsAuthMode = (providerState?: ProviderState): 'aksk' | 'oauth' => {
+    return providerState?.authMode === 'oauth' ? 'oauth' : 'aksk';
+  };
+
+  const clearCodeArtsAKSKInputState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      codeartsAccessKeyId: undefined,
+      codeartsSecretAccessKey: undefined
+    };
+  };
+
+  const clearCodeArtsOAuthFlowState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      url: undefined,
+      state: undefined,
+      callbackUrl: undefined,
+      callbackStatus: undefined,
+      callbackError: undefined,
+      callbackSubmitting: false,
+      finalizeUrl: undefined,
+      deviceCode: undefined,
+      polling: false
+    };
+  };
+
+  const switchCodeArtsAuthMode = (mode: 'aksk' | 'oauth') => {
+    clearProviderTimers('codearts');
+    setStates((prev) => {
+      const current = prev.codearts ?? {};
+      const currentMode = getCodeArtsAuthMode(current);
+      let next = current;
+
+      if (currentMode === 'aksk' && mode === 'oauth') {
+        next = clearCodeArtsAKSKInputState(next);
+      } else if (currentMode === 'oauth' && mode === 'aksk') {
+        next = clearCodeArtsOAuthFlowState(next);
+      }
+
+      return {
+        ...prev,
+        codearts: {
+          ...next,
+          authMode: mode,
+          status: undefined,
+          error: undefined
+        }
+      };
+    });
+  };
+
 
 
 
@@ -244,6 +300,16 @@ export function OAuthPage() {
         ...prev,
         [provider]: {
           authMode: 'oauth'
+        }
+      }));
+      return;
+    }
+    if (provider === 'codearts') {
+      // 保留用户选择的认证方式，默认回到 AK/SK。
+      setStates((prev) => ({
+        ...prev,
+        [provider]: {
+          authMode: getCodeArtsAuthMode(prev[provider])
         }
       }));
       return;
@@ -469,6 +535,57 @@ export function OAuthPage() {
         const message = getErrorMessage(err);
         updateProviderState(provider, { status: 'error', error: message, polling: false });
         showNotification(`${t('auth_login.bt_auth_error', { defaultValue: 'BT 登录失败' })}${message ? ` ${message}` : ''}`, 'error');
+      }
+      return;
+    }
+
+    if (provider === 'codearts' && getCodeArtsAuthMode(states[provider]) === 'aksk') {
+      const codeartsState = states[provider];
+      const ak = (codeartsState?.codeartsAccessKeyId || '').trim();
+      const sk = (codeartsState?.codeartsSecretAccessKey || '').trim();
+
+      if (!ak) {
+        showNotification(t('auth_login.codearts_ak_required', { defaultValue: '请输入 Access Key ID (AK)' }), 'warning');
+        return;
+      }
+      if (!sk) {
+        showNotification(t('auth_login.codearts_sk_required', { defaultValue: '请输入 Secret Access Key (SK)' }), 'warning');
+        return;
+      }
+
+      updateProviderState(provider, {
+        url: undefined,
+        state: undefined,
+        status: 'waiting',
+        polling: true,
+        error: undefined,
+        deviceCode: undefined,
+        callbackStatus: undefined,
+        callbackError: undefined,
+        callbackUrl: '',
+        callbackToken: '',
+        finalizeUrl: undefined
+      });
+
+      try {
+        const res = await oauthApi.codeartsAKSKAuth(ak, sk);
+        if (res.status === 'ok') {
+          completeProviderAuth(provider);
+          showNotification(t('auth_login.codearts_aksk_success', { defaultValue: 'CodeArts AK/SK 登录成功' }), 'success');
+        } else {
+          updateProviderState(provider, { status: 'error', error: res.error, polling: false });
+          showNotification(
+            `${t('auth_login.codearts_aksk_error', { defaultValue: 'CodeArts AK/SK 登录失败' })}${res.error ? ` ${res.error}` : ''}`,
+            'error'
+          );
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        updateProviderState(provider, { status: 'error', error: message, polling: false });
+        showNotification(
+          `${t('auth_login.codearts_aksk_error', { defaultValue: 'CodeArts AK/SK 登录失败' })}${message ? ` ${message}` : ''}`,
+          'error'
+        );
       }
       return;
     }
@@ -750,19 +867,28 @@ export function OAuthPage() {
           const state = states[provider.id] || {};
           const isQoder = provider.id === 'qoder';
           const isCommandCode = provider.id === 'commandcode';
+          const isCodeArts = provider.id === 'codearts';
           const qoderAuthMode = isQoder ? getQoderAuthMode(state) : undefined;
           const isQoderTokenMode = qoderAuthMode === 'token';
           const isQoderOAuthMode = qoderAuthMode === 'oauth';
-          const canSubmitCallback = CALLBACK_SUPPORTED.includes(provider.id) && Boolean(state.url);
+          const codeartsAuthMode = isCodeArts ? getCodeArtsAuthMode(state) : undefined;
+          const isCodeArtsAKSKMode = codeartsAuthMode === 'aksk';
+          const isCodeArtsOAuthMode = codeartsAuthMode === 'oauth';
+          const canSubmitCallback =
+            CALLBACK_SUPPORTED.includes(provider.id) &&
+            Boolean(state.url) &&
+            (!isCodeArts || isCodeArtsOAuthMode);
           const canSubmitXaiCallbackToken = provider.id === 'xai' && Boolean(state.state);
           const loginButtonLabel =
             state.status === 'success'
               ? t('auth_login.login_another_account')
               : isQoderTokenMode
                 ? t('auth_login.qoder_token_button', { defaultValue: '使用 Token 登录' })
-                : isCommandCode
-                  ? t('auth_login.commandcode_token_button', { defaultValue: '保存 API Key 登录' })
-                  : t(getAuthKey(provider.id, 'oauth_button'));
+                : isCodeArtsAKSKMode
+                  ? t('auth_login.codearts_aksk_button', { defaultValue: '使用 AK/SK 登录' })
+                  : isCommandCode
+                    ? t('auth_login.commandcode_token_button', { defaultValue: '保存 API Key 登录' })
+                    : t(getAuthKey(provider.id, 'oauth_button'));
           const statusBadgeClassName = [
             'status-badge',
             state.status === 'success' ? 'success' : '',
@@ -795,11 +921,15 @@ export function OAuthPage() {
                       ? t('auth_login.qoder_token_hint', {
                         defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可使用浏览器设备授权。'
                       })
-                      : isCommandCode
-                        ? t('auth_login.commandcode_token_hint', {
-                          defaultValue: '输入 CommandCode API Key 直接完成登录，可前往控制台生成 Key。'
+                      : isCodeArtsAKSKMode
+                        ? t('auth_login.codearts_aksk_hint', {
+                          defaultValue: '填入华为云永久 IAM 访问密钥直接完成登录，凭据不会过期；OAuth 授权仅 24 小时有效。'
                         })
-                        : t(provider.hintKey)}
+                        : isCommandCode
+                          ? t('auth_login.commandcode_token_hint', {
+                            defaultValue: '输入 CommandCode API Key 直接完成登录，可前往控制台生成 Key。'
+                          })
+                          : t(provider.hintKey)}
                   </div>
                   {isCommandCode && (
                     <div className={styles.qoderTokenField}>
@@ -880,6 +1010,73 @@ export function OAuthPage() {
                       />
                     </div>
                   )}
+                  {isCodeArts && (
+                    <div className={styles.qoderModeField}>
+                      <label className={styles.formItemLabel} htmlFor="codearts-auth-mode">
+                        {t('auth_login.codearts_auth_mode_label', { defaultValue: '认证方式' })}
+                      </label>
+                      <Select
+                        id="codearts-auth-mode"
+                        value={codeartsAuthMode || 'aksk'}
+                        options={[
+                          {
+                            value: 'aksk',
+                            label: t('auth_login.codearts_auth_mode_aksk', { defaultValue: 'AK/SK（推荐）' })
+                          },
+                          {
+                            value: 'oauth',
+                            label: t('auth_login.codearts_auth_mode_oauth', { defaultValue: 'OAuth' })
+                          }
+                        ]}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        ariaLabel={t('auth_login.codearts_auth_mode_label', { defaultValue: '认证方式' })}
+                        onChange={(value) => switchCodeArtsAuthMode(value as 'aksk' | 'oauth')}
+                      />
+                      <div className={styles.cardHintSecondary}>
+                        {t('auth_login.codearts_auth_mode_hint', {
+                          defaultValue: 'AK/SK 使用华为云永久访问密钥，凭据长期有效；OAuth 授权 24 小时后过期，需要重新登录。'
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {isCodeArtsAKSKMode && (
+                    <div className={styles.gitlabAuthFields}>
+                      <Input
+                        type="password"
+                        label={t('auth_login.codearts_ak_label', { defaultValue: 'Access Key ID (AK)' })}
+                        hint={t('auth_login.codearts_ak_hint', {
+                          defaultValue: '华为云 IAM 永久访问密钥 AK，可在“我的凭证 - 访问密钥”中创建'
+                        })}
+                        value={state.codeartsAccessKeyId || ''}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            codeartsAccessKeyId: e.target.value,
+                            status: undefined,
+                            error: undefined
+                          })
+                        }
+                        placeholder={t('auth_login.codearts_ak_placeholder', { defaultValue: '请输入 Access Key ID' })}
+                      />
+                      <Input
+                        type="password"
+                        label={t('auth_login.codearts_sk_label', { defaultValue: 'Secret Access Key (SK)' })}
+                        hint={t('auth_login.codearts_sk_hint', {
+                          defaultValue: '与 AK 配对的 Secret Access Key，仅在创建密钥时可下载'
+                        })}
+                        value={state.codeartsSecretAccessKey || ''}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            codeartsSecretAccessKey: e.target.value,
+                            status: undefined,
+                            error: undefined
+                          })
+                        }
+                        placeholder={t('auth_login.codearts_sk_placeholder', { defaultValue: '请输入 Secret Access Key' })}
+                      />
+                    </div>
+                  )}
                   {provider.id === 'gemini-cli' && (
                     <div className={styles.geminiProjectField}>
                       <Input
@@ -949,7 +1146,7 @@ export function OAuthPage() {
                       />
                     </div>
                   )}
-                  {(!isQoder || isQoderOAuthMode) && state.url && (
+                  {(!isQoder || isQoderOAuthMode) && (!isCodeArts || isCodeArtsOAuthMode) && state.url && (
                     <div className={styles.authUrlBox}>
                       <div className={styles.authUrlLabel}>{t(provider.urlLabelKey)}</div>
                       <div className={styles.authUrlValue}>{state.url}</div>

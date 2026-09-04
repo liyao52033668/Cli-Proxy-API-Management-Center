@@ -64,6 +64,15 @@ export interface GitLabPATResponse {
 
 export type QoderTokenAuthResponse = BasicTokenAuthResponse;
 
+export interface CodeArtsAKSKResponse {
+  status: 'ok' | 'error';
+  error?: string;
+  saved_path?: string;
+  user_name?: string;
+  user_id?: string;
+  token_label?: string;
+}
+
 const WEBUI_SUPPORTED: OAuthProvider[] = [
   'codex',
   'anthropic',
@@ -158,6 +167,16 @@ export const oauthApi = {
   commandCodeTokenAuth: (apiKey: string) => {
     return apiClient.post<BasicTokenAuthResponse>('/commandcode-auth-url', {
       api_key: apiKey
+    });
+  },
+
+  /**
+   * CodeArts 永久 IAM AK/SK 授权。相比 OAuth 流程，凭据不会在 24 小时后过期。
+   */
+  codeartsAKSKAuth: (ak: string, sk: string) => {
+    return apiClient.post<CodeArtsAKSKResponse>('/codearts-auth-url', {
+      ak,
+      sk
     });
   }
 };
