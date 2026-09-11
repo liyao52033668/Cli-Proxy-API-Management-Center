@@ -99,6 +99,93 @@ const readAuthFileTimestamp = (file: AuthFileItem): number => {
   return 0;
 };
 
+type AuthFilesStatusFilter = 'all' | 'problem' | 'disabled' | 'normal';
+
+type AuthFilesInitialUiState = {
+  filter: string;
+  statusFilter: AuthFilesStatusFilter;
+  compactMode: boolean;
+  search: string;
+  page: number;
+  pageSizeByMode: { regular: number; compact: number };
+  pageSizeInput: string;
+  sortMode: AuthFilesSortMode;
+};
+
+// One-shot hydration of persisted UI state used as the lazy initial value of each state atom.
+const readAuthFilesInitialUiState = (): AuthFilesInitialUiState => {
+  const persistedCompactMode = readPersistedAuthFilesCompactMode();
+  const persisted = readAuthFilesUiState();
+
+  let filter = 'all';
+  let statusFilter: AuthFilesStatusFilter = 'all';
+  let compactMode = typeof persistedCompactMode === 'boolean' ? persistedCompactMode : false;
+  let search = '';
+  let page = 1;
+  let pageSizeByMode = {
+    regular: DEFAULT_REGULAR_PAGE_SIZE,
+    compact: DEFAULT_COMPACT_PAGE_SIZE,
+  };
+  let sortMode: AuthFilesSortMode = 'default';
+
+  if (persisted) {
+    if (typeof persisted.filter === 'string' && persisted.filter.trim()) {
+      filter = persisted.filter;
+    }
+    if (typeof persisted.statusFilter === 'string') {
+      const normalized = persisted.statusFilter as AuthFilesStatusFilter;
+      if (['all', 'problem', 'disabled', 'normal'].includes(normalized)) {
+        statusFilter = normalized;
+      }
+    } else if (typeof persisted.disabledOnly === 'boolean' && persisted.disabledOnly) {
+      statusFilter = 'disabled';
+    } else if (typeof persisted.problemOnly === 'boolean' && persisted.problemOnly) {
+      statusFilter = 'problem';
+    }
+    if (
+      typeof persistedCompactMode !== 'boolean' &&
+      typeof persisted.compactMode === 'boolean'
+    ) {
+      compactMode = persisted.compactMode;
+    }
+    if (typeof persisted.search === 'string') {
+      search = persisted.search;
+    }
+    if (typeof persisted.page === 'number' && Number.isFinite(persisted.page)) {
+      page = Math.max(1, Math.round(persisted.page));
+    }
+    const legacyPageSize =
+      typeof persisted.pageSize === 'number' && Number.isFinite(persisted.pageSize)
+        ? clampCardPageSize(persisted.pageSize)
+        : null;
+    const regularPageSize =
+      typeof persisted.regularPageSize === 'number' && Number.isFinite(persisted.regularPageSize)
+        ? clampCardPageSize(persisted.regularPageSize)
+        : legacyPageSize ?? DEFAULT_REGULAR_PAGE_SIZE;
+    const compactPageSize =
+      typeof persisted.compactPageSize === 'number' && Number.isFinite(persisted.compactPageSize)
+        ? clampCardPageSize(persisted.compactPageSize)
+        : legacyPageSize ?? DEFAULT_COMPACT_PAGE_SIZE;
+    pageSizeByMode = { regular: regularPageSize, compact: compactPageSize };
+    if (isAuthFilesSortMode(persisted.sortMode)) {
+      sortMode = persisted.sortMode === 'time' ? 'default' : persisted.sortMode;
+    }
+  }
+
+  const pageSize = compactMode ? pageSizeByMode.compact : pageSizeByMode.regular;
+
+  return {
+    filter,
+    statusFilter,
+    compactMode,
+    search,
+    page,
+    pageSizeByMode,
+    pageSizeInput: String(pageSize),
+    sortMode,
+  };
+};
+
 export function AuthFilesPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
@@ -110,20 +197,17 @@ export function AuthFilesPage() {
 
   type StatusFilter = 'all' | 'problem' | 'disabled' | 'normal';
 
-  const [filter, setFilter] = useState<'all' | string>('all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [compactMode, setCompactMode] = useState(false);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSizeByMode, setPageSizeByMode] = useState({
-    regular: DEFAULT_REGULAR_PAGE_SIZE,
-    compact: DEFAULT_COMPACT_PAGE_SIZE,
-  });
-  const [pageSizeInput, setPageSizeInput] = useState('9');
+  const [initialUiState] = useState(readAuthFilesInitialUiState);
+  const [filter, setFilter] = useState<'all' | string>(initialUiState.filter);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialUiState.statusFilter);
+  const [compactMode, setCompactMode] = useState(initialUiState.compactMode);
+  const [search, setSearch] = useState(initialUiState.search);
+  const [page, setPage] = useState(initialUiState.page);
+  const [pageSizeByMode, setPageSizeByMode] = useState(initialUiState.pageSizeByMode);
+  const [pageSizeInput, setPageSizeInput] = useState(initialUiState.pageSizeInput);
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
-  const [sortMode, setSortMode] = useState<AuthFilesSortMode>('default');
+  const [sortMode, setSortMode] = useState<AuthFilesSortMode>(initialUiState.sortMode);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
-  const [uiStateHydrated, setUiStateHydrated] = useState(false);
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
   const batchActionAnimationRef = useRef<AnimationPlaybackControlsWithThen | null>(null);
   const previousSelectionCountRef = useRef(0);
@@ -242,70 +326,11 @@ export function AuthFilesPage() {
   const quotaFilterType: QuotaProviderType | null = resolveQuotaProviderType(normalizedFilter);
   const pageSize = compactMode ? pageSizeByMode.compact : pageSizeByMode.regular;
 
-  useEffect(() => {
-    const persistedCompactMode = readPersistedAuthFilesCompactMode();
-    if (typeof persistedCompactMode === 'boolean') {
-      setCompactMode(persistedCompactMode);
-    }
-
-    const persisted = readAuthFilesUiState();
-    if (persisted) {
-      if (typeof persisted.filter === 'string' && persisted.filter.trim()) {
-        setFilter(persisted.filter);
-      }
-      if (typeof persisted.statusFilter === 'string') {
-        const normalized = persisted.statusFilter as StatusFilter;
-        if (['all', 'problem', 'disabled', 'normal'].includes(normalized)) {
-          setStatusFilter(normalized);
-        }
-      } else if (typeof persisted.disabledOnly === 'boolean' && persisted.disabledOnly) {
-        setStatusFilter('disabled');
-      } else if (typeof persisted.problemOnly === 'boolean' && persisted.problemOnly) {
-        setStatusFilter('problem');
-      }
-      if (
-        typeof persistedCompactMode !== 'boolean' &&
-        typeof persisted.compactMode === 'boolean'
-      ) {
-        setCompactMode(persisted.compactMode);
-      }
-      if (typeof persisted.search === 'string') {
-        setSearch(persisted.search);
-      }
-      if (typeof persisted.page === 'number' && Number.isFinite(persisted.page)) {
-        setPage(Math.max(1, Math.round(persisted.page)));
-      }
-      const legacyPageSize =
-        typeof persisted.pageSize === 'number' && Number.isFinite(persisted.pageSize)
-          ? clampCardPageSize(persisted.pageSize)
-          : null;
-      const regularPageSize =
-        typeof persisted.regularPageSize === 'number' && Number.isFinite(persisted.regularPageSize)
-          ? clampCardPageSize(persisted.regularPageSize)
-          : legacyPageSize ?? DEFAULT_REGULAR_PAGE_SIZE;
-      const compactPageSize =
-        typeof persisted.compactPageSize === 'number' && Number.isFinite(persisted.compactPageSize)
-          ? clampCardPageSize(persisted.compactPageSize)
-          : legacyPageSize ?? DEFAULT_COMPACT_PAGE_SIZE;
-      setPageSizeByMode({
-        regular: regularPageSize,
-        compact: compactPageSize,
-      });
-      if (isAuthFilesSortMode(persisted.sortMode)) {
-        setSortMode(persisted.sortMode === 'time' ? 'default' : persisted.sortMode);
-      }
-    }
-
-    setUiStateHydrated(true);
-  }, []);
-
   const problemOnly = statusFilter === 'problem';
   const disabledOnly = statusFilter === 'disabled';
   const normalOnly = statusFilter === 'normal';
 
   useEffect(() => {
-    if (!uiStateHydrated) return;
-
     writeAuthFilesUiState({
       filter,
       statusFilter,
@@ -327,12 +352,7 @@ export function AuthFilesPage() {
     search,
     sortMode,
     statusFilter,
-    uiStateHydrated,
   ]);
-
-  useEffect(() => {
-    setPageSizeInput(String(pageSize));
-  }, [pageSize]);
 
   const setCurrentModePageSize = useCallback(
     (next: number) => {
@@ -341,6 +361,17 @@ export function AuthFilesPage() {
       );
     },
     [compactMode]
+  );
+
+  const handleCompactModeChange = useCallback(
+    (value: boolean) => {
+      const nextPageSize = value ? pageSizeByMode.compact : pageSizeByMode.regular;
+      setCompactMode(value);
+      if (nextPageSize !== pageSize) {
+        setPageSizeInput(String(nextPageSize));
+      }
+    },
+    [pageSize, pageSizeByMode]
   );
 
   const commitPageSizeInput = (rawValue: string) => {
@@ -376,6 +407,9 @@ export function AuthFilesPage() {
     if (rounded < MIN_CARD_PAGE_SIZE || rounded > MAX_CARD_PAGE_SIZE) return;
 
     setCurrentModePageSize(rounded);
+    if (rounded !== pageSize) {
+      setPageSizeInput(String(rounded));
+    }
     setPage(1);
   };
 
@@ -605,6 +639,7 @@ export function AuthFilesPage() {
   useEffect(() => {
     selectionCountRef.current = selectionCount;
     if (selectionCount > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- this flag keeps the batch bar mounted while its exit animation plays after the selection is cleared; deriving it from selectionCount during render would unmount the bar before that animation can run
       setBatchActionBarVisible(true);
     }
   }, [selectionCount]);
@@ -917,7 +952,7 @@ export function AuthFilesPage() {
                     <div className={styles.filterToggleCard}>
                       <ToggleSwitch
                         checked={compactMode}
-                        onChange={(value) => setCompactMode(value)}
+                        onChange={handleCompactModeChange}
                         ariaLabel={t('auth_files.compact_mode_label')}
                         label={
                           <span className={styles.filterToggleLabel}>

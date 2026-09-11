@@ -1352,6 +1352,8 @@ $openai-toolbar-control-height: 36px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  /* 空间不足时让控件整体换行到下一行，而不是压在说明文字上。 */
+  flex-wrap: wrap;
   gap: $spacing-md;
   margin-top: 0;
   padding: $spacing-sm $spacing-md;
@@ -1370,6 +1372,8 @@ $openai-toolbar-control-height: 36px;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  /* 说明文字占据剩余空间；basis 有下界，避免被控件挤到不可读。 */
+  flex: 1 1 260px;
 }
 
 .modelTestLabel {
@@ -1383,6 +1387,8 @@ $openai-toolbar-control-height: 36px;
   font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.5;
+  /* 长 url / 连续串也能强制换行，不会横向溢出。 */
+  overflow-wrap: anywhere;
 }
 
 .modelTestControls {
@@ -1390,7 +1396,8 @@ $openai-toolbar-control-height: 36px;
   align-items: center;
   justify-content: flex-end;
   gap: $spacing-xs;
-  flex: 1;
+  /* 不再贪婪占据空间：按内容宽度排布，把剩余宽度让给说明文字。 */
+  flex: 0 1 auto;
   min-width: 0;
 
   @include mobile {

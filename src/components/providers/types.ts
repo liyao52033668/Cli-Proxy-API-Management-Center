@@ -57,6 +57,28 @@ export type VertexFormState = Omit<ProviderKeyConfig, 'headers'> & {
   excludedText: string;
 };
 
+/** Freebuff 模型映射条目：在通用 name/alias 之外额外携带 root agent id。
+ *  agentId 可选：留空时由 executor 按模型解析默认 root agent；共享的
+ *  连通性测试 hook 移除最后一条时会产出不带 agentId 的空条目。 */
+export interface FreebuffModelEntry {
+  name: string;
+  alias: string;
+  agentId?: string;
+}
+
+export interface FreebuffFormState {
+  apiKey: string;
+  comment: string;
+  priority?: number;
+  prefix: string;
+  baseUrl: string;
+  proxyUrl: string;
+  headers: HeaderEntry[];
+  excludedText: string;
+  disableCooling: boolean;
+  modelEntries: FreebuffModelEntry[];
+}
+
 export interface ProviderSectionProps<TConfig> {
   configs: TConfig[];
   keyStats: KeyStats;

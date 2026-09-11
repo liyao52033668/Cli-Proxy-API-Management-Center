@@ -29,6 +29,12 @@ import { isValidApiKeyCharset } from '@/utils/validation';
 /** Minimum character count before the expand/collapse toggle appears. */
 const EXPAND_THRESHOLD = 30;
 
+/** 后端 /api-keys 返回的单条密钥记录，可能带已关联的模型列表。 */
+interface ApiKeyModelsEntry {
+  key?: string;
+  models?: string[];
+}
+
 /** Auto-expanding textarea that collapses back to a single-line input on demand. */
 function ExpandableInput({
   value,
@@ -223,9 +229,9 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
           const data = await response.json();
           const modelsMap = new Map<string, string[]>();
           // 后端返回格式: { "api-keys": [{key: "...", models: [...]}, ...] }
-          const apiKeysList = data['api-keys'] || [];
+          const apiKeysList: ApiKeyModelsEntry[] = data['api-keys'] || [];
           if (Array.isArray(apiKeysList)) {
-            apiKeysList.forEach((item: any) => {
+            apiKeysList.forEach((item) => {
               if (item.key && Array.isArray(item.models)) {
                 modelsMap.set(item.key, item.models);
               }
@@ -335,8 +341,8 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
       });
       if (response.ok) {
         const data = await response.json();
-        const apiKeysList = data['api-keys'] || [];
-        const keyEntry = apiKeysList.find((item: any) => item.key === apiKey);
+        const apiKeysList: ApiKeyModelsEntry[] = data['api-keys'] || [];
+        const keyEntry = apiKeysList.find((item) => item.key === apiKey);
         const configuredModels = keyEntry?.models || [];
         setAssociatedModels(configuredModels);
 
@@ -421,7 +427,7 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
 
       showNotification(t('notification.models_saved'), 'success');
       closeModelModal();
-    } catch (error) {
+    } catch {
       showNotification(t('notification.error_saving_models'), 'error');
     }
   };

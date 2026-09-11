@@ -22,6 +22,9 @@ export type TraceCandidate = {
 const TRACE_AUTH_CACHE_MS = 60 * 1000;
 const TRACE_MAX_CANDIDATES = 5;
 
+// Shared empty map used when the cached auth data belongs to a different scope.
+const EMPTY_TRACE_AUTH_FILE_MAP = new Map<string, CredentialInfo>();
+
 const TRACEABLE_EXACT_PATHS = new Set(['/v1/chat/completions', '/v1/messages', '/v1/responses']);
 const TRACEABLE_PREFIX_PATHS = ['/v1beta/models'];
 
@@ -74,6 +77,13 @@ interface UseTraceResolverOptions {
   requestLogDownloading: boolean;
 }
 
+interface TraceScopeState {
+  scopeKey: string;
+  authFileMap: Map<string, CredentialInfo>;
+  loading: boolean;
+  error: string;
+}
+
 interface UseTraceResolverReturn {
   traceLogLine: ParsedLogLine | null;
   traceLoading: boolean;
@@ -94,12 +104,41 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
 
   const [traceLogLine, setTraceLogLine] = useState<ParsedLogLine | null>(null);
-  const [traceAuthFileMap, setTraceAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
-  const [traceLoading, setTraceLoading] = useState(false);
-  const [traceError, setTraceError] = useState('');
+  const [traceScopeState, setTraceScopeState] = useState<TraceScopeState>(() => ({
+    scopeKey: '',
+    authFileMap: EMPTY_TRACE_AUTH_FILE_MAP,
+    loading: false,
+    error: '',
+  }));
 
   const traceAuthLoadedAtRef = useRef(0);
   const traceScopeKeyRef = useRef('');
+
+  // Scope-bound derived state: data cached for a previous connection/scope is ignored during render
+  // instead of being cleared by an effect.
+  const traceScopeMatches = traceScopeState.scopeKey === traceScopeKey;
+  const traceAuthFileMap = traceScopeMatches ? traceScopeState.authFileMap : EMPTY_TRACE_AUTH_FILE_MAP;
+  const traceLoading = traceScopeMatches ? traceScopeState.loading : false;
+  const traceError = traceScopeMatches ? traceScopeState.error : '';
+
+  // Applies a patch to the scope-bound trace state, resetting it first when the scope changed.
+  const updateTraceState = useCallback(
+    (patch: Partial<Omit<TraceScopeState, 'scopeKey'>>) => {
+      setTraceScopeState((prev) => {
+        const base: TraceScopeState =
+          prev.scopeKey === traceScopeKey
+            ? prev
+            : {
+                scopeKey: traceScopeKey,
+                authFileMap: EMPTY_TRACE_AUTH_FILE_MAP,
+                loading: false,
+                error: '',
+              };
+        return { ...base, ...patch };
+      });
+    },
+    [traceScopeKey]
+  );
 
   const scopedUsageSnapshot = usageScopeKey === traceScopeKey ? usageSnapshot : null;
   const traceUsageDetails = useMemo<UsageDetailWithEndpoint[]>(
@@ -113,8 +152,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     if (traceScopeKeyRef.current !== traceScopeKey) {
       traceScopeKeyRef.current = traceScopeKey;
       traceAuthLoadedAtRef.current = 0;
-      setTraceAuthFileMap(new Map());
-      setTraceError('');
+      updateTraceState({ authFileMap: EMPTY_TRACE_AUTH_FILE_MAP, loading: false, error: '' });
     }
 
     if (traceLoading) return;
@@ -123,8 +161,7 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     const authFresh =
       traceAuthLoadedAtRef.current > 0 && now - traceAuthLoadedAtRef.current < TRACE_AUTH_CACHE_MS;
 
-    setTraceLoading(true);
-    setTraceError('');
+    updateTraceState({ loading: true, error: '' });
     try {
       const [, authFilesResponse] = await Promise.all([
         loadUsageStats({
@@ -148,16 +185,16 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
               type: (file.type || file.provider || '').toString()
             });
           });
-          setTraceAuthFileMap(map);
+          updateTraceState({ authFileMap: map });
           traceAuthLoadedAtRef.current = Date.now();
         }
       }
     } catch (err: unknown) {
-      setTraceError(getErrorMessage(err) || t('logs.trace_usage_load_error'));
+      updateTraceState({ error: getErrorMessage(err) || t('logs.trace_usage_load_error') });
     } finally {
-      setTraceLoading(false);
+      updateTraceState({ loading: false });
     }
-  }, [loadUsageStats, t, traceLoading, traceScopeKey]);
+  }, [loadUsageStats, t, traceLoading, traceScopeKey, updateTraceState]);
 
   const loadTraceUsageDetails = useCallback(async () => {
     await loadTraceUsageDetailsInternal(false);
@@ -171,9 +208,6 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
     if (connectionStatus === 'connected') {
       traceScopeKeyRef.current = traceScopeKey;
       traceAuthLoadedAtRef.current = 0;
-      setTraceAuthFileMap(new Map());
-      setTraceLoading(false);
-      setTraceError('');
     }
   }, [connectionStatus, traceScopeKey]);
 
@@ -226,11 +260,11 @@ export function useTraceResolver(options: UseTraceResolverOptions): UseTraceReso
   const openTraceModal = useCallback(
     (line: ParsedLogLine) => {
       if (!isTraceableRequestPath(line.path)) return;
-      setTraceError('');
+      updateTraceState({ error: '' });
       setTraceLogLine(line);
       void loadTraceUsageDetails();
     },
-    [loadTraceUsageDetails]
+    [loadTraceUsageDetails, updateTraceState]
   );
 
   const closeTraceModal = useCallback(() => {

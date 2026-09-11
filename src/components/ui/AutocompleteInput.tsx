@@ -43,6 +43,8 @@ export function AutocompleteInput({
     typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }
   );
 
+  const hasOptions = normalizedOptions.length > 0;
+
   const filteredOptions = normalizedOptions.filter(opt => {
     const v = value.toLowerCase();
     return opt.value.toLowerCase().includes(v) || (opt.label && opt.label.toLowerCase().includes(v));
@@ -131,7 +133,7 @@ export function AutocompleteInput({
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
-          style={{ paddingRight: 32 }}
+          style={(hasOptions || rightElement) ? { paddingRight: 32 } : undefined}
         />
         <div
           style={{
@@ -148,7 +150,8 @@ export function AutocompleteInput({
           onClick={() => !disabled && setIsOpen(!isOpen)}
         >
           {rightElement}
-          <IconChevronDown size={16} style={{ opacity: 0.5, marginLeft: 4 }} />
+          {/* 没有候选项时不给下拉箭头：点了也展不开，箭头只会误导。 */}
+          {hasOptions && <IconChevronDown size={16} style={{ opacity: 0.5, marginLeft: 4 }} />}
         </div>
 
         {isOpen && filteredOptions.length > 0 && !disabled && (

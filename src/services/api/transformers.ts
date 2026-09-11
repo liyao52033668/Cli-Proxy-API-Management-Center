@@ -1,6 +1,8 @@
 import type {
   ApiKeyEntry,
   CloakConfig,
+  FreebuffKeyConfig,
+  FreebuffModel,
   GeminiKeyConfig,
   ModelAlias,
   OpenAIProviderConfig,
@@ -185,6 +187,116 @@ const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => 
       config.cloak = cloak;
     }
   }
+
+  return config;
+};
+
+const normalizeFreebuffModels = (models: unknown): FreebuffModel[] => {
+  if (!Array.isArray(models)) return [];
+  return models.reduce<FreebuffModel[]>((acc, item) => {
+    if (!isRecord(item)) {
+      if (typeof item === 'string' && item.trim()) {
+        acc.push({ name: item.trim() });
+      }
+      return acc;
+    }
+    const name = item.name ?? item.id ?? item.model;
+    if (!name) return acc;
+    const trimmedName = String(name).trim();
+    if (!trimmedName) return acc;
+    const entry: FreebuffModel = { name: trimmedName };
+    const alias = item.alias;
+    if (alias !== undefined && alias !== null && String(alias).trim() && String(alias).trim() !== trimmedName) {
+      entry.alias = String(alias).trim();
+    }
+    const agentId = item['agent-id'] ?? item.agentId ?? item['agent_id'];
+    if (agentId !== undefined && agentId !== null && String(agentId).trim()) {
+      entry.agentId = String(agentId).trim();
+    }
+    const displayName = item['display-name'] ?? item.displayName ?? item['display_name'];
+    if (displayName !== undefined && displayName !== null && String(displayName).trim()) {
+      entry.displayName = String(displayName).trim();
+    }
+    const maxContextLength = item['max-context-length'] ?? item.maxContextLength ?? item['max_context_length'];
+    if (maxContextLength !== undefined && maxContextLength !== null && String(maxContextLength).trim() !== '') {
+      const parsed = Number(maxContextLength);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        entry.maxContextLength = parsed;
+      }
+    }
+    const forceMapping = normalizeBoolean(item['force-mapping'] ?? item.forceMapping ?? item['force_mapping']);
+    if (forceMapping !== undefined) {
+      entry.forceMapping = forceMapping;
+    }
+    acc.push(entry);
+    return acc;
+  }, []);
+};
+
+const normalizeFreebuffConfig = (item: unknown): FreebuffKeyConfig | null => {
+  if (item === undefined || item === null) return null;
+  const record = isRecord(item) ? item : null;
+  if (!record) return null;
+
+  const apiKeyEntries = Array.isArray(record['api-key-entries']) ? record['api-key-entries'] : [];
+  const firstEntry = apiKeyEntries.find((entry) => isRecord(entry) && String(entry['api-key'] ?? '').trim());
+  const rawKey =
+    record['api-key'] ??
+    record.apiKey ??
+    (isRecord(firstEntry) ? firstEntry['api-key'] : '') ??
+    '';
+  const trimmedKey = String(rawKey || '').trim();
+  if (!trimmedKey) return null;
+
+  const config: FreebuffKeyConfig = { apiKey: trimmedKey };
+  if (apiKeyEntries.length) {
+    const preserved: ApiKeyEntry[] = [];
+    apiKeyEntries.forEach((entry) => {
+      if (!isRecord(entry)) return;
+      const entryKey = String(entry['api-key'] ?? '').trim();
+      if (!entryKey) return;
+      const preservedEntry: ApiKeyEntry = { apiKey: entryKey };
+      const entryProxy = entry['proxy-url'] ?? entry.proxyUrl;
+      if (entryProxy) preservedEntry.proxyUrl = String(entryProxy);
+      const entryAuthIndex = normalizeAuthIndex(entry['auth-index'] ?? entry.authIndex);
+      if (entryAuthIndex) preservedEntry.authIndex = entryAuthIndex;
+      preserved.push(preservedEntry);
+    });
+    if (preserved.length) config.apiKeyEntries = preserved;
+  }
+  const comment = record.comment;
+  if (comment !== undefined && comment !== null && String(comment).trim()) {
+    config.comment = String(comment).trim();
+  }
+  const priority = record.priority;
+  if (priority !== undefined && priority !== null && String(priority).trim() !== '') {
+    const parsed = Number(priority);
+    if (Number.isFinite(parsed)) config.priority = parsed;
+  }
+  const prefix = normalizePrefix(record.prefix);
+  if (prefix) config.prefix = prefix;
+  const baseUrl = record['base-url'] ?? record.baseUrl;
+  if (baseUrl) config.baseUrl = String(baseUrl);
+  const proxyUrl = record['proxy-url'] ?? record.proxyUrl;
+  if (proxyUrl) config.proxyUrl = String(proxyUrl);
+  else if (isRecord(firstEntry)) {
+    const entryProxy = firstEntry['proxy-url'] ?? firstEntry.proxyUrl;
+    if (entryProxy) config.proxyUrl = String(entryProxy);
+  }
+  const headers = normalizeHeaders(record.headers);
+  if (headers) config.headers = headers;
+  const models = normalizeFreebuffModels(record.models);
+  if (models.length) config.models = models;
+  const excludedModels = normalizeExcludedModels(
+    record['excluded-models'] ?? record.excludedModels ?? record['excluded_models'] ?? record.excluded_models
+  );
+  if (excludedModels.length) config.excludedModels = excludedModels;
+  const disableCooling = normalizeBoolean(record['disable-cooling'] ?? record.disableCooling ?? record.disable_cooling);
+  if (disableCooling !== undefined) config.disableCooling = disableCooling;
+  const authIndex = normalizeAuthIndex(
+    record['auth-index'] ?? record.authIndex ?? record['auth_index']
+  );
+  if (authIndex) config.authIndex = authIndex;
 
   return config;
 };
@@ -481,6 +593,13 @@ export const normalizeConfigResponse = (raw: unknown): Config => {
       .filter(Boolean) as ProviderKeyConfig[];
   }
 
+  const freebuffList = raw['freebuff-api-key'] ?? raw.freebuffApiKey ?? raw.freebuffApiKeys;
+  if (Array.isArray(freebuffList)) {
+    config.freebuffApiKeys = freebuffList
+      .map((item) => normalizeFreebuffConfig(item))
+      .filter(Boolean) as FreebuffKeyConfig[];
+  }
+
   const openaiList = raw['openai-compatibility'] ?? raw.openaiCompatibility ?? raw.openAICompatibility;
   if (Array.isArray(openaiList)) {
     config.openaiCompatibility = openaiList
@@ -503,6 +622,7 @@ export const normalizeConfigResponse = (raw: unknown): Config => {
 
 export {
   normalizeApiKeyEntry,
+  normalizeFreebuffConfig,
   normalizeGeminiKeyConfig,
   normalizeModelAliases,
   normalizeOpenAIProvider,

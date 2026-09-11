@@ -147,7 +147,6 @@ export function AiProvidersGeminiEditPage() {
   const [modelDiscoveryError, setModelDiscoveryError] = useState('');
   const [modelDiscoverySearch, setModelDiscoverySearch] = useState('');
   const [modelDiscoverySelected, setModelDiscoverySelected] = useState<Set<string>>(new Set());
-  const autoFetchSignatureRef = useRef<string>('');
   const modelDiscoveryRequestIdRef = useRef(0);
 
   const {
@@ -212,15 +211,36 @@ export function AiProvidersGeminiEditPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
 
     providersApi
       .getGeminiKeys()
       .then((value) => {
         if (cancelled) return;
+        setError('');
         setConfigs(value);
         updateConfigValue('gemini-api-key', value);
+
+        const nextData = editIndex === null ? undefined : value[editIndex];
+        let nextForm: GeminiFormState;
+        if (nextData) {
+          const { headers, models, ...rest } = nextData;
+          const rawExcluded = nextData.excludedModels ?? [];
+          nextForm = {
+            ...rest,
+            disabled: hasDisableAllModelsRule(rawExcluded),
+            headers: headersToEntries(headers),
+            modelEntries: modelsToEntries(models).map((entry) => ({
+              ...entry,
+              name: stripGeminiModelResourceName(entry.name),
+            })),
+            excludedModels: stripDisableAllModelsRule(rawExcluded),
+            excludedText: excludedModelsToText(stripDisableAllModelsRule(rawExcluded)),
+          };
+        } else {
+          nextForm = buildEmptyForm();
+        }
+        setForm(nextForm);
+        setBaseline(buildGeminiBaseline(nextForm));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -235,33 +255,7 @@ export function AiProvidersGeminiEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [t, updateConfigValue]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (initialData) {
-      const { headers, models, ...rest } = initialData;
-      const rawExcluded = initialData.excludedModels ?? [];
-      const nextForm: GeminiFormState = {
-        ...rest,
-        disabled: hasDisableAllModelsRule(rawExcluded),
-        headers: headersToEntries(headers),
-        modelEntries: modelsToEntries(models).map((entry) => ({
-          ...entry,
-          name: stripGeminiModelResourceName(entry.name),
-        })),
-        excludedModels: stripDisableAllModelsRule(rawExcluded),
-        excludedText: excludedModelsToText(stripDisableAllModelsRule(rawExcluded)),
-      };
-      setForm(nextForm);
-      setBaseline(buildGeminiBaseline(nextForm));
-      return;
-    }
-    const nextForm = buildEmptyForm();
-    setForm(nextForm);
-    setBaseline(buildGeminiBaseline(nextForm));
-  }, [initialData, loading]);
+  }, [editIndex, t, updateConfigValue]);
 
   const canSave =
     !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex && !isTesting;
@@ -324,6 +318,24 @@ export function AiProvidersGeminiEditPage() {
     [setForm, showNotification, t]
   );
 
+  // Store the fetched models and drop any selected names that are no longer available.
+  const applyDiscoveredModels = useCallback((list: ModelInfo[]) => {
+    setDiscoveredModels(list);
+    const availableNames = new Set(list.map((model) => model.name));
+    setModelDiscoverySelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((name) => {
+        if (availableNames.has(name)) {
+          next.add(name);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
   const fetchGeminiModelDiscovery = useCallback(async () => {
     const requestId = (modelDiscoveryRequestIdRef.current += 1);
     setModelDiscoveryFetching(true);
@@ -336,10 +348,10 @@ export function AiProvidersGeminiEditPage() {
         headerObject
       );
       if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      setDiscoveredModels(list);
+      applyDiscoveredModels(list);
     } catch (err: unknown) {
       if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      setDiscoveredModels([]);
+      applyDiscoveredModels([]);
       const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
       const hasCustomXGoogApiKey = Object.keys(headerObject).some(
         (key) => key.toLowerCase() === 'x-goog-api-key'
@@ -359,22 +371,17 @@ export function AiProvidersGeminiEditPage() {
         setModelDiscoveryFetching(false);
       }
     }
-  }, [form.apiKey, form.baseUrl, form.headers, t]);
+  }, [applyDiscoveredModels, form.apiKey, form.baseUrl, form.headers, t]);
 
-  useEffect(() => {
-    if (!modelDiscoveryOpen) {
-      autoFetchSignatureRef.current = '';
-      modelDiscoveryRequestIdRef.current += 1;
-      setModelDiscoveryFetching(false);
-      return;
-    }
-
+  // Reset discovery state and auto-fetch when the modal is opened.
+  const handleOpenModelDiscovery = useCallback(() => {
     const nextEndpoint = modelsApi.buildGeminiModelsEndpoint(form.baseUrl ?? '');
     setModelDiscoveryEndpoint(nextEndpoint);
     setDiscoveredModels([]);
     setModelDiscoverySearch('');
     setModelDiscoverySelected(new Set());
     setModelDiscoveryError('');
+    setModelDiscoveryOpen(true);
 
     const headerObject = buildHeaderObject(form.headers);
     const hasCustomXGoogApiKey = Object.keys(headerObject).some(
@@ -384,36 +391,11 @@ export function AiProvidersGeminiEditPage() {
       (key) => key.toLowerCase() === 'authorization'
     );
     const hasApiKeyField = Boolean(form.apiKey.trim());
-    const canAutoFetch = hasApiKeyField || hasCustomXGoogApiKey || hasAuthorization;
 
-    if (!canAutoFetch) return;
-
-    const headerSignature = Object.entries(headerObject)
-      .sort(([a], [b]) => a.toLowerCase().localeCompare(b.toLowerCase()))
-      .map(([key, value]) => `${key}:${value}`)
-      .join('|');
-    const signature = `${nextEndpoint}||${form.apiKey.trim()}||${headerSignature}`;
-    if (autoFetchSignatureRef.current === signature) return;
-    autoFetchSignatureRef.current = signature;
+    if (!hasApiKeyField && !hasCustomXGoogApiKey && !hasAuthorization) return;
 
     void fetchGeminiModelDiscovery();
-  }, [fetchGeminiModelDiscovery, form.apiKey, form.baseUrl, form.headers, modelDiscoveryOpen]);
-
-  useEffect(() => {
-    const availableNames = new Set(discoveredModels.map((model) => model.name));
-    setModelDiscoverySelected((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (availableNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [discoveredModels]);
+  }, [fetchGeminiModelDiscovery, form.apiKey, form.baseUrl, form.headers]);
 
   const toggleModelDiscoverySelection = (name: string) => {
     setModelDiscoverySelected((prev) => {
@@ -951,7 +933,7 @@ export function AiProvidersGeminiEditPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setModelDiscoveryOpen(true)}
+                    onClick={handleOpenModelDiscovery}
                     disabled={!canOpenModelDiscovery}
                   >
                     {t('ai_providers.gemini_models_fetch_button')}

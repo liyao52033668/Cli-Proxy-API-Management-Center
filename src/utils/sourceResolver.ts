@@ -1,4 +1,4 @@
-import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
+import type { FreebuffKeyConfig, GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { CredentialInfo, SourceInfo } from '@/types/sourceInfo';
 import { buildCandidateUsageSourceIds, normalizeAuthIndex } from '@/utils/usage';
 
@@ -7,6 +7,7 @@ export interface SourceInfoMapInput {
   claudeApiKeys?: ProviderKeyConfig[];
   codexApiKeys?: ProviderKeyConfig[];
   vertexApiKeys?: ProviderKeyConfig[];
+  freebuffApiKeys?: FreebuffKeyConfig[];
   openaiCompatibility?: OpenAIProviderConfig[];
 }
 
@@ -75,6 +76,7 @@ export function buildSourceInfoMap(input: SourceInfoMapInput): SourceInfoMap {
     { items: input.claudeApiKeys || [], type: 'claude', label: 'Claude' },
     { items: input.codexApiKeys || [], type: 'codex', label: 'Codex' },
     { items: input.vertexApiKeys || [], type: 'vertex', label: 'Vertex' },
+    { items: input.freebuffApiKeys || [], type: 'freebuff', label: 'Freebuff' },
   ];
 
   providers.forEach(({ items, type, label }) => {

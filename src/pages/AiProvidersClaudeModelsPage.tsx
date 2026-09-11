@@ -31,7 +31,10 @@ export function AiProvidersClaudeModelsPage() {
     mergeDiscoveredModels,
   } = useOutletContext<ClaudeEditOutletContext>();
 
-  const [endpoint, setEndpoint] = useState('');
+  const endpoint = useMemo(
+    () => modelsApi.buildClaudeModelsEndpoint(form.baseUrl ?? ''),
+    [form.baseUrl]
+  );
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +61,24 @@ export function AiProvidersClaudeModelsPage() {
     [selected, visibleModelNames]
   );
 
+  // Apply a freshly fetched model list and drop any selected names that are no longer available.
+  const applyModels = (list: ModelInfo[]) => {
+    setModels(list);
+    const availableNames = new Set(list.map((model) => model.name));
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((name) => {
+        if (availableNames.has(name)) {
+          next.add(name);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  };
+
   const fetchClaudeModelDiscovery = useCallback(async () => {
     setFetching(true);
     setError('');
@@ -68,9 +89,9 @@ export function AiProvidersClaudeModelsPage() {
         form.apiKey.trim() || undefined,
         headerObject
       );
-      setModels(list);
+      applyModels(list);
     } catch (err: unknown) {
-      setModels([]);
+      applyModels([]);
       const message = getErrorMessage(err);
       const hasCustomXApiKey = Object.keys(headerObject).some(
         (key) => key.toLowerCase() === 'x-api-key'
@@ -95,11 +116,6 @@ export function AiProvidersClaudeModelsPage() {
     if (initialLoading) return;
 
     const nextEndpoint = modelsApi.buildClaudeModelsEndpoint(form.baseUrl ?? '');
-    setEndpoint(nextEndpoint);
-    setModels([]);
-    setSearch('');
-    setSelected(new Set());
-    setError('');
 
     const headerObject = buildHeaderObject(form.headers);
     const hasCustomXApiKey = Object.keys(headerObject).some(
@@ -125,22 +141,6 @@ export function AiProvidersClaudeModelsPage() {
 
     void fetchClaudeModelDiscovery();
   }, [fetchClaudeModelDiscovery, form.apiKey, form.baseUrl, form.headers, initialLoading]);
-
-  useEffect(() => {
-    const availableNames = new Set(models.map((model) => model.name));
-    setSelected((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (availableNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [models]);
 
   const handleBack = useCallback(() => {
     navigate(-1);

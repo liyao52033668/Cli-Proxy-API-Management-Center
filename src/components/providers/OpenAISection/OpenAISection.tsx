@@ -437,7 +437,8 @@ export function OpenAISection({
   useEffect(() => {
     const targetKeys = new Set(quotaTargets.map((target) => target.providerKey));
 
-    // 清理已不再参与额度查询的提供商余额
+    // Drop cached balances for providers that no longer take part in quota queries
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- this effect is the quota loader: stale entries are pruned synchronously and loading is marked before the requests are issued, with no async boundary available to defer it
     setQuotaBalanceByKey((prev) => {
       const hasStale = Object.keys(prev).some((key) => !targetKeys.has(key));
       if (!hasStale) return prev;

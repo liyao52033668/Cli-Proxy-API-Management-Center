@@ -32,7 +32,7 @@ export function AiProvidersOpenAIModelsPage() {
     mergeDiscoveredModels,
   } = useOutletContext<OpenAIEditOutletContext>();
 
-  const [endpoint, setEndpoint] = useState('');
+  const endpoint = useMemo(() => buildOpenAIModelsEndpoint(form.baseUrl), [form.baseUrl]);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +58,24 @@ export function AiProvidersOpenAIModelsPage() {
     [selected, visibleModelNames]
   );
 
+  // Apply a freshly fetched model list and drop any selected names that are no longer available.
+  const applyModels = (list: ModelInfo[]) => {
+    setModels(list);
+    const availableNames = new Set(list.map((model) => model.name));
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((name) => {
+        if (availableNames.has(name)) {
+          next.add(name);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  };
+
   const fetchOpenaiModelDiscovery = useCallback(
     async ({ allowFallback = true }: { allowFallback?: boolean } = {}) => {
       const trimmedBaseUrl = form.baseUrl.trim();
@@ -74,20 +92,20 @@ export function AiProvidersOpenAIModelsPage() {
           hasAuthHeader ? undefined : firstKey,
           headerObject
         );
-        setModels(list);
+        applyModels(list);
       } catch (err: unknown) {
         if (allowFallback) {
           try {
             const list = await modelsApi.fetchModelsViaApiCall(trimmedBaseUrl);
-            setModels(list);
+            applyModels(list);
             return;
           } catch (fallbackErr: unknown) {
             const message = getErrorMessage(fallbackErr) || getErrorMessage(err);
-            setModels([]);
+            applyModels([]);
             setError(`${t('ai_providers.openai_models_fetch_error')}: ${message}`);
           }
         } else {
-          setModels([]);
+          applyModels([]);
           setError(`${t('ai_providers.openai_models_fetch_error')}: ${getErrorMessage(err)}`);
         }
       } finally {
@@ -99,29 +117,9 @@ export function AiProvidersOpenAIModelsPage() {
 
   useEffect(() => {
     if (initialLoading) return;
-    setEndpoint(buildOpenAIModelsEndpoint(form.baseUrl));
-    setModels([]);
-    setSearch('');
-    setSelected(new Set());
-    setError('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the shared model-fetch loader marks loading and clears the error synchronously, and is also used by the refresh button, so its prefix cannot be deferred
     void fetchOpenaiModelDiscovery();
   }, [fetchOpenaiModelDiscovery, form.baseUrl, initialLoading]);
-
-  useEffect(() => {
-    const availableNames = new Set(models.map((model) => model.name));
-    setSelected((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (availableNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [models]);
 
   const handleBack = useCallback(() => {
     navigate(-1);

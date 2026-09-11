@@ -4,17 +4,24 @@
 
 import { apiClient } from './client';
 import {
+  normalizeFreebuffConfig,
   normalizeGeminiKeyConfig,
   normalizeOpenAIProvider,
   normalizeProviderKeyConfig
 } from './transformers';
 import type {
+  FreebuffKeyConfig,
+  FreebuffModel,
   GeminiKeyConfig,
   OpenAIProviderConfig,
   ProviderKeyConfig,
   ApiKeyEntry,
   ModelAlias
 } from '@/types';
+import {
+  normalizeFreebuffCatalog,
+  type FreebuffCatalogModel
+} from '@/utils/freebuffModels';
 
 const serializeHeaders = (headers?: Record<string, string>) => (headers && Object.keys(headers).length ? headers : undefined);
 
@@ -136,6 +143,61 @@ const serializeGeminiKey = (config: GeminiKeyConfig) => {
   return payload;
 };
 
+const serializeFreebuffModels = (models?: FreebuffModel[]) =>
+  Array.isArray(models)
+    ? models
+        .map((model) => {
+          const name = typeof model?.name === 'string' ? model.name.trim() : '';
+          if (!name) return null;
+          const payload: Record<string, unknown> = { name };
+          const alias = typeof model?.alias === 'string' ? model.alias.trim() : '';
+          if (alias) payload.alias = alias;
+          const agentId = typeof model?.agentId === 'string' ? model.agentId.trim() : '';
+          if (agentId) payload['agent-id'] = agentId;
+          const displayName = typeof model?.displayName === 'string' ? model.displayName.trim() : '';
+          if (displayName) payload['display-name'] = displayName;
+          if (model?.maxContextLength !== undefined && Number.isFinite(model.maxContextLength)) {
+            payload['max-context-length'] = model.maxContextLength;
+          }
+          if (model?.forceMapping !== undefined) payload['force-mapping'] = model.forceMapping;
+          return payload;
+        })
+        .filter(Boolean)
+    : undefined;
+
+const serializeFreebuffKey = (config: FreebuffKeyConfig) => {
+  const apiKey = config.apiKey.trim();
+  const payload: Record<string, unknown> = { 'api-key': apiKey };
+  if (config.comment?.trim()) payload.comment = config.comment.trim();
+  if (config.priority !== undefined) payload.priority = config.priority;
+  if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
+  if (config.baseUrl?.trim()) payload['base-url'] = config.baseUrl.trim();
+  if (config.proxyUrl?.trim()) payload['proxy-url'] = config.proxyUrl.trim();
+  const headers = serializeHeaders(config.headers);
+  if (headers) payload.headers = headers;
+  const models = serializeFreebuffModels(config.models);
+  if (models && models.length) payload.models = models;
+  if (config.excludedModels && config.excludedModels.length) {
+    payload['excluded-models'] = config.excludedModels;
+  }
+  if (config.disableCooling !== undefined) payload['disable-cooling'] = config.disableCooling;
+  // Preserve additional credentials in api-key-entries; the edited key stays first.
+  if (Array.isArray(config.apiKeyEntries) && config.apiKeyEntries.length) {
+    const entries = config.apiKeyEntries
+      .filter((entry) => entry?.apiKey?.trim())
+      .map((entry) => serializeApiKeyEntry(entry));
+    const withoutEdited = entries.filter((entry) => entry['api-key'] !== apiKey);
+    if (apiKey) {
+      const editedEntry: Record<string, unknown> = { 'api-key': apiKey };
+      if (config.proxyUrl?.trim()) editedEntry['proxy-url'] = config.proxyUrl.trim();
+      payload['api-key-entries'] = [editedEntry, ...withoutEdited];
+    } else if (entries.length) {
+      payload['api-key-entries'] = entries;
+    }
+  }
+  return payload;
+};
+
 const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
   const payload: Record<string, unknown> = {
     name: provider.name,
@@ -222,6 +284,30 @@ export const providersApi = {
 
   deleteVertexConfig: (apiKey: string, baseUrl?: string) =>
     apiClient.delete(`/vertex-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),
+
+  async getFreebuffConfigs(): Promise<FreebuffKeyConfig[]> {
+    const data = await apiClient.get('/freebuff-api-key');
+    const list = extractArrayPayload(data, 'freebuff-api-key');
+    return list.map((item) => normalizeFreebuffConfig(item)).filter(Boolean) as FreebuffKeyConfig[];
+  },
+
+  saveFreebuffConfigs: (configs: FreebuffKeyConfig[]) =>
+    apiClient.put('/freebuff-api-key', configs.map((item) => serializeFreebuffKey(item))),
+
+  updateFreebuffConfig: (index: number, value: FreebuffKeyConfig) =>
+    apiClient.patch('/freebuff-api-key', { index, value: serializeFreebuffKey(value) }),
+
+  // Deletes by index because a Freebuff credential may repeat across proxy entries.
+  deleteFreebuffConfig: (index: number) =>
+    apiClient.delete(`/freebuff-api-key?index=${encodeURIComponent(String(index))}`),
+
+  // Freebuff publishes no upstream model list, so the catalog ships with the
+  // backend build and is read here instead of proxying /v1/models.
+  async getFreebuffModelCatalog(): Promise<FreebuffCatalogModel[]> {
+    const data = await apiClient.get('/freebuff/models');
+    const list = isRecord(data) ? data.models : undefined;
+    return normalizeFreebuffCatalog(list);
+  },
 
   async getOpenAIProviders(): Promise<OpenAIProviderConfig[]> {
     const data = await apiClient.get('/openai-compatibility');

@@ -113,6 +113,25 @@ export const buildClaudeMessagesEndpoint = (baseUrl: string): string => {
   return `${trimmed}/v1/messages`;
 };
 
+export const FREEBUFF_DEFAULT_BASE_URL = 'https://www.codebuff.com';
+
+/** Freebuff 的会话状态端点：GET 只查询、不占用会话槽位，适合做连通性探测。 */
+export const buildFreebuffSessionEndpoint = (baseUrl: string): string => {
+  let trimmed = String(baseUrl || '').trim();
+  if (!trimmed) {
+    trimmed = FREEBUFF_DEFAULT_BASE_URL;
+  }
+  trimmed = trimmed.replace(/\/?v0\/management\/?$/i, '');
+  trimmed = trimmed.replace(/\/+$/g, '');
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `http://${trimmed}`;
+  }
+  if (trimmed.endsWith('/api/v1/freebuff/session')) {
+    return trimmed;
+  }
+  return `${trimmed}/api/v1/freebuff/session`;
+};
+
 // 根据 source (apiKey) 获取统计数据 - 与旧版逻辑一致
 export const getStatsBySource = (
   apiKey: string,

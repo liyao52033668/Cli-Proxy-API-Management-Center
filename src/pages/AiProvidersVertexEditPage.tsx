@@ -127,15 +127,26 @@ export function AiProvidersVertexEditPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
 
     providersApi
       .getVertexConfigs()
       .then((value) => {
         if (cancelled) return;
+        setError('');
         setConfigs(value);
         updateConfigValue('vertex-api-key', value);
+
+        const nextData = editIndex === null ? undefined : value[editIndex];
+        const nextForm: VertexFormState = nextData
+          ? {
+              ...nextData,
+              headers: headersToEntries(nextData.headers),
+              modelEntries: modelsToEntries(nextData.models),
+              excludedText: excludedModelsToText(nextData.excludedModels),
+            }
+          : buildEmptyForm();
+        setForm(nextForm);
+        setBaseline(buildVertexBaseline(nextForm));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -150,26 +161,7 @@ export function AiProvidersVertexEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [t, updateConfigValue]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (initialData) {
-      const nextForm: VertexFormState = {
-        ...initialData,
-        headers: headersToEntries(initialData.headers),
-        modelEntries: modelsToEntries(initialData.models),
-        excludedText: excludedModelsToText(initialData.excludedModels),
-      };
-      setForm(nextForm);
-      setBaseline(buildVertexBaseline(nextForm));
-      return;
-    }
-    const nextForm = buildEmptyForm();
-    setForm(nextForm);
-    setBaseline(buildVertexBaseline(nextForm));
-  }, [initialData, loading]);
+  }, [editIndex, t, updateConfigValue]);
 
   const canSave = !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex;
 

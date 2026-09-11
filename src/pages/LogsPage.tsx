@@ -101,7 +101,6 @@ export function LogsPage() {
     requestLogDownloading
   });
 
-  const logScrollerRef = useRef<ReturnType<typeof useLogScroller> | null>(null);
   const longPressRef = useRef<{
     timer: number | null;
     startX: number;
@@ -137,11 +136,9 @@ export function LogsPage() {
     setError('');
 
     try {
-      const scrollerInstance = logScrollerRef.current;
-      const stickToBottom =
-        !incremental || isNearBottom(scrollerInstance?.logViewerRef.current ?? null);
+      const stickToBottom = !incremental || isNearBottom(logViewerRef.current ?? null);
       if (stickToBottom) {
-        scrollerInstance?.requestScrollToBottom();
+        requestScrollToBottom();
       }
 
       const params =
@@ -274,6 +271,7 @@ export function LogsPage() {
   useEffect(() => {
     if (activeTab !== 'errors') return;
     if (connectionStatus !== 'connected') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader is shared with user-triggered refresh; gating its loading flag on mount-only would change refresh behaviour
     void loadErrorLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, connectionStatus, requestLogEnabled]);
@@ -362,7 +360,14 @@ export function LogsPage() {
 
   const rawVisibleText = useMemo(() => filteredLines.join('\n'), [filteredLines]);
 
-  const scroller = useLogScroller({
+  // 直接解构：成员本身是稳定的（ref 对象 + 空依赖 useCallback），
+  // 不需要再把整个返回对象存进 ref（那会让编译器把 scroller 当成 ref 值）。
+  const {
+    logViewerRef,
+    canLoadMore,
+    handleLogScroll,
+    requestScrollToBottom,
+  } = useLogScroller({
     logState,
     setLogState,
     loading,
@@ -371,8 +376,6 @@ export function LogsPage() {
     hasStructuredFilters: filters.hasStructuredFilters,
     showRawLogs
   });
-
-  logScrollerRef.current = scroller;
 
   const copyLogLine = async (raw: string) => {
     const ok = await copyToClipboard(raw);
@@ -713,11 +716,11 @@ export function LogsPage() {
               <div className="hint">{t('logs.loading')}</div>
             ) : logState.buffer.length > 0 && filteredLines.length > 0 ? (
               <div
-                ref={scroller.logViewerRef}
+                ref={logViewerRef}
                 className={styles.logPanel}
-                onScroll={scroller.handleLogScroll}
+                onScroll={handleLogScroll}
               >
-                {scroller.canLoadMore && (
+                {canLoadMore && (
                   <div className={styles.loadMoreBanner}>
                     <span>{t('logs.load_more_hint')}</span>
                     <div className={styles.loadMoreStats}>

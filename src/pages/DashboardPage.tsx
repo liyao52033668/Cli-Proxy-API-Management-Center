@@ -148,10 +148,12 @@ export function DashboardPage() {
     if (connectionStatus === 'connected') {
       fetchStats();
       fetchModels();
-    } else {
-      setLoading(false);
     }
   }, [connectionStatus, fetchModels]);
+
+  // Stats only load while connected, so expose loading as false when disconnected instead of
+  // clearing the state from the effect.
+  const statsLoading = connectionStatus === 'connected' && loading;
 
   // Calculate total provider keys only when all provider stats are available.
   const providerStatsReady =
@@ -177,15 +179,15 @@ export function DashboardPage() {
       value: stats.apiKeys ?? '-',
       icon: <IconKey size={24} />,
       path: '/config',
-      loading: loading && stats.apiKeys === null,
+      loading: statsLoading && stats.apiKeys === null,
       sublabel: t('nav.config_management')
     },
     {
       label: t('nav.ai_providers'),
-      value: loading ? '-' : providerStatsReady ? totalProviderKeys : '-',
+      value: statsLoading ? '-' : providerStatsReady ? totalProviderKeys : '-',
       icon: <IconBot size={24} />,
       path: '/ai-providers',
-      loading: loading,
+      loading: statsLoading,
       sublabel: hasProviderStats
         ? t('dashboard.provider_keys_detail', {
           gemini: providerStats.gemini ?? '-',
@@ -200,7 +202,7 @@ export function DashboardPage() {
       value: stats.authFiles ?? '-',
       icon: <IconFileText size={24} />,
       path: '/auth-files',
-      loading: loading && stats.authFiles === null,
+      loading: statsLoading && stats.authFiles === null,
       sublabel: t('dashboard.oauth_credentials')
     },
     {

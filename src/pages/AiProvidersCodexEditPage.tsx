@@ -126,7 +126,6 @@ export function AiProvidersCodexEditPage() {
   const [modelDiscoveryError, setModelDiscoveryError] = useState('');
   const [modelDiscoverySearch, setModelDiscoverySearch] = useState('');
   const [modelDiscoverySelected, setModelDiscoverySelected] = useState<Set<string>>(new Set());
-  const autoFetchSignatureRef = useRef<string>('');
   const modelDiscoveryRequestIdRef = useRef(0);
 
   const {
@@ -191,15 +190,27 @@ export function AiProvidersCodexEditPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
 
     providersApi
       .getCodexConfigs()
       .then((value) => {
         if (cancelled) return;
+        setError('');
         setConfigs(value);
         updateConfigValue('codex-api-key', value);
+
+        const nextData = editIndex === null ? undefined : value[editIndex];
+        const nextForm: ProviderFormState = nextData
+          ? {
+              ...nextData,
+              websockets: Boolean(nextData.websockets),
+              headers: headersToEntries(nextData.headers),
+              modelEntries: modelsToEntries(nextData.models),
+              excludedText: excludedModelsToText(nextData.excludedModels),
+            }
+          : buildEmptyForm();
+        setForm(nextForm);
+        setBaseline(buildCodexBaseline(nextForm));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -214,27 +225,7 @@ export function AiProvidersCodexEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [t, updateConfigValue]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (initialData) {
-      const nextForm: ProviderFormState = {
-        ...initialData,
-        websockets: Boolean(initialData.websockets),
-        headers: headersToEntries(initialData.headers),
-        modelEntries: modelsToEntries(initialData.models),
-        excludedText: excludedModelsToText(initialData.excludedModels),
-      };
-      setForm(nextForm);
-      setBaseline(buildCodexBaseline(nextForm));
-      return;
-    }
-    const nextForm = buildEmptyForm();
-    setForm(nextForm);
-    setBaseline(buildCodexBaseline(nextForm));
-  }, [initialData, loading]);
+  }, [editIndex, t, updateConfigValue]);
 
   const normalizedHeaders = useMemo(() => normalizeHeaderEntries(form.headers), [form.headers]);
   const normalizedModels = useMemo(
@@ -624,6 +615,24 @@ export function AiProvidersCodexEditPage() {
     [setForm, showNotification, t]
   );
 
+  // Store the fetched models and drop any selected names that are no longer available.
+  const applyDiscoveredModels = useCallback((list: ModelInfo[]) => {
+    setDiscoveredModels(list);
+    const availableNames = new Set(list.map((model) => model.name));
+    setModelDiscoverySelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((name) => {
+        if (availableNames.has(name)) {
+          next.add(name);
+        } else {
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
   const fetchCodexModelDiscovery = useCallback(async () => {
     const requestId = (modelDiscoveryRequestIdRef.current += 1);
     setModelDiscoveryFetching(true);
@@ -641,10 +650,10 @@ export function AiProvidersCodexEditPage() {
         headerObject
       );
       if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      setDiscoveredModels(list);
+      applyDiscoveredModels(list);
     } catch (err: unknown) {
       if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      setDiscoveredModels([]);
+      applyDiscoveredModels([]);
       const message = getErrorMessage(err);
       setModelDiscoveryError(`${t('ai_providers.codex_models_fetch_error')}: ${message}`);
     } finally {
@@ -652,22 +661,17 @@ export function AiProvidersCodexEditPage() {
         setModelDiscoveryFetching(false);
       }
     }
-  }, [form.apiKey, form.baseUrl, form.headers, t]);
+  }, [applyDiscoveredModels, form.apiKey, form.baseUrl, form.headers, t]);
 
-  useEffect(() => {
-    if (!modelDiscoveryOpen) {
-      autoFetchSignatureRef.current = '';
-      modelDiscoveryRequestIdRef.current += 1;
-      setModelDiscoveryFetching(false);
-      return;
-    }
-
+  // Reset discovery state and auto-fetch when the modal is opened.
+  const handleOpenModelDiscovery = useCallback(() => {
     const nextEndpoint = modelsApi.buildV1ModelsEndpoint(form.baseUrl ?? '');
     setModelDiscoveryEndpoint(nextEndpoint);
     setDiscoveredModels([]);
     setModelDiscoverySearch('');
     setModelDiscoverySelected(new Set());
     setModelDiscoveryError('');
+    setModelDiscoveryOpen(true);
 
     if (!nextEndpoint) return;
 
@@ -676,36 +680,11 @@ export function AiProvidersCodexEditPage() {
       (key) => key.toLowerCase() === 'authorization'
     );
     const hasApiKeyField = Boolean(form.apiKey.trim());
-    const canAutoFetch = hasApiKeyField || hasCustomAuthorization;
 
-    if (!canAutoFetch) return;
-
-    const headerSignature = Object.entries(headerObject)
-      .sort(([a], [b]) => a.toLowerCase().localeCompare(b.toLowerCase()))
-      .map(([key, value]) => `${key}:${value}`)
-      .join('|');
-    const signature = `${nextEndpoint}||${form.apiKey.trim()}||${headerSignature}`;
-    if (autoFetchSignatureRef.current === signature) return;
-    autoFetchSignatureRef.current = signature;
+    if (!hasApiKeyField && !hasCustomAuthorization) return;
 
     void fetchCodexModelDiscovery();
-  }, [fetchCodexModelDiscovery, form.apiKey, form.baseUrl, form.headers, modelDiscoveryOpen]);
-
-  useEffect(() => {
-    const availableNames = new Set(discoveredModels.map((model) => model.name));
-    setModelDiscoverySelected((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (availableNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [discoveredModels]);
+  }, [fetchCodexModelDiscovery, form.apiKey, form.baseUrl, form.headers]);
 
   const toggleModelDiscoverySelection = (name: string) => {
     setModelDiscoverySelected((prev) => {
@@ -944,7 +923,7 @@ export function AiProvidersCodexEditPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setModelDiscoveryOpen(true)}
+                    onClick={handleOpenModelDiscovery}
                     disabled={!canOpenModelDiscovery}
                   >
                     {t('ai_providers.codex_models_fetch_button')}

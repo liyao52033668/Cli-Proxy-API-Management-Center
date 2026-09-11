@@ -77,6 +77,7 @@ export function AuthGuardPanel() {
 
   useEffect(() => {
     if (connectionStatus === 'connected') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loader is shared with user-triggered refresh; gating its loading flag on mount-only would change refresh behaviour
       void load(false);
     }
   }, [connectionStatus, load]);

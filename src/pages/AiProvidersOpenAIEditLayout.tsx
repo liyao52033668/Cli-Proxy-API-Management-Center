@@ -274,10 +274,6 @@ export function AiProvidersOpenAIEditLayout() {
 
   useEffect(() => {
     let cancelled = false;
-    const hasValidCache = isCacheValid('openai-compatibility');
-    if (!hasValidCache) {
-      setLoading(true);
-    }
 
     providersApi
       .getOpenAIProviders()

@@ -174,10 +174,13 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const { quota, loadQuota } = useQuotaLoader(config);
 
   // Keep pageItems/filteredFiles stable for refresh handlers without re-creating them every render.
+  // 只在提交后同步（而非渲染期赋值），避免渲染期读写 ref。
   const pageItemsRef = useRef(pageItems);
   const filteredFilesRef = useRef(filteredFiles);
-  pageItemsRef.current = pageItems;
-  filteredFilesRef.current = filteredFiles;
+  useEffect(() => {
+    pageItemsRef.current = pageItems;
+    filteredFilesRef.current = filteredFiles;
+  }, [pageItems, filteredFiles]);
 
   useEffect(() => {
     if (loading) return;

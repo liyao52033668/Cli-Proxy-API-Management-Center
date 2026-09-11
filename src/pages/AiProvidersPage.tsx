@@ -5,6 +5,7 @@ import {
   AmpcodeSection,
   ClaudeSection,
   CodexSection,
+  FreebuffSection,
   GeminiSection,
   OpenAISection,
   VertexSection,
@@ -19,7 +20,7 @@ import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer'
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { ampcodeApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore, useThemeStore } from '@/stores';
-import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
+import type { FreebuffKeyConfig, GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import { indexUsageDetailsByAuthIndex, indexUsageDetailsBySource } from '@/utils/usageIndex';
 import styles from './AiProvidersPage.module.scss';
 
@@ -51,6 +52,9 @@ export function AiProvidersPage() {
   );
   const [vertexConfigs, setVertexConfigs] = useState<ProviderKeyConfig[]>(
     () => config?.vertexApiKeys || []
+  );
+  const [freebuffConfigs, setFreebuffConfigs] = useState<FreebuffKeyConfig[]>(
+    () => config?.freebuffApiKeys || []
   );
   const [openaiProviders, setOpenaiProviders] = useState<OpenAIProviderConfig[]>(
     () => config?.openaiCompatibility || []
@@ -95,6 +99,7 @@ export function AiProvidersPage() {
         codexResult,
         claudeResult,
         vertexResult,
+        freebuffResult,
         ampcodeResult,
         openaiResult,
       ] = await Promise.allSettled([
@@ -103,6 +108,7 @@ export function AiProvidersPage() {
         providersApi.getCodexConfigs(),
         providersApi.getClaudeConfigs(),
         providersApi.getVertexConfigs(),
+        providersApi.getFreebuffConfigs(),
         ampcodeApi.getAmpcode(),
         providersApi.getOpenAIProviders(),
       ]);
@@ -116,6 +122,7 @@ export function AiProvidersPage() {
       setCodexConfigs(data?.codexApiKeys || []);
       setClaudeConfigs(data?.claudeApiKeys || []);
       setVertexConfigs(data?.vertexApiKeys || []);
+      setFreebuffConfigs(data?.freebuffApiKeys || []);
       setOpenaiProviders(data?.openaiCompatibility || []);
 
       if (geminiResult.status === 'fulfilled') {
@@ -140,6 +147,12 @@ export function AiProvidersPage() {
         setVertexConfigs(vertexResult.value || []);
         updateConfigValue('vertex-api-key', vertexResult.value || []);
         clearCache('vertex-api-key');
+      }
+
+      if (freebuffResult.status === 'fulfilled') {
+        setFreebuffConfigs(freebuffResult.value || []);
+        updateConfigValue('freebuff-api-key', freebuffResult.value || []);
+        clearCache('freebuff-api-key');
       }
 
       if (ampcodeResult.status === 'fulfilled') {
@@ -171,19 +184,20 @@ export function AiProvidersPage() {
     void loadKeyStats().catch(() => {});
   }, [isCurrentLayer, loadKeyStats]);
 
-  useEffect(() => {
-    if (config?.geminiApiKeys) setGeminiKeys(config.geminiApiKeys);
-    if (config?.codexApiKeys) setCodexConfigs(config.codexApiKeys);
-    if (config?.claudeApiKeys) setClaudeConfigs(config.claudeApiKeys);
-    if (config?.vertexApiKeys) setVertexConfigs(config.vertexApiKeys);
-    if (config?.openaiCompatibility) setOpenaiProviders(config.openaiCompatibility);
-  }, [
-    config?.geminiApiKeys,
-    config?.codexApiKeys,
-    config?.claudeApiKeys,
-    config?.vertexApiKeys,
-    config?.openaiCompatibility,
-  ]);
+  useEffect(
+    () =>
+      useConfigStore.subscribe((state) => {
+        const nextConfig = state.config;
+        if (!nextConfig) return;
+        if (nextConfig.geminiApiKeys) setGeminiKeys(nextConfig.geminiApiKeys);
+        if (nextConfig.codexApiKeys) setCodexConfigs(nextConfig.codexApiKeys);
+        if (nextConfig.claudeApiKeys) setClaudeConfigs(nextConfig.claudeApiKeys);
+        if (nextConfig.vertexApiKeys) setVertexConfigs(nextConfig.vertexApiKeys);
+        if (nextConfig.freebuffApiKeys) setFreebuffConfigs(nextConfig.freebuffApiKeys);
+        if (nextConfig.openaiCompatibility) setOpenaiProviders(nextConfig.openaiCompatibility);
+      }),
+    []
+  );
 
   const refreshProviders = useCallback(async () => {
     await Promise.all([loadConfigs(), refreshKeyStats()]);
@@ -385,6 +399,65 @@ export function AiProvidersPage() {
     });
   };
 
+  const setFreebuffEnabled = async (index: number, enabled: boolean) => {
+    const current = freebuffConfigs[index];
+    if (!current) return;
+
+    const switchingKey = `freebuff:${current.apiKey}`;
+    setConfigSwitchingKey(switchingKey);
+
+    const previousList = freebuffConfigs;
+    const nextExcluded = enabled
+      ? withoutDisableAllModelsRule(current.excludedModels)
+      : withDisableAllModelsRule(current.excludedModels);
+    const nextItem: FreebuffKeyConfig = { ...current, excludedModels: nextExcluded };
+    const nextList = previousList.map((item, idx) => (idx === index ? nextItem : item));
+
+    setFreebuffConfigs(nextList);
+    updateConfigValue('freebuff-api-key', nextList);
+    clearCache('freebuff-api-key');
+
+    try {
+      await providersApi.saveFreebuffConfigs(nextList);
+      showNotification(
+        enabled ? t('notification.config_enabled') : t('notification.config_disabled'),
+        'success'
+      );
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setFreebuffConfigs(previousList);
+      updateConfigValue('freebuff-api-key', previousList);
+      clearCache('freebuff-api-key');
+      showNotification(`${t('notification.update_failed')}: ${message}`, 'error');
+    } finally {
+      setConfigSwitchingKey(null);
+    }
+  };
+
+  const deleteFreebuff = async (index: number) => {
+    const entry = freebuffConfigs[index];
+    if (!entry) return;
+    showConfirmation({
+      title: t('ai_providers.freebuff_delete_title', { defaultValue: 'Delete Freebuff Config' }),
+      message: t('ai_providers.freebuff_delete_confirm'),
+      variant: 'danger',
+      confirmText: t('common.confirm'),
+      onConfirm: async () => {
+        try {
+          await providersApi.deleteFreebuffConfig(index);
+          const next = freebuffConfigs.filter((_, idx) => idx !== index);
+          setFreebuffConfigs(next);
+          updateConfigValue('freebuff-api-key', next);
+          clearCache('freebuff-api-key');
+          showNotification(t('notification.freebuff_config_deleted'), 'success');
+        } catch (err: unknown) {
+          const message = getErrorMessage(err);
+          showNotification(`${t('notification.delete_failed')}: ${message}`, 'error');
+        }
+      },
+    });
+  };
+
   const setOpenAIProviderEnabled = async (index: number, enabled: boolean) => {
     const current = openaiProviders[index];
     if (!current) return;
@@ -520,6 +593,23 @@ export function AiProvidersPage() {
             onEdit={(index) => openEditor(`/ai-providers/vertex/${index}`)}
             onDelete={deleteVertex}
             onToggle={(index, enabled) => void setConfigEnabled('vertex', index, enabled)}
+          />
+        </div>
+
+        <div id="provider-freebuff">
+          <FreebuffSection
+            configs={freebuffConfigs}
+            keyStats={keyStats}
+            usageDetailsBySource={usageDetailsBySource}
+            usageDetailsByAuthIndex={usageDetailsByAuthIndex}
+            apiKeyUsage={apiKeyUsage}
+            loading={loading}
+            disableControls={disableControls}
+            isSwitching={isSwitching}
+            onAdd={() => openEditor('/ai-providers/freebuff/new')}
+            onEdit={(index) => openEditor(`/ai-providers/freebuff/${index}`)}
+            onDelete={(index) => void deleteFreebuff(index)}
+            onToggle={(index, enabled) => void setFreebuffEnabled(index, enabled)}
           />
         </div>
 

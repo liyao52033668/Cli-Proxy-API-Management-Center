@@ -73,3 +73,17 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
+
+/* Freebuff 模型映射行：模型名 → 别名 → root agent id → 删除 → 测试状态。 */
+.freebuffModelRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr 1.1fr auto 24px;
+  align-items: center;
+  gap: 8px;
+
+  /* AutocompleteInput 自带 .form-group 下边距，放进行内网格时需要清零；
+     用后代选择器提高特异性，避免与全局 .form-group 的先后顺序打架。 */
+  .freebuffInlineField {
+    margin-bottom: 0;
+  }
+}

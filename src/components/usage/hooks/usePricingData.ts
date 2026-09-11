@@ -85,15 +85,19 @@ export function usePricingData(options: UsePricingDataOptions = {}): UsePricingD
     if (!enabled) {
       requestControllerRef.current?.abort();
       requestControllerRef.current = null;
-      setLoading(false);
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadPricing is also exposed for user-triggered refresh; gating its loading flag on mount-only would change refresh behaviour
     void loadPricing();
     return () => {
       requestControllerRef.current?.abort();
       requestControllerRef.current = null;
     };
   }, [enabled, loadPricing]);
+
+  // Pricing is only fetched while enabled, so report "not loading" when disabled instead of
+  // resetting the flag from the effect.
+  const effectiveLoading = enabled && loading;
 
   const setModelPrices = useCallback(async (prices: Record<string, ModelPrice>) => {
     const previousPrices = modelPrices;
@@ -132,7 +136,7 @@ export function usePricingData(options: UsePricingDataOptions = {}): UsePricingD
   return {
     modelNames,
     modelPrices,
-    loading,
+    loading: effectiveLoading,
     error,
     lastRefreshedAt,
     loadPricing,

@@ -93,6 +93,7 @@ export function AuthFilesOAuthModelAliasEditPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- provider mirrors the ?provider= URL param so browser back/forward stays in sync; the field is also edited locally with untrimmed input, so it cannot be derived purely from the param
     setProvider(providerFromParams);
   }, [providerFromParams]);
 
@@ -226,6 +227,7 @@ export function AuthFilesOAuthModelAliasEditPage() {
 
   useEffect(() => {
     if (!resolvedProviderKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mappings are seeded from the async-loaded alias map and re-seeded whenever the provider changes (including via URL navigation), then edited locally
       setMappings([buildEmptyMappingEntry()]);
       return;
     }
@@ -235,6 +237,7 @@ export function AuthFilesOAuthModelAliasEditPage() {
 
   useEffect(() => {
     if (!resolvedProviderKey || modelAliasUnsupported) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- this effect is the model-list loader: it clears the previous provider's list and marks loading before the request is issued, and there is no async boundary available to defer that
       setModelsList([]);
       setModelsError(null);
       setModelsLoading(false);

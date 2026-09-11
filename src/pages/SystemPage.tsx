@@ -167,7 +167,10 @@ export function SystemPage() {
   );
 
   const requestLogEnabled = config?.requestLog ?? false;
-  const requestLogDirty = requestLogDraft !== requestLogEnabled;
+  // While the user has not touched the toggle, the draft mirrors the current config value.
+  // Deriving it here replaces the previous effect that synced the draft on modal open.
+  const requestLogDraftValue = requestLogTouched ? requestLogDraft : requestLogEnabled;
+  const requestLogDirty = requestLogDraftValue !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
 
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
@@ -286,9 +289,8 @@ export function SystemPage() {
 
   const openRequestLogModal = useCallback(() => {
     setRequestLogTouched(false);
-    setRequestLogDraft(requestLogEnabled);
     setRequestLogModalOpen(true);
-  }, [requestLogEnabled]);
+  }, []);
 
   const handleInfoVersionTap = useCallback(() => {
     versionTapCount.current += 1;
@@ -323,10 +325,10 @@ export function SystemPage() {
 
     const previous = requestLogEnabled;
     setRequestLogSaving(true);
-    updateConfigValue('request-log', requestLogDraft);
+    updateConfigValue('request-log', requestLogDraftValue);
 
     try {
-      await configApi.updateRequestLog(requestLogDraft);
+      await configApi.updateRequestLog(requestLogDraftValue);
       clearCache('request-log');
       showNotification(t('notification.request_log_updated'), 'success');
       setRequestLogModalOpen(false);
@@ -383,12 +385,6 @@ export function SystemPage() {
   }, [fetchConfig]);
 
   useEffect(() => {
-    if (requestLogModalOpen && !requestLogTouched) {
-      setRequestLogDraft(requestLogEnabled);
-    }
-  }, [requestLogModalOpen, requestLogTouched, requestLogEnabled]);
-
-  useEffect(() => {
     return () => {
       if (versionTapTimer.current) {
         clearTimeout(versionTapTimer.current);
@@ -397,6 +393,7 @@ export function SystemPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader is shared with user-triggered refresh; gating its loading flag on mount-only would change refresh behaviour
     fetchModelsAndStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.connectionStatus, auth.apiBase]);
@@ -691,7 +688,7 @@ export function SystemPage() {
           <ToggleSwitch
             label={t('basic_settings.request_log_enable')}
             labelPosition="left"
-            checked={requestLogDraft}
+            checked={requestLogDraftValue}
             disabled={!canEditRequestLog || requestLogSaving}
             onChange={(value) => {
               setRequestLogDraft(value);

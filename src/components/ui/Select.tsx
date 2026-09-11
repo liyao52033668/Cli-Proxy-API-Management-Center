@@ -328,9 +328,12 @@ export function Select({
           <span className={`${styles.triggerText} ${isPlaceholder ? styles.placeholder : ''}`}>
             {displayText}
           </span>
-          <span className={styles.triggerIcon} aria-hidden="true">
-            <IconChevronDown size={14} />
-          </span>
+          {/* 没有候选项时不给下拉箭头：展不开的空列表，箭头只会误导。 */}
+          {options.length > 0 && (
+            <span className={styles.triggerIcon} aria-hidden="true">
+              <IconChevronDown size={14} />
+            </span>
+          )}
         </button>
       </div>
       {dropdown && (typeof document === 'undefined' ? dropdown : createPortal(dropdown, document.body))}

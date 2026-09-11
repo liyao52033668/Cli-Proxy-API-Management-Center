@@ -71,7 +71,7 @@ export function useLogFilters(options: UseLogFiltersOptions): UseLogFiltersRetur
 
   useEffect(() => {
     const validPathSet = new Set(pathOptions.map((item) => item.path));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dropping path filters that no longer exist in the parsed lines is a post-load correction; it cannot be derived during render because the selection is user-editable state
     setPathFilters((prev) => {
       if (prev.length === 0) return prev;
       const next = prev.filter((path) => validPathSet.has(path));

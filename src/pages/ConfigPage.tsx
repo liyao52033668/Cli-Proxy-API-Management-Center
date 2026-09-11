@@ -85,8 +85,12 @@ export function ConfigPage() {
   const isDirty = dirty || visualDirty;
   const shouldRenderFloatingActions = isCurrentLayer;
   const hasVisualModeError = !!visualParseError;
+  // Visual mode cannot represent invalid YAML, so fall back to the source editor during render
+  // instead of mutating the selected tab from an effect.
+  const effectiveTab: ConfigEditorTab =
+    activeTab === 'visual' && visualParseError ? 'source' : activeTab;
   const hasVisualValidationErrors =
-    activeTab === 'visual' &&
+    effectiveTab === 'visual' &&
     (Object.values(visualValidationErrors).some(Boolean) || visualHasPayloadValidationErrors);
 
   const loadConfig = useCallback(async () => {
@@ -109,13 +113,15 @@ export function ConfigPage() {
   }, [loadVisualValuesFromYaml, t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader is shared with user-triggered refresh; gating its loading flag on mount-only would change refresh behaviour
     loadConfig();
   }, [loadConfig]);
 
   useEffect(() => {
     if (activeTab !== 'visual' || !visualParseError) return;
 
-    setActiveTab('source');
+    // The tab itself is derived during render (effectiveTab); keep the persisted value and the
+    // notification as the effect's side effects.
     localStorage.setItem('config-management:tab', 'source');
     showNotification(
       t('config_management.visual_mode_unavailable_detail', { message: visualParseError }),
@@ -169,7 +175,7 @@ export function ConfigPage() {
   };
 
   const handleSave = async () => {
-    if (activeTab === 'visual' && visualParseError) {
+    if (effectiveTab === 'visual' && visualParseError) {
       showNotification(t('config_management.visual_mode_save_blocked'), 'error');
       return;
     }
@@ -178,7 +184,7 @@ export function ConfigPage() {
     try {
       const latestServerYaml = await configFileApi.fetchConfigYaml();
 
-      if (activeTab !== 'source') {
+      if (effectiveTab !== 'source') {
         const latestDocument = parseDocument(latestServerYaml);
         if (latestDocument.errors.length > 0) {
           showNotification(
@@ -195,13 +201,13 @@ export function ConfigPage() {
 
       // In source mode, save exactly what the user edited. In visual mode, materialize visual changes into the latest YAML.
       const nextMergedYaml =
-        activeTab === 'source' ? content : applyVisualChangesToYaml(latestServerYaml);
+        effectiveTab === 'source' ? content : applyVisualChangesToYaml(latestServerYaml);
 
       // In visual mode, applyVisualChangesToYaml re-serializes YAML via parseDocument → toString,
       // which may reformat comments/whitespace. Normalize the server YAML through the same pipeline
       // so the diff only shows actual value changes, not cosmetic reformatting.
       let diffOriginal = latestServerYaml;
-      if (activeTab !== 'source') {
+      if (effectiveTab !== 'source') {
         try {
           const doc = parseDocument(latestServerYaml);
           diffOriginal = doc.toString({ indent: 2, lineWidth: 120, minContentWidth: 0 });
@@ -238,7 +244,7 @@ export function ConfigPage() {
 
   const handleTabChange = useCallback(
     (tab: ConfigEditorTab) => {
-      if (tab === activeTab) return;
+      if (tab === effectiveTab) return;
 
       if (tab === 'source') {
         // Only rewrite YAML when there are pending visual changes; otherwise preserve raw YAML + comments.
@@ -264,9 +270,9 @@ export function ConfigPage() {
       localStorage.setItem('config-management:tab', tab);
     },
     [
-      activeTab,
       applyVisualChangesToYaml,
       content,
+      effectiveTab,
       loadVisualValuesFromYaml,
       showNotification,
       t,
@@ -501,11 +507,11 @@ export function ConfigPage() {
   );
 
   const pageEyebrow =
-    activeTab === 'visual'
+    effectiveTab === 'visual'
       ? t('config_management.tabs.visual', { defaultValue: '可视化编辑' })
       : t('config_management.tabs.source', { defaultValue: '源文件编辑' });
   const pageDescription =
-    activeTab === 'visual'
+    effectiveTab === 'visual'
       ? t('config_management.visual.notice')
       : t('config_management.description');
 
@@ -523,7 +529,7 @@ export function ConfigPage() {
           <div className={styles.tabBar}>
             <button
               type="button"
-              className={`${styles.tabItem} ${activeTab === 'visual' ? styles.tabActive : ''}`}
+              className={`${styles.tabItem} ${effectiveTab === 'visual' ? styles.tabActive : ''}`}
               onClick={() => handleTabChange('visual')}
               disabled={saving || loading}
             >
@@ -531,7 +537,7 @@ export function ConfigPage() {
             </button>
             <button
               type="button"
-              className={`${styles.tabItem} ${activeTab === 'source' ? styles.tabActive : ''}`}
+              className={`${styles.tabItem} ${effectiveTab === 'source' ? styles.tabActive : ''}`}
               onClick={() => handleTabChange('source')}
               disabled={saving || loading}
             >
@@ -550,7 +556,7 @@ export function ConfigPage() {
             </div>
           )}
 
-          {activeTab === 'visual' ? (
+          {effectiveTab === 'visual' ? (
             <VisualConfigEditor
               values={visualValues}
               validationErrors={visualValidationErrors}

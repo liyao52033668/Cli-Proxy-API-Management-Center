@@ -86,6 +86,7 @@ export function AuthFileModelsModal(props: AuthFileModelsModalProps) {
     if (!open) {
       closedRef.current = true;
       abortAll();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open is owned by the parent hook, so the resets cannot move into a local open handler; probe results are local to this modal
       setTestStates({});
       setLocalFileExcluded([]);
       return;

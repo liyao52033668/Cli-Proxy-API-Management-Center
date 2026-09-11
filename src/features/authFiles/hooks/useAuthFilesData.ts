@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react';
+import { useCallback, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { apiClient } from '@/services/api/client';
@@ -153,29 +153,28 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     });
   }, []);
 
-  useEffect(() => {
-    if (selectedFiles.size === 0) return;
-    const existingNames = new Set(files.map((file) => file.name));
-    setSelectedFiles((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (existingNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [files, selectedFiles.size]);
-
   const loadFiles = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const data = await authFilesApi.list();
-      setFiles(data?.files || []);
+      const nextFiles = data?.files || [];
+      setFiles(nextFiles);
+      // Drop selected names that no longer exist after the list is (re)loaded.
+      const existingNames = new Set(nextFiles.map((file) => file.name));
+      setSelectedFiles((prev) => {
+        if (prev.size === 0) return prev;
+        let changed = false;
+        const next = new Set<string>();
+        prev.forEach((name) => {
+          if (existingNames.has(name)) {
+            next.add(name);
+          } else {
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : t('notification.refresh_failed');
       setError(errorMessage);

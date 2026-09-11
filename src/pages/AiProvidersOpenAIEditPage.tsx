@@ -242,6 +242,7 @@ export function AiProvidersOpenAIEditPage() {
       removeModelEntryByName,
       runSingleKeyTest,
       selectNextModel,
+      setIsTestingKeys,
       testModel,
     ]
   );
@@ -338,6 +339,7 @@ export function AiProvidersOpenAIEditPage() {
     runSingleKeyTest,
     removeModelEntryByName,
     selectNextModel,
+    setIsTestingKeys,
     showNotification,
   ]);
 
@@ -468,6 +470,9 @@ export function AiProvidersOpenAIEditPage() {
     setForm,
     setTestModel,
     showNotification,
+    markSkipConnectivityReset,
+    setIsTestingKeys,
+    setModelTestStatuses,
   ]);
 
   const openOpenaiModelDiscovery = () => {
