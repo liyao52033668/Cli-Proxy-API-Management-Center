@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { providersApi, apiCallApi, getApiCallErrorMessage } from '@/services/api';
+import { copyToClipboard } from '@/utils/clipboard';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { FreebuffKeyConfig } from '@/types';
 import {
@@ -172,6 +173,22 @@ export function AiProvidersFreebuffEditPage() {
   const [catalogError, setCatalogError] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogSelected, setCatalogSelected] = useState<Set<string>>(new Set());
+
+  // 设备流登录：start 拿授权 URL → 轮询 → 授权成功后把 token 填进表单，仍走现有保存流程。
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginPhase, setLoginPhase] = useState<'idle' | 'starting' | 'waiting' | 'authorized' | 'error'>('idle');
+  const [loginUrl, setLoginUrl] = useState('');
+  const [loginAccount, setLoginAccount] = useState('');
+  const [loginToken, setLoginToken] = useState('');
+  const [loginBaseUrl, setLoginBaseUrl] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const loginHandleRef = useRef<{
+    fingerprint_id: string;
+    fingerprint_hash: string;
+    expires_at: number;
+    base_url: string;
+  } | null>(null);
+  const loginTimerRef = useRef<number | null>(null);
 
   // 连通性测试走共享 hook（与其他 provider 一致）。测试失败会移除该模型映射：
   // 探测已确认这条映射不可用，留着只会让用户反复踩同一个错误。
@@ -404,6 +421,112 @@ export function AiProvidersFreebuffEditPage() {
       setCatalogFetching(false);
     }
   }, [t]);
+
+  const stopLoginPolling = useCallback(() => {
+    if (loginTimerRef.current !== null) {
+      window.clearInterval(loginTimerRef.current);
+      loginTimerRef.current = null;
+    }
+  }, []);
+
+  const closeLoginModal = useCallback(() => {
+    stopLoginPolling();
+    loginHandleRef.current = null;
+    setLoginOpen(false);
+    setLoginPhase('idle');
+    setLoginUrl('');
+    setLoginAccount('');
+    setLoginToken('');
+    setLoginBaseUrl('');
+    setLoginError('');
+  }, [stopLoginPolling]);
+
+  const pollLoginOnce = useCallback(async () => {
+    const handle = loginHandleRef.current;
+    if (!handle) return;
+    try {
+      const result = await providersApi.pollFreebuffLogin({
+        fingerprint_id: handle.fingerprint_id,
+        fingerprint_hash: handle.fingerprint_hash,
+        expires_at: handle.expires_at,
+        base_url: handle.base_url,
+      });
+      if (result.status === 'pending') return;
+      stopLoginPolling();
+      if (result.status === 'authorized') {
+        setLoginToken(result.api_key);
+        setLoginAccount(result.user?.email || result.user?.name || '');
+        setLoginPhase('authorized');
+      } else {
+        setLoginPhase('error');
+        setLoginError(t('ai_providers.freebuff_login_unknown_status'));
+      }
+    } catch (err) {
+      stopLoginPolling();
+      setLoginPhase('error');
+      setLoginError(getErrorMessage(err) || t('ai_providers.freebuff_login_failed'));
+    }
+  }, [stopLoginPolling, t]);
+
+  const handleStartLogin = useCallback(async () => {
+    setLoginPhase('starting');
+    setLoginError('');
+    try {
+      const result = await providersApi.startFreebuffLogin(form.baseUrl?.trim() || undefined);
+      loginHandleRef.current = {
+        fingerprint_id: result.fingerprint_id,
+        fingerprint_hash: result.fingerprint_hash,
+        expires_at: result.expires_at,
+        base_url: result.base_url,
+      };
+      setLoginBaseUrl(result.base_url);
+      setLoginUrl(result.login_url);
+      setLoginPhase('waiting');
+      stopLoginPolling();
+      loginTimerRef.current = window.setInterval(() => {
+        void pollLoginOnce();
+      }, 2500);
+      window.open(result.login_url, '_blank', 'noopener');
+    } catch (err) {
+      setLoginPhase('error');
+      setLoginError(getErrorMessage(err) || t('ai_providers.freebuff_login_failed'));
+    }
+  }, [form.baseUrl, pollLoginOnce, stopLoginPolling, t]);
+
+  const handleOpenLogin = useCallback(() => {
+    setLoginPhase('idle');
+    setLoginUrl('');
+    setLoginAccount('');
+    setLoginToken('');
+    setLoginBaseUrl('');
+    setLoginError('');
+    setLoginOpen(true);
+  }, []);
+
+  // 清理轮询定时器；effect 只挂 cleanup，不在函数体内同步 setState。
+  useEffect(() => stopLoginPolling, [stopLoginPolling]);
+
+  const handleApplyLoginToken = useCallback(() => {
+    if (!loginToken) return;
+    const defaultBase = 'https://www.codebuff.com';
+    setForm((prev) => ({
+      ...prev,
+      apiKey: loginToken,
+      baseUrl: !prev.baseUrl?.trim() && loginBaseUrl && loginBaseUrl !== defaultBase ? loginBaseUrl : prev.baseUrl,
+      comment: !prev.comment?.trim() && loginAccount ? loginAccount : prev.comment,
+    }));
+    closeLoginModal();
+    showNotification(t('ai_providers.freebuff_login_applied'), 'success');
+  }, [closeLoginModal, loginAccount, loginBaseUrl, loginToken, showNotification, t]);
+
+  const handleCopyLoginUrl = useCallback(async () => {
+    if (!loginUrl) return;
+    const copied = await copyToClipboard(loginUrl);
+    showNotification(
+      t(copied ? 'notification.link_copied' : 'notification.copy_failed'),
+      copied ? 'success' : 'error'
+    );
+  }, [loginUrl, showNotification, t]);
 
   // Reset the selection when the modal opens and fetch the catalog once; the catalog is
   // small and served from a backend built-in table, so no caching is needed.
@@ -824,6 +947,19 @@ export function AiProvidersFreebuffEditPage() {
               onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
               disabled={disableControls || saving}
             />
+            <div className={pageStyles.modelDiscoveryToolbarActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleOpenLogin}
+                disabled={disableControls || saving}
+              >
+                {t('ai_providers.freebuff_login_button')}
+              </Button>
+              <span className={pageStyles.sectionHint}>
+                {t('ai_providers.freebuff_login_button_hint')}
+              </span>
+            </div>
             <Input
               label={t('ai_providers.freebuff_comment_label')}
               placeholder={t('ai_providers.freebuff_comment_placeholder')}
@@ -1124,6 +1260,84 @@ export function AiProvidersFreebuffEditPage() {
                   </div>
                 )}
               </div>
+            </Modal>
+
+            <Modal
+              open={loginOpen}
+              title={t('ai_providers.freebuff_login_title')}
+              onClose={closeLoginModal}
+              width={520}
+              footer={
+                <>
+                  <Button variant="secondary" size="sm" onClick={closeLoginModal}>
+                    {loginPhase === 'authorized' ? t('common.cancel') : t('common.close')}
+                  </Button>
+                  {loginPhase === 'idle' && (
+                    <Button size="sm" onClick={handleStartLogin}>
+                      {t('ai_providers.freebuff_login_start')}
+                    </Button>
+                  )}
+                  {loginPhase === 'error' && (
+                    <Button size="sm" onClick={handleStartLogin}>
+                      {t('ai_providers.freebuff_login_retry')}
+                    </Button>
+                  )}
+                  {loginPhase === 'authorized' && (
+                    <Button size="sm" onClick={handleApplyLoginToken}>
+                      {t('ai_providers.freebuff_login_use')}
+                    </Button>
+                  )}
+                </>
+              }
+            >
+              {loginPhase === 'idle' && (
+                <div className={pageStyles.sectionHint}>
+                  {t('ai_providers.freebuff_login_intro')}
+                </div>
+              )}
+              {loginPhase === 'starting' && (
+                <div className={pageStyles.sectionHint}>
+                  {t('ai_providers.freebuff_login_starting')}
+                </div>
+              )}
+              {loginPhase === 'waiting' && (
+                <>
+                  <div className={pageStyles.sectionHint}>
+                    {t('ai_providers.freebuff_login_waiting')}
+                  </div>
+                  <div className={pageStyles.modelDiscoveryToolbarActions}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => window.open(loginUrl, '_blank', 'noopener')}
+                    >
+                      {t('ai_providers.freebuff_login_open')}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={handleCopyLoginUrl}>
+                      {t('ai_providers.freebuff_login_copy_url')}
+                    </Button>
+                  </div>
+                  {loginUrl && (
+                    <div className={pageStyles.sectionHint}>{loginUrl}</div>
+                  )}
+                </>
+              )}
+              {loginPhase === 'authorized' && (
+                <>
+                  <div className={pageStyles.sectionHint}>
+                    {t('ai_providers.freebuff_login_authorized')}
+                  </div>
+                  {loginAccount && (
+                    <div className={pageStyles.sectionHint}>
+                      {t('ai_providers.freebuff_login_account')}
+                      {loginAccount}
+                    </div>
+                  )}
+                </>
+              )}
+              {loginPhase === 'error' && (
+                <div className="error-box">{loginError || t('ai_providers.freebuff_login_failed')}</div>
+              )}
             </Modal>
           </>
         )}

@@ -25,6 +25,28 @@ import {
 
 const serializeHeaders = (headers?: Record<string, string>) => (headers && Object.keys(headers).length ? headers : undefined);
 
+export interface FreebuffLoginStartResult {
+  login_url: string;
+  fingerprint_id: string;
+  fingerprint_hash: string;
+  expires_at: number;
+  base_url: string;
+}
+
+export type FreebuffLoginPollResult =
+  | { status: 'pending' }
+  | {
+      status: 'authorized';
+      api_key: string;
+      user?: { email?: string; name?: string };
+    };
+
+export interface FreebuffLoginCompletePayload {
+  api_key: string;
+  base_url?: string;
+  comment?: string;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -308,6 +330,17 @@ export const providersApi = {
     const list = isRecord(data) ? data.models : undefined;
     return normalizeFreebuffCatalog(list);
   },
+
+  // Device-flow login: start returns a browser authorization URL, poll checks
+  // once per call, complete verifies the token and appends it to the config.
+  startFreebuffLogin: (baseUrl?: string) =>
+    apiClient.post<FreebuffLoginStartResult>('/freebuff-auth/login', baseUrl?.trim() ? { base_url: baseUrl.trim() } : {}),
+
+  pollFreebuffLogin: (payload: { fingerprint_id: string; fingerprint_hash: string; expires_at: number; base_url?: string }) =>
+    apiClient.post<FreebuffLoginPollResult>('/freebuff-auth/login/poll', payload),
+
+  completeFreebuffLogin: (payload: FreebuffLoginCompletePayload) =>
+    apiClient.post('/freebuff-auth/login/complete', payload),
 
   async getOpenAIProviders(): Promise<OpenAIProviderConfig[]> {
     const data = await apiClient.get('/openai-compatibility');
