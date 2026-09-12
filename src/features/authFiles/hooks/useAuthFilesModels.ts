@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { useNotificationStore } from '@/stores';
@@ -39,6 +39,7 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
   const [modelsFileName, setModelsFileName] = useState('');
   const [modelsFileType, setModelsFileType] = useState('');
   const [modelsError, setModelsError] = useState<ModelsError>(null);
+  const currentNameRef = useRef('');
 
   const closeModelsModal = useCallback(() => {
     setModelsModalOpen(false);
@@ -46,25 +47,32 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
 
   const showModels = useCallback(
     async (item: AuthFileItem) => {
-      setModelsFileName(item.name);
+      const name = item.name;
+      currentNameRef.current = name;
+      setModelsFileName(name);
       setModelsFileType(item.type || '');
-      setModelsList([]);
       setModelsError(null);
       setModelsModalOpen(true);
 
-      const cached = modelsCache.get(item.name);
+      // Stale-while-revalidate: serve the cached list immediately, then always
+      // refetch in the background so excluded-model changes (probe auto-exclude,
+      // per-file editor, global OAuth exclusions) show up on the next open.
+      const cached = modelsCache.get(name);
       if (cached) {
         setModelsList(cached);
         setModelsLoading(false);
-        return;
+      } else {
+        setModelsList([]);
+        setModelsLoading(true);
       }
 
-      setModelsLoading(true);
       try {
-        const models = await authFilesApi.getModelsForAuthFile(item.name);
-        modelsCache.set(item.name, models);
+        const models = await authFilesApi.getModelsForAuthFile(name);
+        modelsCache.set(name, models);
+        if (currentNameRef.current !== name) return;
         setModelsList(models);
       } catch (err) {
+        if (currentNameRef.current !== name) return;
         const errorMessage = err instanceof Error ? err.message : '';
         if (
           errorMessage.includes('404') ||
@@ -72,11 +80,13 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
           errorMessage.includes('Not Found')
         ) {
           setModelsError('unsupported');
-        } else {
-          showNotification(`${t('notification.load_failed')}: ${errorMessage}`, 'error');
+          return;
         }
+        showNotification(`${t('notification.load_failed')}: ${errorMessage}`, 'error');
       } finally {
-        setModelsLoading(false);
+        if (currentNameRef.current === name) {
+          setModelsLoading(false);
+        }
       }
     },
     [showNotification, t]

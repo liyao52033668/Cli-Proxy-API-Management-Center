@@ -14,6 +14,7 @@ import {
   type AuthFileModelTestResult,
   type AuthFileModelTestStatus
 } from '@/services/api/authFiles';
+import { clearCacheForAuth } from '@/features/authFiles/hooks/useAuthFilesModels';
 import styles from '@/pages/AuthFilesPage.module.scss';
 
 export type AuthFileModelsModalProps = {
@@ -120,6 +121,13 @@ export function AuthFileModelsModal(props: AuthFileModelsModalProps) {
         Array.isArray(result.excluded_models) && result.excluded_models.length >= 0
           ? result.excluded_models.map(normalizeModelId).filter(Boolean)
           : null;
+
+      if (result.excluded_added) {
+        // The backend drops auto-excluded models from the registry on
+        // re-registration; invalidate the cached list so the next open
+        // fetches fresh data instead of flashing the excluded model.
+        clearCacheForAuth(fileName);
+      }
 
       if (nextExcluded) {
         setLocalFileExcluded(nextExcluded);
