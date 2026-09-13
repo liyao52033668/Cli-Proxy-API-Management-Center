@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,11 +8,9 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { Modal } from '@/components/ui/Modal';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
-import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
-import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useEdgeSwipeBack, useUnsavedChangesGuard, useCopy, useEditIndexParam } from '@/hooks';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { providersApi, apiCallApi, getApiCallErrorMessage } from '@/services/api';
-import { copyToClipboard } from '@/utils/clipboard';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { FreebuffKeyConfig } from '@/types';
 import {
@@ -83,12 +81,6 @@ const isFreebuffSessionReachable = (statusCode: number): boolean =>
 const isFreebuffSessionLimited = (statusCode: number): boolean =>
   statusCode === 429 || statusCode === 409;
 
-const parseIndexParam = (value: string | undefined) => {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const normalizeModelEntries = (entries: FreebuffModelEntry[]): FreebuffModelEntry[] =>
   (entries ?? []).reduce<FreebuffModelEntry[]>((acc, entry) => {
     const name = String(entry?.name ?? '').trim();
@@ -151,7 +143,7 @@ export function AiProvidersFreebuffEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ index?: string }>();
+  const { editIndex, invalidIndexParam } = useEditIndexParam();
 
   const { showNotification } = useNotificationStore();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
@@ -224,10 +216,6 @@ export function AiProvidersFreebuffEditPage() {
       form.headers.map((entry) => `${entry.key.trim()}:${entry.value.trim()}`).join('|'),
     ].join('||'),
   });
-
-  const hasIndexParam = typeof params.index === 'string';
-  const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
-  const invalidIndexParam = hasIndexParam && editIndex === null;
 
   const initialData = useMemo(() => {
     if (editIndex === null) return undefined;
@@ -519,14 +507,12 @@ export function AiProvidersFreebuffEditPage() {
     showNotification(t('ai_providers.freebuff_login_applied'), 'success');
   }, [closeLoginModal, loginAccount, loginBaseUrl, loginToken, showNotification, t]);
 
+  const { copy } = useCopy();
+
   const handleCopyLoginUrl = useCallback(async () => {
     if (!loginUrl) return;
-    const copied = await copyToClipboard(loginUrl);
-    showNotification(
-      t(copied ? 'notification.link_copied' : 'notification.copy_failed'),
-      copied ? 'success' : 'error'
-    );
-  }, [loginUrl, showNotification, t]);
+    await copy(loginUrl);
+  }, [loginUrl, copy]);
 
   // Reset the selection when the modal opens and fetch the catalog once; the catalog is
   // small and served from a backend built-in table, so no caching is needed.

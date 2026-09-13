@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ListPagination } from '@/components/common/ListPagination';
+import { useClientPagination } from '@/hooks';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -28,78 +29,6 @@ type ViewMode = 'paged' | 'all';
 
 const MAX_ITEMS_PER_PAGE = 25;
 const MAX_SHOW_ALL_THRESHOLD = 30;
-
-interface QuotaPaginationState<T> {
-  pageSize: number;
-  totalPages: number;
-  currentPage: number;
-  pageItems: T[];
-  setPageSize: (size: number) => void;
-  goToPage: (page: number) => void;
-  goToPrev: () => void;
-  goToNext: () => void;
-  loading: boolean;
-  loadingScope: 'page' | 'all' | null;
-  setLoading: (loading: boolean, scope?: 'page' | 'all' | null) => void;
-}
-
-const useQuotaPagination = <T,>(items: T[], defaultPageSize = 6): QuotaPaginationState<T> => {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSizeState] = useState(defaultPageSize);
-  const [loading, setLoadingState] = useState(false);
-  const [loadingScope, setLoadingScope] = useState<'page' | 'all' | null>(null);
-
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(items.length / pageSize)),
-    [items.length, pageSize]
-  );
-
-  const currentPage = useMemo(() => Math.min(page, totalPages), [page, totalPages]);
-
-  const pageItems = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return items.slice(start, start + pageSize);
-  }, [items, currentPage, pageSize]);
-
-  const setPageSize = useCallback((size: number) => {
-    setPageSizeState(size);
-    setPage(1);
-  }, []);
-
-  const goToPage = useCallback(
-    (nextPage: number) => {
-      setPage(Math.max(1, Math.min(totalPages, nextPage)));
-    },
-    [totalPages]
-  );
-
-  const goToPrev = useCallback(() => {
-    setPage((prev) => Math.max(1, prev - 1));
-  }, []);
-
-  const goToNext = useCallback(() => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  }, [totalPages]);
-
-  const setLoading = useCallback((isLoading: boolean, scope?: 'page' | 'all' | null) => {
-    setLoadingState(isLoading);
-    setLoadingScope(isLoading ? (scope ?? null) : null);
-  }, []);
-
-  return {
-    pageSize,
-    totalPages,
-    currentPage,
-    pageItems,
-    setPageSize,
-    goToPage,
-    goToPrev,
-    goToNext,
-    loading,
-    loadingScope,
-    setLoading
-  };
-};
 
 interface QuotaSectionProps<TState extends QuotaStatusState, TData> {
   config: QuotaConfig<TState, TData>;
@@ -126,6 +55,13 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const [viewMode, setViewMode] = useState<ViewMode>('paged');
   const [showTooManyWarning, setShowTooManyWarning] = useState(false);
   const [resettingQuotaNames, setResettingQuotaNames] = useState<Set<string>>(() => new Set());
+  const [sectionLoading, setSectionLoading] = useState(false);
+  const [loadingScope, setLoadingScope] = useState<'page' | 'all' | null>(null);
+
+  const setLoading = useCallback((isLoading: boolean, scope?: 'page' | 'all' | null) => {
+    setSectionLoading(isLoading);
+    setLoadingScope(isLoading ? (scope ?? null) : null);
+  }, []);
 
   const filteredFiles = useMemo(() => files.filter((file) => config.filterFn(file)), [
     files,
@@ -137,13 +73,10 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
   const {
     totalPages,
     currentPage,
-    pageItems,
+    pagedItems: pageItems,
     setPageSize,
-    goToPage,
-    loading: sectionLoading,
-    loadingScope,
-    setLoading
-  } = useQuotaPagination(filteredFiles);
+    setPage: goToPage,
+  } = useClientPagination(filteredFiles, { initialPageSize: 6 });
 
   useEffect(() => {
     if (showAllAllowed) return;

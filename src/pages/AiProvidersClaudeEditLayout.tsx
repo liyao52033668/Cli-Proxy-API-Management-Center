@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useUnsavedChangesGuard, useEditIndexParam } from '@/hooks';
 import { providersApi } from '@/services/api';
 import { useAuthStore, useClaudeEditDraftStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { ProviderKeyConfig } from '@/types';
@@ -52,12 +52,6 @@ const buildEmptyForm = (): ProviderFormState => ({
   modelEntries: [{ name: '', alias: '' }],
   excludedText: '',
 });
-
-const parseIndexParam = (value: string | undefined) => {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -121,9 +115,7 @@ export function AiProvidersClaudeEditLayout() {
   const { showNotification } = useNotificationStore();
 
   const params = useParams<{ index?: string }>();
-  const hasIndexParam = typeof params.index === 'string';
-  const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
-  const invalidIndexParam = hasIndexParam && editIndex === null;
+  const { hasIndexParam, editIndex, invalidIndexParam } = useEditIndexParam();
 
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';

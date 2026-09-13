@@ -442,6 +442,38 @@ export const normalizeExcludedModels = (value: unknown): string[] => {
 export const parseExcludedModelsText = (value: string): string[] =>
   normalizeExcludedModels(value.split(/[\n,]+/));
 
+export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
+  'gemini-cli',
+  'vertex',
+  'aistudio',
+  'antigravity',
+  'claude',
+  'codex',
+  'qwen',
+  'kimi',
+  'iflow',
+  'bt',
+  'codearts',
+  'codebuddy',
+  'codebuddy-ai',
+  'cursor',
+  'github-copilot',
+  'gitlab',
+  'joycode',
+  'kilo',
+  'kiro',
+  'qoder',
+  'commandcode',
+  'xai',
+];
+
+export const DEFAULT_OAUTH_PROVIDER_EXCLUDES = new Set([
+  'all',
+  'unknown',
+  'empty',
+  'oauth-excluded-models',
+]);
+
 export const parseDisableCoolingValue = (value: unknown): boolean | undefined => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number' && Number.isFinite(value)) return value !== 0;

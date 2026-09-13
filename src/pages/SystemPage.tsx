@@ -25,7 +25,7 @@ import {
   useThemeStore,
 } from '@/stores';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
-import { copyToClipboard } from '@/utils/clipboard';
+import { useCopy } from '@/hooks';
 import { classifyModels } from '@/utils/models';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +75,7 @@ const compareVersions = (latest?: string | null, current?: string | null) => {
 export function SystemPage() {
   const { t, i18n } = useTranslation();
   const { showNotification, showConfirmation } = useNotificationStore();
+  const { copy } = useCopy({ includeValueInSuccess: true });
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
   const auth = useAuthStore();
   const config = useConfigStore((state) => state.config);
@@ -215,15 +216,9 @@ export function SystemPage() {
 
   const handleModelIdCopy = useCallback(
     async (modelId: string) => {
-      const copied = await copyToClipboard(modelId);
-      showNotification(
-        copied
-          ? `${t('notification.link_copied', { defaultValue: 'Copied to clipboard' })}: ${modelId}`
-          : t('notification.copy_failed', { defaultValue: 'Copy failed' }),
-        copied ? 'success' : 'error'
-      );
+      await copy(modelId);
     },
-    [showNotification, t]
+    [copy]
   );
 
   const fetchModelsAndStats = async ({ forceRefresh = false }: { forceRefresh?: boolean } = {}) => {

@@ -25,7 +25,7 @@ import { Select } from '@/components/ui/Select';
 import { oauthApi, type OAuthProvider } from '@/services/api/oauth';
 import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
 import { useNotificationStore, useThemeStore } from '@/stores';
-import { copyToClipboard } from '@/utils/clipboard';
+import { useCopy } from '@/hooks';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -130,6 +130,7 @@ export function OAuthPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { showNotification } = useNotificationStore();
+  const { copy } = useCopy();
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
   const [states, setStates] = useState<Record<OAuthProvider, ProviderState>>({} as Record<OAuthProvider, ProviderState>);
   const [vertexState, setVertexState] = useState<VertexImportState>({
@@ -694,11 +695,7 @@ export function OAuthPage() {
 
   const copyLink = async (url?: string) => {
     if (!url) return;
-    const copied = await copyToClipboard(url);
-    showNotification(
-      t(copied ? 'notification.link_copied' : 'notification.copy_failed'),
-      copied ? 'success' : 'error'
-    );
+    await copy(url);
   };
 
   const submitCallback = async (provider: OAuthProvider) => {
@@ -1164,13 +1161,7 @@ export function OAuthPage() {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={async () => {
-                              const copied = await copyToClipboard(state.deviceCode!);
-                              showNotification(
-                                t(copied ? 'notification.link_copied' : 'notification.copy_failed'),
-                                copied ? 'success' : 'error'
-                              );
-                            }}
+                            onClick={() => void copy(state.deviceCode!)}
                           >
                             复制设备码
                           </Button>

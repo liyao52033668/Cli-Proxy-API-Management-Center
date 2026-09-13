@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { ModelInputList } from '@/components/ui/ModelInputList';
-import { Modal } from '@/components/ui/Modal';
-import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
-import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
-import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useEdgeSwipeBack, useUnsavedChangesGuard, useEditIndexParam } from '@/hooks';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { apiCallApi, getApiCallErrorMessage, modelsApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
@@ -32,7 +29,9 @@ import {
 } from '@/components/providers/utils';
 import {
   ModelStatusIcon,
+  ModelDiscoveryModal,
   ProviderConnectivityTestPanel,
+  useModelDiscovery,
   useProviderConnectivityTest,
   type GeminiFormState,
 } from '@/components/providers';
@@ -70,12 +69,6 @@ const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
   return '';
-};
-
-const parseIndexParam = (value: string | undefined) => {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const stripGeminiModelResourceName = (value: string) => {
@@ -125,7 +118,7 @@ export function AiProvidersGeminiEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ index?: string }>();
+  const { editIndex, invalidIndexParam } = useEditIndexParam();
 
   const { showNotification } = useNotificationStore();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
@@ -142,12 +135,45 @@ export function AiProvidersGeminiEditPage() {
 
   const [modelDiscoveryOpen, setModelDiscoveryOpen] = useState(false);
   const [modelDiscoveryEndpoint, setModelDiscoveryEndpoint] = useState('');
-  const [discoveredModels, setDiscoveredModels] = useState<ModelInfo[]>([]);
-  const [modelDiscoveryFetching, setModelDiscoveryFetching] = useState(false);
-  const [modelDiscoveryError, setModelDiscoveryError] = useState('');
-  const [modelDiscoverySearch, setModelDiscoverySearch] = useState('');
-  const [modelDiscoverySelected, setModelDiscoverySelected] = useState<Set<string>>(new Set());
-  const modelDiscoveryRequestIdRef = useRef(0);
+
+  const fetchGeminiModelsApi = useCallback(async (): Promise<ModelInfo[]> => {
+    const headerObject = buildHeaderObject(form.headers);
+    try {
+      return await modelsApi.fetchGeminiModelsViaApiCall(
+        form.baseUrl ?? '',
+        form.apiKey.trim() || undefined,
+        headerObject
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+      const hasCustomXGoogApiKey = Object.keys(headerObject).some(
+        (key) => key.toLowerCase() === 'x-goog-api-key'
+      );
+      const hasAuthorization = Object.keys(headerObject).some(
+        (key) => key.toLowerCase() === 'authorization'
+      );
+      const shouldAttachDiag = message.toLowerCase().includes('api key') || message.includes('401');
+      const diag = shouldAttachDiag
+        ? ` [diag: apiKeyField=${form.apiKey.trim() ? 'yes' : 'no'}, customXGoogApiKey=${
+            hasCustomXGoogApiKey ? 'yes' : 'no'
+          }, customAuthorization=${hasAuthorization ? 'yes' : 'no'}]`
+        : '';
+      throw new Error(`${t('ai_providers.gemini_models_fetch_error')}: ${message}${diag}`, {
+        cause: err,
+      });
+    }
+  }, [form.apiKey, form.baseUrl, form.headers, t]);
+
+  const modelDiscovery = useModelDiscovery<ModelInfo>({
+    fetcher: fetchGeminiModelsApi,
+    getKey: (model) => model.name,
+    filterFn: (model, filter) => {
+      const name = (model.name || '').toLowerCase();
+      const alias = (model.alias || '').toLowerCase();
+      const description = (model.description || '').toLowerCase();
+      return name.includes(filter) || alias.includes(filter) || description.includes(filter);
+    },
+  });
 
   const {
     testModel,
@@ -171,10 +197,6 @@ export function AiProvidersGeminiEditPage() {
     setForm,
     extraSignature: [form.apiKey.trim(), String(form.baseUrl ?? '').trim(), form.headers.map((e) => `${e.key.trim()}:${e.value.trim()}`).join('|')].join('||'),
   });
-
-  const hasIndexParam = typeof params.index === 'string';
-  const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
-  const invalidIndexParam = hasIndexParam && editIndex === null;
 
   const initialData = useMemo(() => {
     if (editIndex === null) return undefined;
@@ -260,27 +282,6 @@ export function AiProvidersGeminiEditPage() {
   const canSave =
     !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex && !isTesting;
 
-  const discoveredModelsFiltered = useMemo(() => {
-    const filter = modelDiscoverySearch.trim().toLowerCase();
-    if (!filter) return discoveredModels;
-    return discoveredModels.filter((model) => {
-      const name = (model.name || '').toLowerCase();
-      const alias = (model.alias || '').toLowerCase();
-      const description = (model.description || '').toLowerCase();
-      return name.includes(filter) || alias.includes(filter) || description.includes(filter);
-    });
-  }, [discoveredModels, modelDiscoverySearch]);
-  const visibleDiscoveredModelNames = useMemo(
-    () => discoveredModelsFiltered.map((model) => model.name),
-    [discoveredModelsFiltered]
-  );
-  const allVisibleDiscoveredSelected = useMemo(
-    () =>
-      visibleDiscoveredModelNames.length > 0 &&
-      visibleDiscoveredModelNames.every((name) => modelDiscoverySelected.has(name)),
-    [modelDiscoverySelected, visibleDiscoveredModelNames]
-  );
-
   const mergeDiscoveredModels = useCallback(
     (selectedModels: ModelInfo[]) => {
       if (!selectedModels.length) return;
@@ -318,69 +319,11 @@ export function AiProvidersGeminiEditPage() {
     [setForm, showNotification, t]
   );
 
-  // Store the fetched models and drop any selected names that are no longer available.
-  const applyDiscoveredModels = useCallback((list: ModelInfo[]) => {
-    setDiscoveredModels(list);
-    const availableNames = new Set(list.map((model) => model.name));
-    setModelDiscoverySelected((prev) => {
-      let changed = false;
-      const next = new Set<string>();
-      prev.forEach((name) => {
-        if (availableNames.has(name)) {
-          next.add(name);
-        } else {
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, []);
-
-  const fetchGeminiModelDiscovery = useCallback(async () => {
-    const requestId = (modelDiscoveryRequestIdRef.current += 1);
-    setModelDiscoveryFetching(true);
-    setModelDiscoveryError('');
-    const headerObject = buildHeaderObject(form.headers);
-    try {
-      const list = await modelsApi.fetchGeminiModelsViaApiCall(
-        form.baseUrl ?? '',
-        form.apiKey.trim() || undefined,
-        headerObject
-      );
-      if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      applyDiscoveredModels(list);
-    } catch (err: unknown) {
-      if (modelDiscoveryRequestIdRef.current !== requestId) return;
-      applyDiscoveredModels([]);
-      const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
-      const hasCustomXGoogApiKey = Object.keys(headerObject).some(
-        (key) => key.toLowerCase() === 'x-goog-api-key'
-      );
-      const hasAuthorization = Object.keys(headerObject).some(
-        (key) => key.toLowerCase() === 'authorization'
-      );
-      const shouldAttachDiag = message.toLowerCase().includes('api key') || message.includes('401');
-      const diag = shouldAttachDiag
-        ? ` [diag: apiKeyField=${form.apiKey.trim() ? 'yes' : 'no'}, customXGoogApiKey=${
-            hasCustomXGoogApiKey ? 'yes' : 'no'
-          }, customAuthorization=${hasAuthorization ? 'yes' : 'no'}]`
-        : '';
-      setModelDiscoveryError(`${t('ai_providers.gemini_models_fetch_error')}: ${message}${diag}`);
-    } finally {
-      if (modelDiscoveryRequestIdRef.current === requestId) {
-        setModelDiscoveryFetching(false);
-      }
-    }
-  }, [applyDiscoveredModels, form.apiKey, form.baseUrl, form.headers, t]);
-
   // Reset discovery state and auto-fetch when the modal is opened.
   const handleOpenModelDiscovery = useCallback(() => {
     const nextEndpoint = modelsApi.buildGeminiModelsEndpoint(form.baseUrl ?? '');
     setModelDiscoveryEndpoint(nextEndpoint);
-    setDiscoveredModels([]);
-    setModelDiscoverySearch('');
-    setModelDiscoverySelected(new Set());
-    setModelDiscoveryError('');
+    modelDiscovery.resetState();
     setModelDiscoveryOpen(true);
 
     const headerObject = buildHeaderObject(form.headers);
@@ -394,39 +337,12 @@ export function AiProvidersGeminiEditPage() {
 
     if (!hasApiKeyField && !hasCustomXGoogApiKey && !hasAuthorization) return;
 
-    void fetchGeminiModelDiscovery();
-  }, [fetchGeminiModelDiscovery, form.apiKey, form.baseUrl, form.headers]);
-
-  const toggleModelDiscoverySelection = (name: string) => {
-    setModelDiscoverySelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
-  };
-
-  const handleSelectVisibleDiscoveredModels = useCallback(() => {
-    setModelDiscoverySelected((prev) => {
-      const next = new Set(prev);
-      visibleDiscoveredModelNames.forEach((name) => next.add(name));
-      return next;
-    });
-  }, [visibleDiscoveredModelNames]);
-
-  const handleClearDiscoveredModelSelection = useCallback(() => {
-    setModelDiscoverySelected(new Set());
-  }, []);
+    void modelDiscovery.executeFetch();
+  }, [form.apiKey, form.baseUrl, form.headers, modelDiscovery]);
 
   const handleApplyDiscoveredModels = () => {
-    const selectedModels = discoveredModels.filter((model) =>
-      modelDiscoverySelected.has(model.name)
-    );
-    if (selectedModels.length) {
-      mergeDiscoveredModels(selectedModels);
+    if (modelDiscovery.selectedItems.length) {
+      mergeDiscoveredModels(modelDiscovery.selectedItems);
     }
     setModelDiscoveryOpen(false);
   };
@@ -813,7 +729,10 @@ export function AiProvidersGeminiEditPage() {
   const canOpenModelDiscovery =
     !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex;
   const canApplyModelDiscovery =
-    !disableControls && !saving && !modelDiscoveryFetching && modelDiscoverySelected.size > 0;
+    !disableControls &&
+    !saving &&
+    !modelDiscovery.fetching &&
+    modelDiscovery.selectedKeys.size > 0;
 
   return (
     <SecondaryScreenShell
@@ -1016,149 +935,33 @@ export function AiProvidersGeminiEditPage() {
               <div className="hint">{t('ai_providers.excluded_models_hint')}</div>
             </div>
 
-            <Modal
+            <ModelDiscoveryModal<ModelInfo>
               open={modelDiscoveryOpen}
               title={t('ai_providers.gemini_models_fetch_title')}
               onClose={() => setModelDiscoveryOpen(false)}
-              width={720}
-              footer={
-                <>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setModelDiscoveryOpen(false)}
-                    disabled={modelDiscoveryFetching}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleApplyDiscoveredModels}
-                    disabled={!canApplyModelDiscovery}
-                  >
-                    {t('ai_providers.gemini_models_fetch_apply')}
-                  </Button>
-                </>
-              }
-            >
-              <div className={styles.openaiModelsContent}>
-                <div className={styles.sectionHint}>
-                  {t('ai_providers.gemini_models_fetch_hint')}
-                </div>
-                <div className={styles.openaiModelsEndpointSection}>
-                  <label className={styles.openaiModelsEndpointLabel}>
-                    {t('ai_providers.gemini_models_fetch_url_label')}
-                  </label>
-                  <div className={styles.openaiModelsEndpointControls}>
-                    <input
-                      className={`input ${styles.openaiModelsEndpointInput}`}
-                      readOnly
-                      value={modelDiscoveryEndpoint}
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void fetchGeminiModelDiscovery()}
-                      loading={modelDiscoveryFetching}
-                      disabled={disableControls || saving}
-                    >
-                      {t('ai_providers.gemini_models_fetch_refresh')}
-                    </Button>
-                  </div>
-                </div>
-                <Input
-                  label={t('ai_providers.gemini_models_search_label')}
-                  placeholder={t('ai_providers.gemini_models_search_placeholder')}
-                  value={modelDiscoverySearch}
-                  onChange={(e) => setModelDiscoverySearch(e.target.value)}
-                  disabled={modelDiscoveryFetching}
-                />
-                {discoveredModels.length > 0 && (
-                  <div className={styles.modelDiscoveryToolbar}>
-                    <div className={styles.modelDiscoveryToolbarActions}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleSelectVisibleDiscoveredModels}
-                        disabled={
-                          disableControls ||
-                          saving ||
-                          modelDiscoveryFetching ||
-                          discoveredModelsFiltered.length === 0 ||
-                          allVisibleDiscoveredSelected
-                        }
-                      >
-                        {t('ai_providers.model_discovery_select_visible')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearDiscoveredModelSelection}
-                        disabled={
-                          disableControls ||
-                          saving ||
-                          modelDiscoveryFetching ||
-                          modelDiscoverySelected.size === 0
-                        }
-                      >
-                        {t('ai_providers.model_discovery_clear_selection')}
-                      </Button>
-                    </div>
-                    <div className={styles.modelDiscoverySelectionSummary}>
-                      {t('ai_providers.model_discovery_selected_count', {
-                        count: modelDiscoverySelected.size,
-                      })}
-                    </div>
-                  </div>
-                )}
-                {modelDiscoveryError && <div className="error-box">{modelDiscoveryError}</div>}
-                {modelDiscoveryFetching ? (
-                  <div className={styles.sectionHint}>
-                    {t('ai_providers.gemini_models_fetch_loading')}
-                  </div>
-                ) : discoveredModels.length === 0 ? (
-                  <div className={styles.sectionHint}>
-                    {t('ai_providers.gemini_models_fetch_empty')}
-                  </div>
-                ) : discoveredModelsFiltered.length === 0 ? (
-                  <div className={styles.sectionHint}>
-                    {t('ai_providers.gemini_models_search_empty')}
-                  </div>
-                ) : (
-                  <div className={styles.modelDiscoveryList}>
-                    {discoveredModelsFiltered.map((model) => {
-                      const checked = modelDiscoverySelected.has(model.name);
-                      return (
-                        <SelectionCheckbox
-                          key={model.name}
-                          checked={checked}
-                          onChange={() => toggleModelDiscoverySelection(model.name)}
-                          disabled={disableControls || saving || modelDiscoveryFetching}
-                          ariaLabel={model.name}
-                          className={`${styles.modelDiscoveryRow} ${
-                            checked ? styles.modelDiscoveryRowSelected : ''
-                          }`}
-                          labelClassName={styles.modelDiscoverySelectionLabel}
-                          label={
-                            <div className={styles.modelDiscoveryMeta}>
-                              <div className={styles.modelDiscoveryName}>
-                                {model.name}
-                                {model.alias && (
-                                  <span className={styles.modelDiscoveryAlias}>{model.alias}</span>
-                                )}
-                              </div>
-                              {model.description && (
-                                <div className={styles.modelDiscoveryDesc}>{model.description}</div>
-                              )}
-                            </div>
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </Modal>
+              onApply={handleApplyDiscoveredModels}
+              canApply={canApplyModelDiscovery}
+              applyLabel={t('ai_providers.gemini_models_fetch_apply')}
+              hint={t('ai_providers.gemini_models_fetch_hint')}
+              endpoint={modelDiscoveryEndpoint}
+              endpointLabel={t('ai_providers.gemini_models_fetch_url_label')}
+              searchLabel={t('ai_providers.gemini_models_search_label')}
+              searchPlaceholder={t('ai_providers.gemini_models_search_placeholder')}
+              items={modelDiscovery.items}
+              filteredItems={modelDiscovery.filteredItems}
+              fetching={modelDiscovery.fetching}
+              error={modelDiscovery.error}
+              search={modelDiscovery.search}
+              onSearchChange={modelDiscovery.setSearch}
+              selectedKeys={modelDiscovery.selectedKeys}
+              allVisibleSelected={modelDiscovery.allVisibleSelected}
+              getKey={(m) => m.name}
+              onRefresh={() => void modelDiscovery.executeFetch()}
+              onSelectVisible={modelDiscovery.selectVisible}
+              onClearSelection={modelDiscovery.clearSelection}
+              onToggleItem={modelDiscovery.toggleSelection}
+              disabled={disableControls || saving}
+            />
           </>
         )}
       </Card>

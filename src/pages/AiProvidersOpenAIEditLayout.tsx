@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useUnsavedChangesGuard, useEditIndexParam } from '@/hooks';
 import { providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore, useOpenAIEditDraftStore } from '@/stores';
 import { entriesToModels, modelsToEntries } from '@/components/ui/modelInputListUtils';
@@ -57,12 +57,6 @@ const buildEmptyForm = (): OpenAIFormState => ({
   modelEntries: [{ name: '', alias: '' }],
   testModel: undefined,
 });
-
-const parseIndexParam = (value: string | undefined) => {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -159,9 +153,7 @@ export function AiProvidersOpenAIEditLayout() {
   const { showNotification } = useNotificationStore();
 
   const params = useParams<{ index?: string }>();
-  const hasIndexParam = typeof params.index === 'string';
-  const editIndex = useMemo(() => parseIndexParam(params.index), [params.index]);
-  const invalidIndexParam = hasIndexParam && editIndex === null;
+  const { hasIndexParam, editIndex, invalidIndexParam } = useEditIndexParam();
 
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const disableControls = connectionStatus !== 'connected';

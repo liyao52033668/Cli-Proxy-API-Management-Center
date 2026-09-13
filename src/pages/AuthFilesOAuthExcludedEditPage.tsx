@@ -5,35 +5,20 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
-import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { IconInfo } from '@/components/ui/icons';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useAuthStore, useNotificationStore } from '@/stores';
 import { authFilesApi } from '@/services/api';
+import { OAuthProviderSelectBar } from '@/features/authFiles/components/OAuthProviderSelectBar';
+import { normalizeProviderKey } from '@/features/authFiles/constants';
 import type { AuthFileItem, OAuthModelAliasEntry } from '@/types';
 import styles from './AuthFilesOAuthExcludedEditPage.module.scss';
 
 type AuthFileModelItem = { id: string; display_name?: string; type?: string; owned_by?: string };
 
 type LocationState = { fromAuthFiles?: boolean } | null;
-
-const OAUTH_PROVIDER_PRESETS = [
-  'gemini-cli',
-  'vertex',
-  'aistudio',
-  'antigravity',
-  'claude',
-  'codex',
-  'qwen',
-  'kimi',
-  'iflow',
-];
-
-const OAUTH_PROVIDER_EXCLUDES = new Set(['all', 'unknown', 'empty']);
-
-const normalizeProviderKey = (value: string) => value.trim().toLowerCase();
 
 export function AuthFilesOAuthExcludedEditPage() {
   const { t } = useTranslation();
@@ -68,42 +53,6 @@ export function AuthFilesOAuthExcludedEditPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- provider mirrors the ?provider= URL param so browser back/forward stays in sync; the field is also edited locally with untrimmed input, so it cannot be derived purely from the param
     setProvider(providerFromParams);
   }, [providerFromParams]);
-
-  const providerOptions = useMemo(() => {
-    const extraProviders = new Set<string>();
-    Object.keys(excluded).forEach((value) => extraProviders.add(value));
-    Object.keys(modelAlias).forEach((value) => extraProviders.add(value));
-    files.forEach((file) => {
-      if (typeof file.type === 'string') {
-        extraProviders.add(file.type);
-      }
-      if (typeof file.provider === 'string') {
-        extraProviders.add(file.provider);
-      }
-    });
-
-    const normalizedExtras = Array.from(extraProviders)
-      .map((value) => value.trim())
-      .filter((value) => value && !OAUTH_PROVIDER_EXCLUDES.has(value.toLowerCase()));
-
-    const baseSet = new Set(OAUTH_PROVIDER_PRESETS.map((value) => value.toLowerCase()));
-    const extraList = normalizedExtras
-      .filter((value) => !baseSet.has(value.toLowerCase()))
-      .sort((a, b) => a.localeCompare(b));
-
-    return [...OAUTH_PROVIDER_PRESETS, ...extraList];
-  }, [excluded, files, modelAlias]);
-
-  const getTypeLabel = useCallback(
-    (type: string): string => {
-      const key = `auth_files.filter_${type}`;
-      const translated = t(key);
-      if (translated !== key) return translated;
-      if (type.toLowerCase() === 'iflow') return 'iFlow';
-      return type.charAt(0).toUpperCase() + type.slice(1);
-    },
-    [t]
-  );
 
   const resolvedProviderKey = useMemo(() => normalizeProviderKey(provider), [provider]);
   const isEditing = useMemo(() => {
@@ -412,44 +361,15 @@ export function AuthFilesOAuthExcludedEditPage() {
               <div className={styles.settingsHeaderHint}>{t('oauth_excluded.description')}</div>
             </div>
 
-            <div className={styles.settingsSection}>
-              <div className={styles.settingsRow}>
-                <div className={styles.settingsInfo}>
-                  <div className={styles.settingsLabel}>{t('oauth_excluded.provider_label')}</div>
-                  <div className={styles.settingsDesc}>{t('oauth_excluded.provider_hint')}</div>
-                </div>
-                <div className={styles.settingsControl}>
-                  <AutocompleteInput
-                    id="oauth-excluded-provider"
-                    placeholder={t('oauth_excluded.provider_placeholder')}
-                    value={provider}
-                    onChange={updateProvider}
-                    options={providerOptions}
-                    disabled={disableControls || saving}
-                    wrapperStyle={{ marginBottom: 0 }}
-                  />
-                </div>
-              </div>
-
-              {providerOptions.length > 0 && (
-                <div className={styles.tagList}>
-                  {providerOptions.map((option) => {
-                    const isActive = normalizeProviderKey(provider) === option.toLowerCase();
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        className={`${styles.tag} ${isActive ? styles.tagActive : ''}`}
-                        onClick={() => updateProvider(option)}
-                        disabled={disableControls || saving}
-                      >
-                        {getTypeLabel(option)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <OAuthProviderSelectBar
+              id="oauth-excluded-provider"
+              provider={provider}
+              onChange={updateProvider}
+              disabled={disableControls || saving}
+              files={files}
+              excluded={excluded}
+              modelAlias={modelAlias}
+            />
           </Card>
 
           <Card className={styles.settingsCard}>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListPagination } from '@/components/common/ListPagination';
+import { useClientPagination } from '@/hooks';
 import { Card } from '@/components/ui/Card';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
@@ -66,7 +67,6 @@ export function CredentialStatsCard({
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [sortKey, setSortKey] = useState<SortKey>('requests');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [pageState, setPageState] = useState({ keyStats, page: 1 });
   const hasPrices = Object.keys(modelPrices).length > 0;
 
   useEffect(() => {
@@ -240,18 +240,6 @@ export function CredentialStatsCard({
 
   const effectiveSortKey: SortKey = hasPrices || sortKey !== 'cost' ? sortKey : 'requests';
   const effectiveSortDir: SortDir = hasPrices || sortKey !== 'cost' ? sortDir : 'desc';
-  const setPage = (page: number) => setPageState({ keyStats, page });
-
-  const handleSort = (key: SortKey) => {
-    if (key === 'cost' && !hasPrices) return;
-    setPage(1);
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir(key === 'credential' ? 'asc' : 'desc');
-    }
-  };
 
   const sorted = useMemo((): CredentialRow[] => {
     const list = [...rows];
@@ -275,12 +263,26 @@ export function CredentialStatsCard({
     return list;
   }, [effectiveSortDir, effectiveSortKey, rows]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const page = pageState.keyStats === keyStats ? Math.min(pageState.page, totalPages) : 1;
-  const pagedRows = useMemo(
-    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [page, sorted]
-  );
+  const {
+    currentPage: page,
+    totalPages,
+    pagedItems: pagedRows,
+    setPage,
+  } = useClientPagination(sorted, {
+    initialPageSize: PAGE_SIZE,
+    resetDeps: [keyStats],
+  });
+
+  const handleSort = (key: SortKey) => {
+    if (key === 'cost' && !hasPrices) return;
+    setPage(1);
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'credential' ? 'asc' : 'desc');
+    }
+  };
 
   const arrow = (key: SortKey) =>
     effectiveSortKey === key ? (effectiveSortDir === 'asc' ? ' ▲' : ' ▼') : '';
