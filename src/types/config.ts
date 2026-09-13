@@ -12,11 +12,26 @@ export interface QuotaExceededConfig {
   antigravityCredits?: boolean;
 }
 
+export interface AntigravityConnectionPoolConfig {
+  enabled?: boolean;
+  idleConnTimeout?: string;
+  maxIdleConnsPerHost?: number;
+}
+
+export interface AntigravityConfig {
+  sensitiveWords?: string[];
+  connectionPool?: AntigravityConnectionPoolConfig;
+}
+
 export interface Config {
   debug?: boolean;
   proxyUrl?: string;
   requestRetry?: number;
+  transientErrorCooldownSeconds?: number;
+  authAutoRefreshWorkers?: number;
+  codexModelLevelCooling?: boolean;
   quotaExceeded?: QuotaExceededConfig;
+  antigravity?: AntigravityConfig;
   usageStatisticsEnabled?: boolean;
   requestLog?: boolean;
   loggingToFile?: boolean;
@@ -40,7 +55,11 @@ export type RawConfigSection =
   | 'debug'
   | 'proxy-url'
   | 'request-retry'
+  | 'transient-error-cooldown-seconds'
+  | 'auth-auto-refresh-workers'
+  | 'codex-model-level-cooling'
   | 'quota-exceeded'
+  | 'antigravity'
   | 'usage-statistics-enabled'
   | 'request-log'
   | 'logging-to-file'

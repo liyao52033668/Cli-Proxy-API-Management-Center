@@ -524,6 +524,65 @@ export const normalizeConfigResponse = (raw: unknown): Config => {
     }
   }
 
+  const transientErrorCooldownSeconds =
+    raw['transient-error-cooldown-seconds'] ?? raw.transientErrorCooldownSeconds;
+  if (typeof transientErrorCooldownSeconds === 'number' && Number.isFinite(transientErrorCooldownSeconds)) {
+    config.transientErrorCooldownSeconds = transientErrorCooldownSeconds;
+  } else if (typeof transientErrorCooldownSeconds === 'string' && transientErrorCooldownSeconds.trim() !== '') {
+    const parsed = Number(transientErrorCooldownSeconds);
+    if (Number.isFinite(parsed)) {
+      config.transientErrorCooldownSeconds = parsed;
+    }
+  }
+
+  const authAutoRefreshWorkers =
+    raw['auth-auto-refresh-workers'] ?? raw.authAutoRefreshWorkers;
+  if (typeof authAutoRefreshWorkers === 'number' && Number.isFinite(authAutoRefreshWorkers)) {
+    config.authAutoRefreshWorkers = authAutoRefreshWorkers;
+  } else if (typeof authAutoRefreshWorkers === 'string' && authAutoRefreshWorkers.trim() !== '') {
+    const parsed = Number(authAutoRefreshWorkers);
+    if (Number.isFinite(parsed)) {
+      config.authAutoRefreshWorkers = parsed;
+    }
+  }
+
+  config.codexModelLevelCooling = normalizeBoolean(
+    raw['codex-model-level-cooling'] ?? raw.codexModelLevelCooling
+  );
+
+  const antigravity = raw.antigravity;
+  if (isRecord(antigravity)) {
+    const sensitiveWordsRaw = antigravity['sensitive-words'] ?? antigravity.sensitiveWords;
+    const connectionPool = antigravity['connection-pool'] ?? antigravity.connectionPool;
+    const poolRecord = isRecord(connectionPool) ? connectionPool : null;
+    const maxIdleConnsRaw = poolRecord
+      ? (poolRecord['max-idle-conns-per-host'] ?? poolRecord.maxIdleConnsPerHost)
+      : undefined;
+
+    config.antigravity = {
+      sensitiveWords: Array.isArray(sensitiveWordsRaw)
+        ? sensitiveWordsRaw.map(String)
+        : undefined,
+      connectionPool: poolRecord
+        ? {
+            enabled: normalizeBoolean(poolRecord.enabled),
+            idleConnTimeout:
+              typeof poolRecord['idle-conn-timeout'] === 'string'
+                ? poolRecord['idle-conn-timeout']
+                : typeof poolRecord.idleConnTimeout === 'string'
+                  ? poolRecord.idleConnTimeout
+                  : undefined,
+            maxIdleConnsPerHost:
+              typeof maxIdleConnsRaw === 'number' && Number.isFinite(maxIdleConnsRaw)
+                ? maxIdleConnsRaw
+                : typeof maxIdleConnsRaw === 'string' && Number.isFinite(Number(maxIdleConnsRaw))
+                  ? Number(maxIdleConnsRaw)
+                  : undefined,
+          }
+        : undefined,
+    };
+  }
+
   const quota = raw['quota-exceeded'] ?? raw.quotaExceeded;
   if (isRecord(quota)) {
     config.quotaExceeded = {

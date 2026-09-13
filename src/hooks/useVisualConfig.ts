@@ -127,6 +127,13 @@ function setIntFromStringInDoc(doc: YamlDocument, path: YamlPath, value: unknown
   }
 }
 
+function getIntegerError(value: string): 'integer' | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^-?\d+$/.test(trimmed)) return 'integer';
+  return undefined;
+}
+
 function getNonNegativeIntegerError(value: string): 'non_negative_integer' | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -155,6 +162,11 @@ export function getVisualConfigValidationErrors(
     requestRetry: getNonNegativeIntegerError(values.requestRetry),
     maxRetryCredentials: getNonNegativeIntegerError(values.maxRetryCredentials),
     maxRetryInterval: getNonNegativeIntegerError(values.maxRetryInterval),
+    transientErrorCooldownSeconds: getIntegerError(values.transientErrorCooldownSeconds),
+    authAutoRefreshWorkers: getNonNegativeIntegerError(values.authAutoRefreshWorkers),
+    antigravityConnectionPoolMaxIdleConnsPerHost: getNonNegativeIntegerError(
+      values.antigravityConnectionPoolMaxIdleConnsPerHost
+    ),
     'streaming.keepaliveSeconds': getNonNegativeIntegerError(values.streaming.keepaliveSeconds),
     'streaming.bootstrapRetries': getNonNegativeIntegerError(values.streaming.bootstrapRetries),
     'streaming.nonstreamKeepaliveInterval': getNonNegativeIntegerError(
@@ -783,8 +795,26 @@ function getNextDirtyFields(
       nextValues.maxRetryInterval === baselineValues.maxRetryInterval
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'transientErrorCooldownSeconds')) {
+    updateDirty(
+      'transientErrorCooldownSeconds',
+      nextValues.transientErrorCooldownSeconds === baselineValues.transientErrorCooldownSeconds
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'authAutoRefreshWorkers')) {
+    updateDirty(
+      'authAutoRefreshWorkers',
+      nextValues.authAutoRefreshWorkers === baselineValues.authAutoRefreshWorkers
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'disableCooling')) {
     updateDirty('disableCooling', nextValues.disableCooling === baselineValues.disableCooling);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'codexModelLevelCooling')) {
+    updateDirty(
+      'codexModelLevelCooling',
+      nextValues.codexModelLevelCooling === baselineValues.codexModelLevelCooling
+    );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'wsAuth')) {
     updateDirty('wsAuth', nextValues.wsAuth === baselineValues.wsAuth);
@@ -811,6 +841,26 @@ function getNextDirtyFields(
     updateDirty(
       'quotaAntigravityCredits',
       nextValues.quotaAntigravityCredits === baselineValues.quotaAntigravityCredits
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'antigravityConnectionPoolEnabled')) {
+    updateDirty(
+      'antigravityConnectionPoolEnabled',
+      nextValues.antigravityConnectionPoolEnabled === baselineValues.antigravityConnectionPoolEnabled
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'antigravityConnectionPoolIdleConnTimeout')) {
+    updateDirty(
+      'antigravityConnectionPoolIdleConnTimeout',
+      nextValues.antigravityConnectionPoolIdleConnTimeout ===
+        baselineValues.antigravityConnectionPoolIdleConnTimeout
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'antigravityConnectionPoolMaxIdleConnsPerHost')) {
+    updateDirty(
+      'antigravityConnectionPoolMaxIdleConnsPerHost',
+      nextValues.antigravityConnectionPoolMaxIdleConnsPerHost ===
+        baselineValues.antigravityConnectionPoolMaxIdleConnsPerHost
     );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'routingStrategy')) {
@@ -962,6 +1012,8 @@ export function useVisualConfig() {
       const tls = asRecord(parsed.tls);
       const remoteManagement = asRecord(parsed['remote-management']);
       const quotaExceeded = asRecord(parsed['quota-exceeded']);
+      const antigravity = asRecord(parsed.antigravity);
+      const antigravityConnPool = asRecord(antigravity?.['connection-pool']);
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
@@ -1020,13 +1072,24 @@ export function useVisualConfig() {
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
+        transientErrorCooldownSeconds: String(parsed['transient-error-cooldown-seconds'] ?? ''),
+        authAutoRefreshWorkers: String(parsed['auth-auto-refresh-workers'] ?? ''),
         disableCooling: Boolean(parsed['disable-cooling']),
+        codexModelLevelCooling: Boolean(parsed['codex-model-level-cooling']),
         wsAuth: Boolean(parsed['ws-auth']),
         xaiInjectXSearch: Boolean(xai?.['inject-x-search']),
 
         quotaSwitchProject: Boolean(quotaExceeded?.['switch-project'] ?? true),
         quotaSwitchPreviewModel: Boolean(quotaExceeded?.['switch-preview-model'] ?? true),
         quotaAntigravityCredits: Boolean(quotaExceeded?.['antigravity-credits'] ?? true),
+        antigravityConnectionPoolEnabled: Boolean(antigravityConnPool?.enabled),
+        antigravityConnectionPoolIdleConnTimeout:
+          typeof antigravityConnPool?.['idle-conn-timeout'] === 'string'
+            ? antigravityConnPool['idle-conn-timeout']
+            : '',
+        antigravityConnectionPoolMaxIdleConnsPerHost: String(
+          antigravityConnPool?.['max-idle-conns-per-host'] ?? ''
+        ),
 
         routingStrategy: routing?.strategy === 'fill-first' ? 'fill-first' : 'round-robin',
         routingSessionAffinity: Boolean(
@@ -1237,8 +1300,25 @@ export function useVisualConfig() {
         if (isDirty('maxRetryInterval')) {
           setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
         }
+        if (isDirty('transientErrorCooldownSeconds')) {
+          setIntFromStringInDoc(
+            doc,
+            ['transient-error-cooldown-seconds'],
+            values.transientErrorCooldownSeconds
+          );
+        }
+        if (isDirty('authAutoRefreshWorkers')) {
+          setIntFromStringInDoc(
+            doc,
+            ['auth-auto-refresh-workers'],
+            values.authAutoRefreshWorkers
+          );
+        }
         if (isDirty('disableCooling')) {
           setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
+        }
+        if (isDirty('codexModelLevelCooling')) {
+          setBooleanInDoc(doc, ['codex-model-level-cooling'], values.codexModelLevelCooling);
         }
         if (isDirty('wsAuth')) {
           setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
@@ -1248,6 +1328,34 @@ export function useVisualConfig() {
           ensureMapInDoc(doc, ['xai']);
           setBooleanInDoc(doc, ['xai', 'inject-x-search'], values.xaiInjectXSearch);
           deleteIfMapEmpty(doc, ['xai']);
+        }
+
+        if (
+          isDirty(
+            'antigravityConnectionPoolEnabled',
+            'antigravityConnectionPoolIdleConnTimeout',
+            'antigravityConnectionPoolMaxIdleConnsPerHost'
+          )
+        ) {
+          ensureMapInDoc(doc, ['antigravity']);
+          ensureMapInDoc(doc, ['antigravity', 'connection-pool']);
+          setBooleanInDoc(
+            doc,
+            ['antigravity', 'connection-pool', 'enabled'],
+            values.antigravityConnectionPoolEnabled
+          );
+          setStringInDoc(
+            doc,
+            ['antigravity', 'connection-pool', 'idle-conn-timeout'],
+            values.antigravityConnectionPoolIdleConnTimeout
+          );
+          setIntFromStringInDoc(
+            doc,
+            ['antigravity', 'connection-pool', 'max-idle-conns-per-host'],
+            values.antigravityConnectionPoolMaxIdleConnsPerHost
+          );
+          deleteIfMapEmpty(doc, ['antigravity', 'connection-pool']);
+          deleteIfMapEmpty(doc, ['antigravity']);
         }
 
         if (

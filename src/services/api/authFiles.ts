@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from './client';
-import type { AuthFilePatchFields, AuthFilesResponse } from '@/types/authFile';
+import type { AuthFilePatchFields, AuthFilesRefreshAllResponse, AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
 import { AUTH_FILES_UPLOAD_BATCH_SIZE, AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
@@ -500,6 +500,9 @@ export const authFilesApi = {
 
   refreshAuthFile: (name: string) =>
     apiClient.post<AuthFileRefreshResponse>('/auth-files/refresh', { name }),
+
+  refreshAll: () =>
+    apiClient.post<AuthFilesRefreshAllResponse>('/auth-files/refresh-all', { all: true }),
 
   patchFields: (name: string, fields: AuthFilePatchFields) =>
     apiClient.patch<{ status: string }>('/auth-files/fields', { name, ...fields }),

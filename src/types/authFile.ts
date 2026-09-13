@@ -76,3 +76,15 @@ export interface AuthFilesResponse {
   files: AuthFileItem[];
   total?: number;
 }
+
+export interface ForceRefreshResult {
+  id: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface AuthFilesRefreshAllResponse {
+  ok: boolean;
+  results: ForceRefreshResult[];
+}
+

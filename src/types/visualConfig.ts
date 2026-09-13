@@ -12,13 +12,16 @@ export type VisualConfigFieldPath =
   | 'requestRetry'
   | 'maxRetryCredentials'
   | 'maxRetryInterval'
+  | 'transientErrorCooldownSeconds'
+  | 'authAutoRefreshWorkers'
+  | 'antigravityConnectionPoolMaxIdleConnsPerHost'
   | 'streaming.keepaliveSeconds'
   | 'streaming.bootstrapRetries'
   | 'streaming.nonstreamKeepaliveInterval';
 
 export type DisableImageGenerationValue = 'false' | 'true' | 'chat';
 
-export type VisualConfigValidationErrorCode = 'port_range' | 'non_negative_integer';
+export type VisualConfigValidationErrorCode = 'port_range' | 'non_negative_integer' | 'integer';
 
 export type VisualConfigValidationErrors = Partial<
   Record<VisualConfigFieldPath, VisualConfigValidationErrorCode>
@@ -95,10 +98,16 @@ export type VisualConfigValues = {
   requestRetry: string;
   maxRetryCredentials: string;
   maxRetryInterval: string;
+  transientErrorCooldownSeconds: string;
+  authAutoRefreshWorkers: string;
   disableCooling: boolean;
+  codexModelLevelCooling: boolean;
   quotaSwitchProject: boolean;
   quotaSwitchPreviewModel: boolean;
   quotaAntigravityCredits: boolean;
+  antigravityConnectionPoolEnabled: boolean;
+  antigravityConnectionPoolIdleConnTimeout: string;
+  antigravityConnectionPoolMaxIdleConnsPerHost: string;
   routingStrategy: 'round-robin' | 'fill-first';
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
@@ -151,10 +160,16 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   requestRetry: '',
   maxRetryCredentials: '',
   maxRetryInterval: '',
+  transientErrorCooldownSeconds: '',
+  authAutoRefreshWorkers: '',
   disableCooling: false,
+  codexModelLevelCooling: false,
   quotaSwitchProject: true,
   quotaSwitchPreviewModel: true,
   quotaAntigravityCredits: true,
+  antigravityConnectionPoolEnabled: false,
+  antigravityConnectionPoolIdleConnTimeout: '',
+  antigravityConnectionPoolMaxIdleConnsPerHost: '',
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',

@@ -236,6 +236,18 @@ export function VisualConfigEditor({
   const requestRetryError = getValidationMessage(t, validationErrors?.requestRetry);
   const maxRetryCredentialsError = getValidationMessage(t, validationErrors?.maxRetryCredentials);
   const maxRetryIntervalError = getValidationMessage(t, validationErrors?.maxRetryInterval);
+  const transientErrorCooldownSecondsError = getValidationMessage(
+    t,
+    validationErrors?.transientErrorCooldownSeconds
+  );
+  const authAutoRefreshWorkersError = getValidationMessage(
+    t,
+    validationErrors?.authAutoRefreshWorkers
+  );
+  const antigravityConnPoolMaxIdleConnsError = getValidationMessage(
+    t,
+    validationErrors?.antigravityConnectionPoolMaxIdleConnsPerHost
+  );
   const keepaliveError = getValidationMessage(t, validationErrors?.['streaming.keepaliveSeconds']);
   const bootstrapRetriesError = getValidationMessage(
     t,
@@ -305,7 +317,7 @@ export function VisualConfigEditor({
         title: t('config_management.visual.sections.auth.title'),
         description: t('config_management.visual.sections.auth.description'),
         icon: IconKey,
-        errorCount: 0,
+        errorCount: countErrors(['authAutoRefreshWorkers']),
       },
       {
         id: 'system',
@@ -323,7 +335,13 @@ export function VisualConfigEditor({
         title: t('config_management.visual.sections.network.title'),
         description: t('config_management.visual.sections.network.description'),
         icon: IconTrendingUp,
-        errorCount: countErrors(['requestRetry', 'maxRetryCredentials', 'maxRetryInterval']),
+        errorCount: countErrors([
+          'requestRetry',
+          'maxRetryCredentials',
+          'maxRetryInterval',
+          'transientErrorCooldownSeconds',
+          'antigravityConnectionPoolMaxIdleConnsPerHost',
+        ]),
       },
       {
         id: 'quota',
@@ -698,6 +716,16 @@ export function VisualConfigEditor({
                 disabled={disabled}
                 hint={t('config_management.visual.sections.auth.auth_dir_hint')}
               />
+              <Input
+                label={t('config_management.visual.sections.auth.auth_auto_refresh_workers')}
+                type="number"
+                placeholder="0"
+                value={values.authAutoRefreshWorkers}
+                onChange={(e) => onChange({ authAutoRefreshWorkers: e.target.value })}
+                disabled={disabled}
+                hint={t('config_management.visual.sections.auth.auth_auto_refresh_workers_hint')}
+                error={authAutoRefreshWorkersError}
+              />
               <SectionSubsection
                 title={t('config_management.visual.sections.auth.ignored_json_paths')}
                 description={t('config_management.visual.sections.auth.ignored_json_paths_desc')}
@@ -885,6 +913,18 @@ export function VisualConfigEditor({
                   disabled={disabled}
                   error={maxRetryIntervalError}
                 />
+                <Input
+                  label={t('config_management.visual.sections.network.transient_error_cooldown_seconds')}
+                  type="number"
+                  placeholder="0"
+                  value={values.transientErrorCooldownSeconds}
+                  onChange={(e) => onChange({ transientErrorCooldownSeconds: e.target.value })}
+                  disabled={disabled}
+                  hint={t(
+                    'config_management.visual.sections.network.transient_error_cooldown_seconds_hint'
+                  )}
+                  error={transientErrorCooldownSecondsError}
+                />
                 <FieldShell
                   label={t('config_management.visual.sections.network.routing_strategy')}
                   labelId={routingStrategyLabelId}
@@ -988,6 +1028,59 @@ export function VisualConfigEditor({
                   onChange={(xaiInjectXSearch) => onChange({ xaiInjectXSearch })}
                 />
               </SectionGrid>
+
+              <SectionSubsection
+                title={t('config_management.visual.sections.network.antigravity_pool_title')}
+                description={t(
+                  'config_management.visual.sections.network.antigravity_pool_description'
+                )}
+              >
+                <SectionGrid>
+                  <ToggleRow
+                    title={t(
+                      'config_management.visual.sections.network.antigravity_pool_enabled'
+                    )}
+                    description={t(
+                      'config_management.visual.sections.network.antigravity_pool_enabled_desc'
+                    )}
+                    checked={values.antigravityConnectionPoolEnabled}
+                    disabled={disabled}
+                    onChange={(antigravityConnectionPoolEnabled) =>
+                      onChange({ antigravityConnectionPoolEnabled })
+                    }
+                  />
+                  <Input
+                    label={t(
+                      'config_management.visual.sections.network.antigravity_pool_idle_timeout'
+                    )}
+                    placeholder="30s"
+                    value={values.antigravityConnectionPoolIdleConnTimeout}
+                    onChange={(e) =>
+                      onChange({ antigravityConnectionPoolIdleConnTimeout: e.target.value })
+                    }
+                    disabled={disabled}
+                    hint={t(
+                      'config_management.visual.sections.network.antigravity_pool_idle_timeout_hint'
+                    )}
+                  />
+                  <Input
+                    label={t(
+                      'config_management.visual.sections.network.antigravity_pool_max_idle_conns'
+                    )}
+                    type="number"
+                    placeholder="2"
+                    value={values.antigravityConnectionPoolMaxIdleConnsPerHost}
+                    onChange={(e) =>
+                      onChange({ antigravityConnectionPoolMaxIdleConnsPerHost: e.target.value })
+                    }
+                    disabled={disabled}
+                    hint={t(
+                      'config_management.visual.sections.network.antigravity_pool_max_idle_conns_hint'
+                    )}
+                    error={antigravityConnPoolMaxIdleConnsError}
+                  />
+                </SectionGrid>
+              </SectionSubsection>
             </SectionStack>
           </ConfigSection>
 
@@ -1008,6 +1101,15 @@ export function VisualConfigEditor({
                 checked={values.disableCooling}
                 disabled={disabled}
                 onChange={(disableCooling) => onChange({ disableCooling })}
+              />
+              <ToggleRow
+                title={t('config_management.visual.sections.quota.codex_model_level_cooling')}
+                description={t(
+                  'config_management.visual.sections.quota.codex_model_level_cooling_desc'
+                )}
+                checked={values.codexModelLevelCooling}
+                disabled={disabled}
+                onChange={(codexModelLevelCooling) => onChange({ codexModelLevelCooling })}
               />
               <ToggleRow
                 title={t('config_management.visual.sections.quota.switch_project')}

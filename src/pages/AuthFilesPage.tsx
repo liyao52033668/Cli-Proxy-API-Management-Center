@@ -224,6 +224,7 @@ export function AuthFilesPage() {
     deleting,
     deletingAll,
     refreshing,
+    refreshingAll,
     statusUpdating,
     batchStatusUpdating,
     fileInputRef,
@@ -234,6 +235,7 @@ export function AuthFilesPage() {
     handleDeleteAll,
     handleDownload,
     handleRefresh,
+    handleRefreshAll,
     handleStatusToggle,
     toggleSelect,
     selectAllVisible,
@@ -786,6 +788,16 @@ export function AuthFilesPage() {
           <div className={styles.headerActions}>
             <Button variant="secondary" size="sm" onClick={handleHeaderRefresh} disabled={loading}>
               {t('common.refresh')}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleRefreshAll()}
+              disabled={disableControls || loading || refreshingAll}
+              loading={refreshingAll}
+              title={t('auth_files.refresh_all_hint')}
+            >
+              {t('auth_files.refresh_all_button')}
             </Button>
             <Button
               size="sm"
