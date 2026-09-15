@@ -11,6 +11,7 @@ import {
   getApiCallErrorMessage,
 } from '@/services/api';
 import type { AntigravitySubscriptionSummary } from '@/services/api/antigravitySubscription';
+import { readDevinQuotaResponse } from '@/services/api/devinQuota';
 import { useQuotaStore } from '@/stores';
 import type {
   AntigravityModelsPayload,
@@ -42,6 +43,8 @@ import type {
   CursorQuotaData,
   CursorQuotaRow,
   CursorQuotaState,
+  DevinQuotaData,
+  DevinQuotaState,
   GeminiCliCodeAssistPayload,
   GeminiCliCredits,
   GeminiCliParsedBucket,
@@ -100,6 +103,7 @@ import {
   isCodexFile,
   isCopilotFile,
   isCursorFile,
+  isDevinFile,
   isDisabledAuthFile,
   isGeminiCliFile,
   isKimiFile,
@@ -142,7 +146,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'commandcode' | 'codex' | 'copilot' | 'cursor' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'commandcode' | 'codex' | 'copilot' | 'cursor' | 'devin' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
 
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
@@ -160,6 +164,7 @@ export interface QuotaStore {
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
+  devinQuota: Record<string, DevinQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
@@ -172,6 +177,7 @@ export interface QuotaStore {
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
+  setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
@@ -3564,5 +3570,169 @@ export const COMMAND_CODE_CONFIG: QuotaConfig<CommandCodeQuotaState, CommandCode
   controlClassName: styles.qoderControl,
   gridClassName: styles.qoderGrid,
   renderQuotaItems: renderCommandCodeItems,
+};
+
+// Devin quota fetch and render
+const fetchDevinQuota = async (file: AuthFileItem, t: TFunction): Promise<DevinQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('devin_quota.missing_identity'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'POST',
+    url: 'https://server.codeium.com/exa.seat_management_pb.SeatManagementService/GetUserStatus',
+    header: {
+      'Content-Type': 'application/json',
+      'Connect-Protocol-Version': '1',
+    },
+    data: JSON.stringify({
+      metadata: {
+        ideName: 'chisel',
+        ideVersion: '3000.10.21',
+        apiKey: '$TOKEN$',
+        locale: 'en',
+        os: 'darwin',
+        extensionVersion: '3000.10.21',
+        clientName: 'chisel',
+      },
+    }),
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = result.body ?? result.bodyText;
+  const quota = readDevinQuotaResponse(payload);
+
+  if (!quota.windows.some((w) => w.remainingPercent !== null || w.resetAtMs !== null)) {
+    throw new Error(t('devin_quota.empty_data'));
+  }
+
+  return {
+    ...quota,
+    windows: quota.windows.map((w) => ({
+      ...w,
+      label: t(`devin_quota.${w.id}`),
+    })),
+  };
+};
+
+const renderDevinItems = (
+  quota: DevinQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h } = React;
+
+  const nodes: ReactNode[] = [];
+
+  // Plan info
+  if (quota.plan || quota.planEndMs) {
+    const planNodes: ReactNode[] = [];
+    if (quota.plan) {
+      planNodes.push(
+        h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('devin_quota.plan_label')),
+        h('span', { key: 'plan-value', className: styleMap.codexPlanValue }, quota.plan)
+      );
+    }
+    if (quota.planEndMs) {
+      const endDate = new Date(quota.planEndMs);
+      const endDateStr = endDate.toLocaleDateString();
+      if (quota.plan) {
+        planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
+      }
+      planNodes.push(
+        h('span', { key: 'end-label', className: styleMap.codexPlanLabel }, t('devin_quota.plan_end')),
+        h('span', { key: 'end-value', className: styleMap.codexPlanValue }, endDateStr)
+      );
+    }
+    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
+  }
+
+  // Quota windows (daily, weekly)
+  for (const window of quota.windows) {
+    const remainingLabel = window.remainingPercent !== null
+      ? `${Math.round(window.remainingPercent)}%`
+      : t('devin_quota.unavailable');
+    const resetTime = window.resetAtMs
+      ? new Date(window.resetAtMs).toLocaleString()
+      : t('devin_quota.reset_unknown');
+
+    nodes.push(
+      h(
+        'div',
+        { key: window.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, window.label || t(`devin_quota.${window.id}`)),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h('span', { className: styleMap.quotaPercent }, remainingLabel),
+            h('span', { className: styleMap.quotaAmount }, resetTime)
+          )
+        ),
+        h(QuotaProgressBar, {
+          percent: window.remainingPercent,
+          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        })
+      )
+    );
+  }
+
+  // Observed at
+  // if (quota.observedAtMs) {
+  //   const observedDate = new Date(quota.observedAtMs);
+  //   nodes.push(
+  //     h(
+  //       'div',
+  //       { key: 'observed', className: styleMap.quotaMeta },
+  //       h('span', { className: styleMap.quotaReset }, t('devin_quota.observed_at', { time: observedDate.toLocaleString() }))
+  //     )
+  //   );
+  // }
+
+  return h(React.Fragment, null, ...nodes);
+};
+
+export const DEVIN_CONFIG: QuotaConfig<DevinQuotaState, DevinQuotaData> = {
+  type: 'devin',
+  i18nPrefix: 'devin_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isDevinFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchDevinQuota,
+  storeSelector: (state) => state.devinQuota,
+  storeSetter: 'setDevinQuota',
+  buildLoadingState: () => ({ status: 'loading', windows: [], observedAtMs: null, plan: null, planStartMs: null, planEndMs: null }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    windows: data.windows,
+    observedAtMs: data.observedAtMs,
+    plan: data.plan,
+    planStartMs: data.planStartMs,
+    planEndMs: data.planEndMs,
+  }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    windows: [],
+    observedAtMs: null,
+    plan: null,
+    planStartMs: null,
+    planEndMs: null,
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.devinCard,
+  controlsClassName: styles.codexControls,
+  controlClassName: styles.codexControl,
+  gridClassName: styles.codexGrid,
+  renderQuotaItems: renderDevinItems,
 };
 

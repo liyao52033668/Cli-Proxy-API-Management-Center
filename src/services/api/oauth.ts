@@ -23,7 +23,8 @@ export type OAuthProvider =
   | 'bt'
   | 'joycode'
   | 'xai'
-  | 'commandcode';
+  | 'commandcode'
+  | 'devin';
 
 export interface OAuthStartResponse {
   status?: 'ok' | 'wait' | 'error' | 'device_code';
@@ -92,7 +93,8 @@ const WEBUI_SUPPORTED: OAuthProvider[] = [
   'bt',
   'joycode',
   'xai',
-  'commandcode'
+  'commandcode',
+  'devin'
 ];
 const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'

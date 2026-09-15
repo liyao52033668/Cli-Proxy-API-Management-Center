@@ -10,6 +10,7 @@ import type {
   CommandCodeQuotaState,
   CopilotQuotaState,
   CursorQuotaState,
+  DevinQuotaState,
   GeminiCliQuotaState,
   KimiQuotaState,
   KiroQuotaState,
@@ -28,6 +29,7 @@ interface QuotaStoreState {
   codexQuota: Record<string, CodexQuotaState>;
   copilotQuota: Record<string, CopilotQuotaState>;
   cursorQuota: Record<string, CursorQuotaState>;
+  devinQuota: Record<string, DevinQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
@@ -40,6 +42,7 @@ interface QuotaStoreState {
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setCopilotQuota: (updater: QuotaUpdater<Record<string, CopilotQuotaState>>) => void;
   setCursorQuota: (updater: QuotaUpdater<Record<string, CursorQuotaState>>) => void;
+  setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
@@ -63,6 +66,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   codexQuota: {},
   copilotQuota: {},
   cursorQuota: {},
+  devinQuota: {},
   geminiCliQuota: {},
   kimiQuota: {},
   kiroQuota: {},
@@ -96,6 +100,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     set((state) => ({
       cursorQuota: resolveUpdater(updater, state.cursorQuota)
     })),
+  setDevinQuota: (updater) =>
+    set((state) => ({
+      devinQuota: resolveUpdater(updater, state.devinQuota)
+    })),
   setGeminiCliQuota: (updater) =>
     set((state) => ({
       geminiCliQuota: resolveUpdater(updater, state.geminiCliQuota)
@@ -125,6 +133,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       codexQuota: {},
       copilotQuota: {},
       cursorQuota: {},
+      devinQuota: {},
       geminiCliQuota: {},
       kimiQuota: {},
       kiroQuota: {},

@@ -7,6 +7,8 @@ import iconCodebuddy from '@/assets/icons/codebuddy.svg';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconCommandCode from '@/assets/icons/commandcode.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
+import iconDevin from '@/assets/icons/devin.svg';
+import iconDevinDark from '@/assets/icons/devin-dark.svg';
 // import iconGemini from '@/assets/icons/gemini.svg';
 import iconGitHub from '@/assets/icons/github.svg';
 import iconGitLab from '@/assets/icons/gitlab.svg';
@@ -107,6 +109,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconJoycode },
   { id: 'commandcode', titleKey: 'auth_login.commandcode_oauth_title', hintKey: 'auth_login.commandcode_oauth_hint', urlLabelKey: 'auth_login.commandcode_oauth_url_label', icon: iconCommandCode },
+  { id: 'devin', titleKey: 'auth_login.devin_oauth_title', hintKey: 'auth_login.devin_oauth_hint', urlLabelKey: 'auth_login.devin_oauth_url_label', icon: { light: iconDevin, dark: iconDevinDark } },
   { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
 
 ];
@@ -116,7 +119,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
 // CodeArts uses the PKCE flow with is_redirect=true: HuaweiCloud redirects back to
 // the local /oauth/callback. For remote deployments, users must manually copy the
 // redirect URL from the browser address bar and paste it here.
-const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts'];
+const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts', 'devin'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>

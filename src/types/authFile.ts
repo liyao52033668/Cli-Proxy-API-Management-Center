@@ -17,6 +17,7 @@ export type AuthFileType =
   | 'xai'
   | 'cursor'
   | 'kiro'
+  | 'devin'
   | 'empty'
   | 'unknown';
 

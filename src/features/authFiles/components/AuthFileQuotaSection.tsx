@@ -9,6 +9,7 @@ import {
   COMMAND_CODE_CONFIG,
   COPILOT_CONFIG,
   CURSOR_CONFIG,
+  DEVIN_CONFIG,
   GEMINI_CLI_CONFIG,
   KIMI_CONFIG,
   KIRO_CONFIG,
@@ -49,6 +50,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'codex') return CODEX_CONFIG;
   if (type === 'copilot') return COPILOT_CONFIG;
   if (type === 'cursor') return CURSOR_CONFIG;
+  if (type === 'devin') return DEVIN_CONFIG;
   if (type === 'kimi') return KIMI_CONFIG;
   if (type === 'kiro') return KIRO_CONFIG;
   if (type === 'qoder') return QODER_CONFIG;
@@ -77,6 +79,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
     if (quotaType === 'copilot') return state.copilotQuota[file.name] as QuotaState;
     if (quotaType === 'cursor') return state.cursorQuota[file.name] as QuotaState;
+    if (quotaType === 'devin') return state.devinQuota[file.name] as QuotaState;
     if (quotaType === 'kimi') return state.kimiQuota[file.name] as QuotaState;
     if (quotaType === 'kiro') return state.kiroQuota[file.name] as QuotaState;
     if (quotaType === 'qoder') return state.qoderQuota[file.name] as QuotaState;
@@ -92,6 +95,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'codex') return state.setCodexQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'copilot') return state.setCopilotQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'cursor') return state.setCursorQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'devin') return state.setDevinQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kimi') return state.setKimiQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kiro') return state.setKiroQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'qoder') return state.setQoderQuota as unknown as (updater: unknown) => void;

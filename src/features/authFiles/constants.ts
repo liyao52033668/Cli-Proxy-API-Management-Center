@@ -10,6 +10,8 @@ import iconCodex from '@/assets/icons/codex.svg';
 import iconCommandCode from '@/assets/icons/commandcode.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
 import iconDeepseek from '@/assets/icons/deepseek.svg';
+import iconDevin from '@/assets/icons/devin.svg';
+import iconDevinDark from '@/assets/icons/devin-dark.svg';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconGithub from '@/assets/icons/github.svg';
 import iconGitlab from '@/assets/icons/gitlab.svg';
@@ -119,6 +121,7 @@ export type QuotaProviderType =
   | 'codex'
   | 'copilot'
   | 'cursor'
+  | 'devin'
   | 'gemini-cli'
   | 'kimi'
   | 'kiro'
@@ -133,6 +136,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'codex',
   'copilot',
   'cursor',
+  'devin',
   'gemini-cli',
   'kimi',
   'kiro',
@@ -268,8 +272,13 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
   },
   // JoyCode: 琥珀
   joycode: {
-    light: { bg: '#fef3c7', text: '#b45309', border: '1px solid #fcd34d' },
+    light: { bg: '#fef3c7', text: '#92400e', border: '1px solid #fcd34d' },
     dark: { bg: '#78350f', text: '#fcd34d', border: '1px solid #f59e0b' },
+  },
+  // Devin: 深蓝 (Cognition brand)
+  devin: {
+    light: { bg: '#dbeafe', text: '#1e40af', border: '1px solid #93c5fd' },
+    dark: { bg: '#1e3a8a', text: '#93c5fd', border: '1px solid #3b82f6' },
   },
   // DeepSeek: 深蓝
   deepseek: {
@@ -330,6 +339,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   copilot: iconGithub,
   cursor: iconCursor,
   deepseek: iconDeepseek,
+  devin: { light: iconDevin, dark: iconDevinDark },
   gemini: iconGemini,
   'gemini-cli': iconGemini,
   github: iconGithub,
@@ -449,6 +459,7 @@ export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
   'antigravity',
   'claude',
   'codex',
+  'devin',
   'qwen',
   'kimi',
   'iflow',
