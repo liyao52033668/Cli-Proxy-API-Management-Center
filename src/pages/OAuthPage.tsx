@@ -9,6 +9,7 @@ import iconCommandCode from '@/assets/icons/commandcode.svg';
 import iconCursor from '@/assets/icons/cursor.svg';
 import iconDevin from '@/assets/icons/devin.svg';
 import iconDevinDark from '@/assets/icons/devin-dark.svg';
+import iconFreebuff from '@/assets/icons/freebuff.svg';
 // import iconGemini from '@/assets/icons/gemini.svg';
 import iconGitHub from '@/assets/icons/github.svg';
 import iconGitLab from '@/assets/icons/gitlab.svg';
@@ -95,22 +96,23 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codex', titleKey: 'auth_login.codex_oauth_title', hintKey: 'auth_login.codex_oauth_hint', urlLabelKey: 'auth_login.codex_oauth_url_label', icon: iconCodex },
   { id: 'anthropic', titleKey: 'auth_login.anthropic_oauth_title', hintKey: 'auth_login.anthropic_oauth_hint', urlLabelKey: 'auth_login.anthropic_oauth_url_label', icon: iconClaude },
   { id: 'antigravity', titleKey: 'auth_login.antigravity_oauth_title', hintKey: 'auth_login.antigravity_oauth_hint', urlLabelKey: 'auth_login.antigravity_oauth_url_label', icon: iconAntigravity },
+  { id: 'xai', titleKey: 'auth_login.xai_oauth_title', hintKey: 'auth_login.xai_oauth_hint', urlLabelKey: 'auth_login.xai_oauth_url_label', icon: iconGrok },
   // { id: 'gemini-cli', titleKey: 'auth_login.gemini_cli_oauth_title', hintKey: 'auth_login.gemini_cli_oauth_hint', urlLabelKey: 'auth_login.gemini_cli_oauth_url_label', icon: iconGemini },
   { id: 'github', titleKey: 'auth_login.github_oauth_title', hintKey: 'auth_login.github_oauth_hint', urlLabelKey: 'auth_login.github_oauth_url_label', icon: iconGitHub },
   { id: 'gitlab', titleKey: 'auth_login.gitlab_oauth_title', hintKey: 'auth_login.gitlab_oauth_hint', urlLabelKey: 'auth_login.gitlab_oauth_url_label', icon: iconGitLab },
   { id: 'kilo', titleKey: 'auth_login.kilo_oauth_title', hintKey: 'auth_login.kilo_oauth_hint', urlLabelKey: 'auth_login.kilo_oauth_url_label', icon: iconKilo },
   { id: 'kiro', titleKey: 'auth_login.kiro_oauth_title', hintKey: 'auth_login.kiro_oauth_hint', urlLabelKey: 'auth_login.kiro_oauth_url_label', icon: iconKiro },
   { id: 'cursor', titleKey: 'auth_login.cursor_oauth_title', hintKey: 'auth_login.cursor_oauth_hint', urlLabelKey: 'auth_login.cursor_oauth_url_label', icon: iconCursor },
-  { id: 'xai', titleKey: 'auth_login.xai_oauth_title', hintKey: 'auth_login.xai_oauth_hint', urlLabelKey: 'auth_login.xai_oauth_url_label', icon: iconGrok },
+  { id: 'devin', titleKey: 'auth_login.devin_oauth_title', hintKey: 'auth_login.devin_oauth_hint', urlLabelKey: 'auth_login.devin_oauth_url_label', icon: { light: iconDevin, dark: iconDevinDark } },
+  { id: 'commandcode', titleKey: 'auth_login.commandcode_oauth_title', hintKey: 'auth_login.commandcode_oauth_hint', urlLabelKey: 'auth_login.commandcode_oauth_url_label', icon: iconCommandCode },
+  { id: 'freebuff', titleKey: 'auth_login.freebuff_oauth_title', hintKey: 'auth_login.freebuff_oauth_hint', urlLabelKey: 'auth_login.freebuff_oauth_url_label', icon: iconFreebuff },
   { id: 'kimi', titleKey: 'auth_login.kimi_oauth_title', hintKey: 'auth_login.kimi_oauth_hint', urlLabelKey: 'auth_login.kimi_oauth_url_label', icon: { light: iconKimiLight, dark: iconKimiDark } },
   { id: 'qoder', titleKey: 'auth_login.qoder_oauth_title', hintKey: 'auth_login.qoder_oauth_hint', urlLabelKey: 'auth_login.qoder_oauth_url_label', icon: iconQoder },
   { id: 'codebuddy', titleKey: 'auth_login.codebuddy_oauth_title', hintKey: 'auth_login.codebuddy_oauth_hint', urlLabelKey: 'auth_login.codebuddy_oauth_url_label', icon: iconCodebuddy },
   { id: 'codebuddy-ai', titleKey: 'auth_login.codebuddy_ai_oauth_title', hintKey: 'auth_login.codebuddy_ai_oauth_hint', urlLabelKey: 'auth_login.codebuddy_ai_oauth_url_label', icon: iconCodebuddyAI },
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconJoycode },
-  { id: 'commandcode', titleKey: 'auth_login.commandcode_oauth_title', hintKey: 'auth_login.commandcode_oauth_hint', urlLabelKey: 'auth_login.commandcode_oauth_url_label', icon: iconCommandCode },
-  { id: 'devin', titleKey: 'auth_login.devin_oauth_title', hintKey: 'auth_login.devin_oauth_hint', urlLabelKey: 'auth_login.devin_oauth_url_label', icon: { light: iconDevin, dark: iconDevinDark } },
-  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt }
+  { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt },
 
 ];
 

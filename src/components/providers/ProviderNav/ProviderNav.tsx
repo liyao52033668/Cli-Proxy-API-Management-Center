@@ -9,11 +9,10 @@ import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconClaude from '@/assets/icons/claude.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
-import iconFreebuff from '@/assets/icons/freebuff.svg';
 import iconAmp from '@/assets/icons/amp.svg';
 import styles from './ProviderNav.module.scss';
 
-export type ProviderId = 'gemini' | 'codex' | 'claude' | 'vertex' | 'freebuff' | 'ampcode' | 'openai';
+export type ProviderId = 'gemini' | 'codex' | 'claude' | 'vertex' | 'ampcode' | 'openai';
 
 interface ProviderNavItem {
   id: ProviderId;
@@ -26,7 +25,6 @@ const PROVIDERS: ProviderNavItem[] = [
   { id: 'codex', label: 'Codex', getIcon: () => iconCodex },
   { id: 'claude', label: 'Claude', getIcon: () => iconClaude },
   { id: 'vertex', label: 'Vertex', getIcon: () => iconVertex },
-  { id: 'freebuff', label: 'Freebuff', getIcon: () => iconFreebuff },
   { id: 'ampcode', label: 'Ampcode', getIcon: () => iconAmp },
   { id: 'openai', label: 'OpenAI', getIcon: (theme) => (theme === 'dark' ? iconOpenaiDark : iconOpenaiLight) },
 ];
@@ -48,7 +46,6 @@ export function ProviderNav() {
     codex: null,
     claude: null,
     vertex: null,
-    freebuff: null,
     ampcode: null,
     openai: null,
   });

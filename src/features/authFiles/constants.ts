@@ -12,6 +12,7 @@ import iconCursor from '@/assets/icons/cursor.svg';
 import iconDeepseek from '@/assets/icons/deepseek.svg';
 import iconDevin from '@/assets/icons/devin.svg';
 import iconDevinDark from '@/assets/icons/devin-dark.svg';
+import iconFreebuff from '@/assets/icons/freebuff.svg';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconGithub from '@/assets/icons/github.svg';
 import iconGitlab from '@/assets/icons/gitlab.svg';
@@ -280,6 +281,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#dbeafe', text: '#1e40af', border: '1px solid #93c5fd' },
     dark: { bg: '#1e3a8a', text: '#93c5fd', border: '1px solid #3b82f6' },
   },
+  // Freebuff: 紫罗兰
+  freebuff: {
+    light: { bg: '#ede9fe', text: '#6d28d9', border: '1px solid #c4b5fd' },
+    dark: { bg: '#4c1d95', text: '#c4b5fd', border: '1px solid #8b5cf6' },
+  },
   // DeepSeek: 深蓝
   deepseek: {
     light: { bg: '#dbeafe', text: '#1d4ed8', border: '1px solid #93c5fd' },
@@ -340,6 +346,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   cursor: iconCursor,
   deepseek: iconDeepseek,
   devin: { light: iconDevin, dark: iconDevinDark },
+  freebuff: iconFreebuff,
   gemini: iconGemini,
   'gemini-cli': iconGemini,
   github: iconGithub,
@@ -476,6 +483,7 @@ export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
   'qoder',
   'commandcode',
   'xai',
+  'freebuff',
 ];
 
 export const DEFAULT_OAUTH_PROVIDER_EXCLUDES = new Set([
