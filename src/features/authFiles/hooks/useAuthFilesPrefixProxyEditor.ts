@@ -11,7 +11,7 @@ import {
   parsePriorityValue,
   readCodexAuthFileWebsockets,
 } from '@/features/authFiles/constants';
-import { isCommandCodeFile, isXaiFile } from '@/utils/quota/validators';
+import { isXaiFile } from '@/utils/quota/validators';
 
 type AuthFileHeaders = Record<string, string>;
 type AuthFileEditableJson = Pick<
@@ -25,7 +25,6 @@ type AuthFileEditableJson = Pick<
   | 'websockets'
   | 'using_api'
   | 'note'
-  | 'session_token'
 >;
 type AuthFileHeadersErrorKey =
   | 'auth_files.headers_invalid_json'
@@ -41,8 +40,7 @@ export type PrefixProxyEditorField =
   | 'usingApi'
   | 'websockets'
   | 'note'
-  | 'headersText'
-  | 'sessionToken';
+  | 'headersText';
 
 export type PrefixProxyEditorFieldValue = string | boolean;
 
@@ -54,7 +52,6 @@ export type PrefixProxyEditorState = {
   fileInfoText: string;
   isCodexFile: boolean;
   isXaiFile: boolean;
-  isCommandCodeFile: boolean;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -73,7 +70,6 @@ export type PrefixProxyEditorState = {
   headersText: string;
   headersTouched: boolean;
   headersError: string | null;
-  sessionToken: string;
 };
 
 const toUsingApiSelectValue = (value: unknown): UsingApiSelectValue => {
@@ -198,10 +194,6 @@ const buildPrefixProxyUpdatedJson = (
     next.websockets = editor.websockets;
   }
 
-  if (editor.isCommandCodeFile) {
-    next.session_token = editor.sessionToken;
-  }
-
   return next;
 };
 
@@ -234,7 +226,6 @@ const buildPrefixProxyUpdatedText = (
     delete next.using_api;
   }
   if (next.note === '') delete next.note;
-  if (next.session_token === '') delete next.session_token;
   if (isRecordObject(next.headers) && Object.keys(next.headers).length === 0) delete next.headers;
 
   return JSON.stringify(
@@ -278,7 +269,6 @@ export function useAuthFilesPrefixProxyEditor(
       .toLowerCase();
     const isCodexFile = normalizedType === 'codex' || normalizedProvider === 'codex';
     const isXaiAuthFile = isXaiFile(file);
-    const isCommandCodeAuthFile = isCommandCodeFile(file);
 
     if (disableControls) return;
     if (prefixProxyEditor?.fileName === name) {
@@ -291,7 +281,6 @@ export function useAuthFilesPrefixProxyEditor(
       fileInfoText: JSON.stringify(file, null, 2),
       isCodexFile,
       isXaiFile: isXaiAuthFile,
-      isCommandCodeFile: isCommandCodeAuthFile,
       loading: true,
       saving: false,
       error: null,
@@ -310,7 +299,6 @@ export function useAuthFilesPrefixProxyEditor(
       headersText: '',
       headersTouched: false,
       headersError: null,
-      sessionToken: '',
     });
 
     try {
@@ -363,7 +351,6 @@ export function useAuthFilesPrefixProxyEditor(
       const usingApiValue = toUsingApiSelectValue(json.using_api);
       const websocketsValue = readCodexAuthFileWebsockets(json);
       const note = typeof json.note === 'string' ? json.note : '';
-      const sessionToken = typeof json.session_token === 'string' ? json.session_token : '';
       const headers = json.headers;
       let headersText = '';
       let headersError: string | null = null;
@@ -394,7 +381,6 @@ export function useAuthFilesPrefixProxyEditor(
           headersText,
           headersTouched: false,
           headersError,
-          sessionToken,
           error: null,
         };
       });
@@ -436,7 +422,6 @@ export function useAuthFilesPrefixProxyEditor(
           headersError: errorKey ? t(errorKey) : null,
         };
       }
-      if (field === 'sessionToken') return { ...prev, sessionToken: String(value) };
       return { ...prev, websockets: Boolean(value) };
     });
   };

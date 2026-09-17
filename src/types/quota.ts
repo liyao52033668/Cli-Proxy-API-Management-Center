@@ -735,37 +735,6 @@ export interface CodebuddyQuotaState {
 }
 
 // Command Code API payload types
-export interface CommandCodeUsagePayload {
-  totalCount?: number;
-  total_count?: number;
-  totalCost?: number;
-  total_cost?: number;
-  averageCost?: number;
-  average_cost?: number;
-  successRate?: number;
-  success_rate?: number;
-  completedCount?: number;
-  completed_count?: number;
-  failedCount?: number;
-  failed_count?: number;
-  totalTokensIn?: number;
-  total_tokens_in?: number;
-  totalTokensOut?: number;
-  total_tokens_out?: number;
-  totalTokens?: number;
-  total_tokens?: number;
-  totalCredits?: number;
-  total_credits?: number;
-  totalFreeCredits?: number;
-  total_free_credits?: number;
-  totalMonthlyCredits?: number;
-  total_monthly_credits?: number;
-  totalPurchasedCredits?: number;
-  total_purchased_credits?: number;
-  periodBasis?: string;
-  period_basis?: string;
-}
-
 export interface CommandCodeQuotaRow {
   id: string;
   label: string;
@@ -779,8 +748,10 @@ export interface CommandCodeQuotaData {
   rows: CommandCodeQuotaRow[];
   totalCredits: number;
   totalMonthlyCredits?: number | null;
+  /** Monthly credits left, straight from the alpha credits endpoint. */
+  monthlyRemaining?: number | null;
+  /** Plan key derived from rolling-window caps (null when validation fails). */
   planType?: string | null;
-  currentPeriodEnd?: string | null;
   fiveHourWindow?: CommandCodeWindowLimit | null;
   weeklyWindow?: CommandCodeWindowLimit | null;
 }

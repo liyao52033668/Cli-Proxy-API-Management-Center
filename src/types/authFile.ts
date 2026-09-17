@@ -70,7 +70,6 @@ export interface AuthFilePatchFields {
   websockets?: boolean | null;
   using_api?: boolean | null;
   note?: string;
-  session_token?: string;
 }
 
 export interface AuthFilesResponse {

@@ -11,7 +11,6 @@ import type {
   AntigravityQuotaSummaryPayload,
   CommandCodeQuotaData,
   CommandCodeQuotaRow,
-  CommandCodeUsagePayload,
   CommandCodeWindowLimit,
   GeminiCliParsedBucket,
   GeminiCliQuotaBucketState,
@@ -34,6 +33,7 @@ import {
   GEMINI_CLI_GROUP_ORDER,
 } from './constants';
 import { normalizeNumberValue, normalizeQuotaFraction, normalizeStringValue } from './parsers';
+import type { CommandCodeCreditsResponse, CommandCodeWindowLimitsWire, CommandCodeWindowWire } from './parsers';
 import { isIgnoredGeminiCliModel } from './validators';
 
 export function pickEarlierResetTime(current?: string, next?: string): string | undefined {
@@ -721,50 +721,77 @@ export function mergeXaiBillingSummaries(
   };
 }
 
-// Command Code plan monthly credits based on pricing documentation
+// Command Code plan pricing (monthly credits, five-hour cap, weekly cap in
+// USD) based on official pricing documentation. The monthly allowance is NOT
+// reported by /alpha/billing/credits — it can only be reverse-derived from
+// the rolling-window caps via this table.
 // https://commandcode.ai/docs/resources/pricing-limits
-const COMMAND_CODE_PLAN_MONTHLY_CREDITS: Record<string, number> = {
-  'go': 10,
-  'goat': 70,
-  'pro': 80,
-  'max 10x': 150,
-  'max 20x': 300,
-};
-
-// Command Code plan rolling window limits based on pricing documentation
-// https://commandcode.ai/docs/resources/pricing-limits#usage-beyond-your-limit
-const COMMAND_CODE_PLAN_FIVE_HOUR_LIMITS: Record<string, number> = {
-  'go': 3,
-  'goat': 14,
-  'pro': 16,
-  'max 10x': 45,
-  'max 20x': 90,
-};
-
-const COMMAND_CODE_PLAN_WEEKLY_LIMITS: Record<string, number> = {
-  'go': 6,
-  'goat': 35,
-  'pro': 40,
-  'max 10x': 90,
-  'max 20x': 180,
-};
-
-export function getCommandCodePlanMonthlyCredits(planType: string | null | undefined): number | null {
-  if (!planType) return null;
-  const normalized = planType.toLowerCase().trim();
-  return COMMAND_CODE_PLAN_MONTHLY_CREDITS[normalized] ?? null;
+interface CommandCodePlan {
+  key: string;
+  monthlyCredits: number;
+  fiveHourCap: number;
+  weeklyCap: number;
 }
 
-export function getCommandCodePlanFiveHourLimit(planType: string | null | undefined): number | null {
-  if (!planType) return null;
-  const normalized = planType.toLowerCase().trim();
-  return COMMAND_CODE_PLAN_FIVE_HOUR_LIMITS[normalized] ?? null;
+const COMMAND_CODE_PLANS: CommandCodePlan[] = [
+  { key: 'go', monthlyCredits: 10, fiveHourCap: 3, weeklyCap: 6 },
+  { key: 'goat', monthlyCredits: 70, fiveHourCap: 14, weeklyCap: 35 },
+  { key: 'pro', monthlyCredits: 80, fiveHourCap: 16, weeklyCap: 40 },
+  { key: 'max 10x', monthlyCredits: 150, fiveHourCap: 45, weeklyCap: 90 },
+  { key: 'max 20x', monthlyCredits: 300, fiveHourCap: 90, weeklyCap: 180 },
+];
+
+/**
+ * Reverse-look up the plan from the wire-reported rolling-window caps.
+ * The (fiveHourCap, weeklyCap) pair is unique across the plan table, so an
+ * exact match pins the plan; anything else returns null.
+ */
+export function getCommandCodePlanByWindowCaps(
+  fiveHourCap: number | null,
+  weeklyCap: number | null
+): CommandCodePlan | null {
+  if (fiveHourCap === null || weeklyCap === null) return null;
+  return (
+    COMMAND_CODE_PLANS.find((plan) => plan.fiveHourCap === fiveHourCap && plan.weeklyCap === weeklyCap) ?? null
+  );
 }
 
-export function getCommandCodePlanWeeklyLimit(planType: string | null | undefined): number | null {
-  if (!planType) return null;
-  const normalized = planType.toLowerCase().trim();
-  return COMMAND_CODE_PLAN_WEEKLY_LIMITS[normalized] ?? null;
+function readCommandCodeWindowLimits(payload: CommandCodeCreditsResponse): CommandCodeWindowLimitsWire | null {
+  const root = payload as Record<string, unknown>;
+  const credits = payload.credits ?? {};
+  const nested = credits.windowLimits ?? credits.window_limits;
+  if (nested) return nested;
+  return (root.windowLimits ?? root.window_limits) as CommandCodeWindowLimitsWire | undefined ?? null;
+}
+
+function readCommandCodeWindowBox(
+  windowLimits: CommandCodeWindowLimitsWire | null,
+  key: 'fiveHour' | 'weekly'
+): CommandCodeWindowWire | null {
+  if (!windowLimits) return null;
+  const window = key === 'fiveHour'
+    ? windowLimits.fiveHour ?? windowLimits.five_hour
+    : windowLimits.weekly;
+  return window ?? null;
+}
+
+function readCommandCodeMonthlyRemaining(payload: CommandCodeCreditsResponse): number | null {
+  const root = payload as Record<string, unknown>;
+  const credits = payload.credits ?? {};
+  const value = toFiniteNumber(
+    credits.monthlyCredits ??
+      credits.monthly_credits ??
+      (root.monthlyCredits as number | undefined) ??
+      (root.monthly_credits as number | undefined)
+  );
+  return value ?? null;
+}
+
+function readCommandCodeWindowLimit(window: CommandCodeWindowWire | null): { cap: number | null; parsed: CommandCodeWindowLimit | null } {
+  if (!window) return { cap: null, parsed: null };
+  const parsed = parseCommandCodeWindowLimit(window, null);
+  const cap = toFiniteNumber(window.cap ?? window.limit);
+  return { cap: cap !== null && cap > 0 ? cap : null, parsed };
 }
 
 export function parseCommandCodeWindowLimit(
@@ -775,9 +802,9 @@ export function parseCommandCodeWindowLimit(
 
   const record = windowData as Record<string, unknown>;
   const used = toFiniteNumber(record.used) ?? 0;
-  const cap = toFiniteNumber(record.cap) ?? planLimit ?? 0;
+  const cap = toFiniteNumber(record.cap ?? record.limit) ?? planLimit ?? 0;
   const exceeded = Boolean(record.exceeded);
-  const resetAt = toFiniteNumber(record.resetAt) ?? 0;
+  const resetAt = toFiniteNumber(record.resetAt ?? record.reset_at) ?? 0;
 
   const remaining = Math.max(0, cap - used);
   const remainingPercent = cap > 0 ? Math.min(100, (remaining / cap) * 100) : 0;
@@ -791,45 +818,68 @@ export function parseCommandCodeWindowLimit(
   };
 }
 
-export function buildCommandCodeQuotaData(
-  payload: CommandCodeUsagePayload | null,
-  planType?: string | null
-): CommandCodeQuotaData | null {
+/**
+ * Build Command Code quota data from the /alpha/billing/credits response.
+ *
+ * The response gives the 5h/weekly used+cap directly, but the monthly window
+ * only carries the remaining credits — the allowance exists in no endpoint.
+ * The monthly denominator is therefore reverse-derived from the official plan
+ * table with double validation (wire caps must uniquely match a plan AND the
+ * remaining credits must not exceed its monthly allowance). On validation
+ * failure we fail closed to showing the remaining credits only, so a plan
+ * price change can never produce a fabricated denominator.
+ */
+export function buildCommandCodeQuotaData(payload: CommandCodeCreditsResponse | null): CommandCodeQuotaData | null {
   if (!payload) return null;
 
-  const totalCredits = toFiniteNumber(payload.totalCredits ?? payload.total_credits ?? payload.totalCost ?? payload.total_cost) ?? 0;
-  // Use plan-based monthly credits from mapping table
-  const totalMonthlyCredits = getCommandCodePlanMonthlyCredits(planType);
-  const totalFreeCredits = toFiniteNumber(payload.totalFreeCredits ?? payload.total_free_credits);
+  const monthlyRemaining = readCommandCodeMonthlyRemaining(payload);
+  if (monthlyRemaining === null) return null;
 
-  // Calculate remaining percentage
-  const remainingPercent = totalMonthlyCredits && totalMonthlyCredits > 0
-    ? Math.max(0, Math.min(100, ((totalMonthlyCredits - totalCredits) / totalMonthlyCredits) * 100))
+  const windowLimits = readCommandCodeWindowLimits(payload);
+  const fiveHour = readCommandCodeWindowLimit(readCommandCodeWindowBox(windowLimits, 'fiveHour'));
+  const weekly = readCommandCodeWindowLimit(readCommandCodeWindowBox(windowLimits, 'weekly'));
+
+  let planType: string | null = null;
+  let totalMonthlyCredits: number | null = null;
+  const plan = getCommandCodePlanByWindowCaps(fiveHour.cap, weekly.cap);
+  if (plan && monthlyRemaining <= plan.monthlyCredits) {
+    planType = plan.key;
+    totalMonthlyCredits = plan.monthlyCredits;
+  }
+
+  const remainingPercent = totalMonthlyCredits !== null && totalMonthlyCredits > 0
+    ? Math.max(0, Math.min(100, (monthlyRemaining / totalMonthlyCredits) * 100))
     : null;
 
-  const rows: CommandCodeQuotaRow[] = [
-    {
-      id: 'total_credits',
-      label: 'Total Cost',
-      labelKey: 'commandcode_quota.total_credits',
-      value: remainingPercent !== null ? `${Math.round(remainingPercent)}%` : '--',
-      subValue: totalMonthlyCredits !== null ? `Monthly: $${totalMonthlyCredits.toFixed(4)}` : undefined,
-    },
-  ];
-
-  if (totalFreeCredits !== null && totalFreeCredits > 0) {
-    rows.push({
-      id: 'free_credits',
-      label: 'Free Credits',
-      labelKey: 'commandcode_quota.free_credits',
-      value: `$${totalFreeCredits.toFixed(4)}`,
-    });
-  }
+  const rows: CommandCodeQuotaRow[] =
+    remainingPercent !== null
+      ? [
+          {
+            id: 'total_credits',
+            label: 'Monthly Quota',
+            labelKey: 'commandcode_quota.total_credits',
+            value: `${Math.round(remainingPercent)}%`,
+            subValue: `Monthly: $${totalMonthlyCredits?.toFixed(2)}`,
+          },
+        ]
+      : [
+          {
+            id: 'monthly_remaining',
+            label: 'Monthly Remaining',
+            labelKey: 'commandcode_quota.monthly_remaining',
+            value: `$${monthlyRemaining.toFixed(2)}`,
+          },
+        ];
 
   return {
     rows,
-    totalCredits,
+    // Monthly used derived from the allowance; zero when fail-closed.
+    totalCredits: totalMonthlyCredits !== null ? Math.max(0, totalMonthlyCredits - monthlyRemaining) : 0,
     totalMonthlyCredits,
+    monthlyRemaining,
+    planType,
+    fiveHourWindow: fiveHour.parsed,
+    weeklyWindow: weekly.parsed,
   };
 }
 

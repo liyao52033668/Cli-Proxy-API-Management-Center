@@ -65,8 +65,6 @@ import {
   ANTIGRAVITY_QUOTA_URLS,
   ANTIGRAVITY_REQUEST_HEADERS,
   COMMAND_CODE_REQUEST_HEADERS,
-  COMMAND_CODE_SUBSCRIPTIONS_URL,
-  COMMAND_CODE_USAGE_SUMMARY_URL,
   COMMAND_CODE_CREDITS_URL,
   CURSOR_REQUEST_HEADERS,
   CURSOR_USAGE_SUMMARY_URL,
@@ -128,7 +126,6 @@ import {
   parseClaudeUsagePayload,
   parseCodexUsagePayload,
   parseCommandCodeCreditsPayload,
-  parseCommandCodeUsagePayload,
   parseGeminiCliCodeAssistPayload,
   parseGeminiCliQuotaPayload,
   parseKimiUsagePayload,
@@ -3340,21 +3337,10 @@ export const CURSOR_CONFIG: QuotaConfig<CursorQuotaState, CursorQuotaData> = {
   renderQuotaItems: renderCursorItems,
 };
 
-const parseCommandCodeSubscription = (body: unknown): { planId: string | null; currentPeriodEnd: string | null } => {
-  if (!body) return { planId: null, currentPeriodEnd: null };
-  const data = typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return null; } })() : body;
-  if (!data || typeof data !== 'object') return { planId: null, currentPeriodEnd: null };
-  // Response: { success: true, data: { planId: "individual-go", currentPeriodEnd: "2026-09-25T09:01:14.000Z", ... } }
-  const record = (data as Record<string, unknown>).data as Record<string, unknown> | undefined;
-  if (!record || typeof record !== 'object') return { planId: null, currentPeriodEnd: null };
-  const planId = record.planId;
-  const currentPeriodEnd = record.currentPeriodEnd;
-  return {
-    planId: typeof planId === 'string' && planId ? planId : null,
-    currentPeriodEnd: typeof currentPeriodEnd === 'string' && currentPeriodEnd ? currentPeriodEnd : null,
-  };
-};
-
+// Command Code quota comes from the official /alpha/billing/credits endpoint.
+// It authenticates with the standard Bearer API key ($TOKEN$ resolves to the
+// auth file's API key server-side), so no web session cookie is needed.
+// The monthly allowance is reverse-derived inside buildCommandCodeQuotaData.
 const fetchCommandCodeQuota = async (
   file: AuthFileItem,
   t: TFunction
@@ -3365,73 +3351,22 @@ const fetchCommandCodeQuota = async (
     throw new Error(t('commandcode_quota.missing_auth_index'));
   }
 
-  // Fetch usage summary, subscriptions, and credits in parallel
-  const [usageResult, subscriptionsResult, creditsResult] = await Promise.all([
-    apiCallApi.request({
-      authIndex,
-      method: 'GET',
-      url: COMMAND_CODE_USAGE_SUMMARY_URL,
-      header: { ...COMMAND_CODE_REQUEST_HEADERS },
-    }),
-    apiCallApi.request({
-      authIndex,
-      method: 'GET',
-      url: COMMAND_CODE_SUBSCRIPTIONS_URL,
-      header: { ...COMMAND_CODE_REQUEST_HEADERS },
-    }),
-    apiCallApi.request({
-      authIndex,
-      method: 'GET',
-      url: COMMAND_CODE_CREDITS_URL,
-      header: { ...COMMAND_CODE_REQUEST_HEADERS },
-    }),
-  ]);
+  const creditsResult = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: COMMAND_CODE_CREDITS_URL,
+    header: { ...COMMAND_CODE_REQUEST_HEADERS },
+  });
 
-  if (usageResult.statusCode < 200 || usageResult.statusCode >= 300) {
-    throw createStatusError(getApiCallErrorMessage(usageResult), usageResult.statusCode);
+  if (creditsResult.statusCode < 200 || creditsResult.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(creditsResult), creditsResult.statusCode);
   }
 
-  const payload = parseCommandCodeUsagePayload(usageResult.body ?? usageResult.bodyText);
-
-  // Extract planId and currentPeriodEnd from subscriptions response
-  let planType: string | null = null;
-  let currentPeriodEnd: string | null = null;
-  if (subscriptionsResult.statusCode >= 200 && subscriptionsResult.statusCode < 300) {
-    const subscriptionsBody = subscriptionsResult.body ?? subscriptionsResult.bodyText;
-    const subscription = parseCommandCodeSubscription(subscriptionsBody);
-    if (subscription.planId) {
-      // Remove "individual-" prefix if present, keep only the plan type (e.g., "go")
-      planType = subscription.planId.startsWith('individual-') ? subscription.planId.slice('individual-'.length) : subscription.planId;
-    }
-    currentPeriodEnd = subscription.currentPeriodEnd;
-  }
-
-  const data = buildCommandCodeQuotaData(payload, planType);
+  const creditsData = parseCommandCodeCreditsPayload(creditsResult.body ?? creditsResult.bodyText);
+  const data = buildCommandCodeQuotaData(creditsData);
   if (!data) {
     throw new Error(t('commandcode_quota.empty_data'));
   }
-  data.planType = planType;
-  data.currentPeriodEnd = currentPeriodEnd;
-
-  // Parse window limits from credits response
-  if (creditsResult.statusCode >= 200 && creditsResult.statusCode < 300) {
-    const creditsBody = creditsResult.body ?? creditsResult.bodyText;
-    const creditsData = parseCommandCodeCreditsPayload(creditsBody);
-    if (creditsData?.windowLimits) {
-      const { parseCommandCodeWindowLimit, getCommandCodePlanFiveHourLimit, getCommandCodePlanWeeklyLimit } = await import('@/utils/quota/builders');
-
-      const fiveHourLimit = getCommandCodePlanFiveHourLimit(planType);
-      const weeklyLimit = getCommandCodePlanWeeklyLimit(planType);
-
-      if (creditsData.windowLimits.fiveHour) {
-        data.fiveHourWindow = parseCommandCodeWindowLimit(creditsData.windowLimits.fiveHour, fiveHourLimit);
-      }
-      if (creditsData.windowLimits.weekly) {
-        data.weeklyWindow = parseCommandCodeWindowLimit(creditsData.windowLimits.weekly, weeklyLimit);
-      }
-    }
-  }
-
   return data;
 };
 
@@ -3449,37 +3384,28 @@ const renderCommandCodeItems = (
 
   const nodes: ReactNode[] = [];
 
-  // Calculate remaining credit percentage for progress bar
-  const totalCredits = data.totalCredits ?? 0;
-  const totalMonthlyCredits = data.totalMonthlyCredits ?? null;
-  const remainingCredits = totalMonthlyCredits !== null ? Math.max(0, totalMonthlyCredits - totalCredits) : null;
-  const remainingPercent = totalMonthlyCredits && totalMonthlyCredits > 0 && remainingCredits !== null
-    ? Math.min(100, (remainingCredits / totalMonthlyCredits) * 100)
+  // Monthly remaining percentage lives in the rows produced by
+  // buildCommandCodeQuotaData (null when fail-closed).
+  const totalCreditsRow = data.rows.find((row) => row.id === 'total_credits');
+  const remainingPercent = totalCreditsRow
+    ? (() => {
+        const value = String(totalCreditsRow.value);
+        const match = value.match(/^(\d+)%$/);
+        return match ? Number(match[1]) : null;
+      })()
     : null;
 
-  // Display plan type and expiration if available
+  // Display plan type label when the rolling-window caps matched a known plan
   const planType = data.planType ?? null;
-  const currentPeriodEnd = data.currentPeriodEnd ?? null;
-  if (planType || currentPeriodEnd) {
-    const planNodes: ReactNode[] = [];
-    if (planType) {
-      planNodes.push(
+  if (planType) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.codexPlan },
         h('span', { key: 'plan-label', className: styleMap.codexPlanLabel }, t('commandcode_quota.plan_label')),
         h('span', { key: 'plan-value', className: styleMap.codexPlanValue }, planType)
-      );
-    }
-    if (currentPeriodEnd) {
-      const endDate = new Date(currentPeriodEnd);
-      const endDateStr = endDate.toLocaleDateString();
-      if (planType) {
-        planNodes.push(h('span', { key: 'plan-sep', className: styleMap.codexPlanLabel }, '·'));
-      }
-      planNodes.push(
-        h('span', { key: 'expires-label', className: styleMap.codexPlanLabel }, t('commandcode_quota.expires_label')),
-        h('span', { key: 'expires-value', className: styleMap.codexPlanValue }, endDateStr)
-      );
-    }
-    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
+      )
+    );
   }
 
   // Render rolling window limit progress bars (5-hour and weekly) above total cost

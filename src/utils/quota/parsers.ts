@@ -6,7 +6,6 @@ import type {
   ClaudeUsagePayload,
   CodexRateLimitResetCredit,
   CodexUsagePayload,
-  CommandCodeUsagePayload,
   GeminiCliCodeAssistPayload,
   GeminiCliQuotaPayload,
   KimiUsagePayload,
@@ -332,48 +331,41 @@ export function parseXaiBillingPayload(payload: unknown): XaiBillingPayload | nu
   return null;
 }
 
-export function parseCommandCodeUsagePayload(payload: unknown): CommandCodeUsagePayload | null {
-  if (payload === undefined || payload === null) return null;
-  if (typeof payload === 'string') {
-    const trimmed = payload.trim();
-    if (!trimmed) return null;
-    try {
-      return JSON.parse(trimmed) as CommandCodeUsagePayload;
-    } catch {
-      return null;
-    }
-  }
-  if (typeof payload === 'object') {
-    return payload as CommandCodeUsagePayload;
-  }
-  return null;
+export interface CommandCodeWindowWire {
+  used?: number;
+  cap?: number;
+  limit?: number;
+  exceeded?: boolean;
+  resetAt?: number;
+  reset_at?: number;
 }
 
+export interface CommandCodeWindowLimitsWire {
+  limited?: boolean;
+  exceeded?: string;
+  fiveHour?: CommandCodeWindowWire;
+  five_hour?: CommandCodeWindowWire;
+  weekly?: CommandCodeWindowWire;
+}
+
+// /alpha/billing/credits response. Field spellings have been observed in both
+// camelCase and snake_case, and windowLimits has appeared at the root as well
+// as nested under credits — read every variant defensively.
 export interface CommandCodeCreditsResponse {
   credits?: {
     belowThreshold?: boolean;
     creditThreshold?: number;
     monthlyCredits?: number;
+    monthly_credits?: number;
     purchasedCredits?: number;
+    purchased_credits?: number;
     premiumMonthlyCredits?: number;
     opensourceMonthlyCredits?: number;
+    windowLimits?: CommandCodeWindowLimitsWire;
+    window_limits?: CommandCodeWindowLimitsWire;
   };
-  windowLimits?: {
-    limited?: boolean;
-    exceeded?: string;
-    fiveHour?: {
-      used?: number;
-      cap?: number;
-      exceeded?: boolean;
-      resetAt?: number;
-    };
-    weekly?: {
-      used?: number;
-      cap?: number;
-      exceeded?: boolean;
-      resetAt?: number;
-    };
-  };
+  windowLimits?: CommandCodeWindowLimitsWire;
+  window_limits?: CommandCodeWindowLimitsWire;
 }
 
 export function parseCommandCodeCreditsPayload(payload: unknown): CommandCodeCreditsResponse | null {
