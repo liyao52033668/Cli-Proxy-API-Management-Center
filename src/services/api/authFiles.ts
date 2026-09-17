@@ -6,6 +6,7 @@ import { apiClient } from './client';
 import type { AuthFilePatchFields, AuthFilesRefreshAllResponse, AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
+import { normalizeAuthIndex } from '@/utils/usage';
 import { AUTH_FILES_UPLOAD_BATCH_SIZE, AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
 
 export type AuthFileModelTestStatus =
@@ -365,6 +366,12 @@ const dedupeAuthFilesResponse = (payload: AuthFilesResponse): AuthFilesResponse 
         delete merged.disabled;
       }
     }
+    // Quota and refresh lookups address a credential by its index, so expose the
+    // server's auth_index under the camelCase field as well.
+    const authIndex = normalizeAuthIndex(merged.authIndex ?? merged['auth_index']);
+    if (authIndex) {
+      merged.authIndex = authIndex;
+    }
     return merged;
   });
   normalizedFiles.sort((left, right) =>
@@ -492,14 +499,50 @@ const normalizeOauthModelAlias = (payload: unknown): Record<string, OAuthModelAl
 
 const OAUTH_MODEL_ALIAS_ENDPOINT = '/oauth-model-alias';
 
+export interface AuthFilesListParams {
+  name?: string;
+  authIndex?: string;
+}
+
+const postAuthFileRefresh = (name: string, authIndex?: string) => {
+  const body: Record<string, string> = { name };
+  const normalizedIndex = normalizeAuthIndex(authIndex);
+  if (normalizedIndex) {
+    body.auth_index = normalizedIndex;
+  }
+  return apiClient.post<AuthFileRefreshResponse>('/auth-files/refresh', body);
+};
+
 export const authFilesApi = {
-  list: async () => dedupeAuthFilesResponse(await apiClient.get<AuthFilesResponse>('/auth-files')),
+  list: async (params?: AuthFilesListParams) => {
+    const query: Record<string, string> = {};
+    const name = params?.name?.trim();
+    if (name) {
+      query.name = name;
+    }
+    const authIndex = normalizeAuthIndex(params?.authIndex);
+    if (authIndex) {
+      query.auth_index = authIndex;
+    }
+    const response = await apiClient.get<AuthFilesResponse>(
+      '/auth-files',
+      Object.keys(query).length ? { params: query } : undefined
+    );
+    return dedupeAuthFilesResponse(response);
+  },
 
   setStatus: (name: string, disabled: boolean) =>
     apiClient.patch<AuthFileStatusResponse>('/auth-files/status', { name, disabled }),
 
-  refreshAuthFile: (name: string) =>
-    apiClient.post<AuthFileRefreshResponse>('/auth-files/refresh', { name }),
+  refreshAuthFile: (name: string, authIndex?: string) => postAuthFileRefresh(name, authIndex),
+
+  /**
+   * Refreshes one credential for its side effect only. The response is dropped so a
+   * refresh payload can never reach the UI, which is why callers get no result.
+   */
+  requestManualRefresh: async (name: string, authIndex?: string): Promise<void> => {
+    await postAuthFileRefresh(name, authIndex);
+  },
 
   refreshAll: () =>
     apiClient.post<AuthFilesRefreshAllResponse>('/auth-files/refresh-all', { all: true }),

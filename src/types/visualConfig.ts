@@ -108,6 +108,8 @@ export type VisualConfigValues = {
   antigravityConnectionPoolEnabled: boolean;
   antigravityConnectionPoolIdleConnTimeout: string;
   antigravityConnectionPoolMaxIdleConnsPerHost: string;
+  devinSensitiveWords: string[];
+  antigravitySensitiveWords: string[];
   routingStrategy: 'round-robin' | 'fill-first';
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
@@ -170,6 +172,8 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   antigravityConnectionPoolEnabled: false,
   antigravityConnectionPoolIdleConnTimeout: '',
   antigravityConnectionPoolMaxIdleConnsPerHost: '',
+  devinSensitiveWords: [],
+  antigravitySensitiveWords: [],
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',

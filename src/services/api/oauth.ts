@@ -102,8 +102,35 @@ const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'
 };
 
+export interface OAuthSessionCancelResponse {
+  status: 'ok';
+  /** False when the state was unknown or the attempt had already finished. */
+  cancelled: boolean;
+}
+
+export interface StartAuthOptions {
+  projectId?: string;
+  signal?: AbortSignal;
+}
+
+const isAbortSignal = (value: unknown): value is AbortSignal =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as AbortSignal).aborted === 'boolean';
+
+/**
+ * Attaches an abort signal only when the caller supplied one, so the request
+ * options stay untouched for every existing call site.
+ */
+const withSignal = <T extends Record<string, unknown>>(
+  config: T,
+  signal?: AbortSignal
+): T | (T & { signal: AbortSignal }) => (signal ? { ...config, signal } : config);
+
 export const oauthApi = {
-  startAuth: (provider: OAuthProvider, options?: { projectId?: string }) => {
+  startAuth: (provider: OAuthProvider, optionsOrSignal?: StartAuthOptions | AbortSignal) => {
+    const options = isAbortSignal(optionsOrSignal) ? undefined : optionsOrSignal;
+    const signal = isAbortSignal(optionsOrSignal) ? optionsOrSignal : optionsOrSignal?.signal;
     const params: Record<string, string | boolean> = {};
     if (WEBUI_SUPPORTED.includes(provider)) {
       params.is_webui = true;
@@ -111,23 +138,32 @@ export const oauthApi = {
     if (provider === 'gemini-cli' && options?.projectId) {
       params.project_id = options.projectId;
     }
-    return apiClient.get<OAuthStartResponse>(`/${provider}-auth-url`, {
-      params: Object.keys(params).length ? params : undefined
-    });
+    return apiClient.get<OAuthStartResponse>(
+      `/${provider}-auth-url`,
+      withSignal({ params: Object.keys(params).length ? params : undefined }, signal)
+    );
   },
 
-  getAuthStatus: (state: string) =>
+  getAuthStatus: (state: string, signal?: AbortSignal) =>
     apiClient.get<{
       status: 'ok' | 'wait' | 'error' | 'device_code' | 'auth_url';
       error?: string;
       verification_url?: string;
       user_code?: string;
       url?: string;
-    }>(`/get-auth-status`, {
-      params: { state }
-    }),
+    }>(`/get-auth-status`, withSignal({ params: { state } }, signal)),
 
-  submitCallback: (provider: OAuthProvider, redirectUrl: string, state?: string) => {
+  /**
+   * Third argument carries either the attempt state (to bind the callback to a
+   * login started from this panel) or an AbortSignal for the request.
+   */
+  submitCallback: (
+    provider: OAuthProvider,
+    redirectUrl: string,
+    stateOrSignal?: string | AbortSignal
+  ) => {
+    const state = typeof stateOrSignal === 'string' ? stateOrSignal : undefined;
+    const signal = typeof stateOrSignal === 'string' ? undefined : stateOrSignal;
     const callbackProvider = CALLBACK_PROVIDER_MAP[provider] ?? provider;
     const body: Record<string, string> = {
       provider: callbackProvider,
@@ -136,8 +172,22 @@ export const oauthApi = {
     if (state) {
       body.state = state;
     }
-    return apiClient.post<OAuthCallbackResponse>('/oauth-callback', body);
+    return apiClient.post<OAuthCallbackResponse>(
+      '/oauth-callback',
+      body,
+      signal ? { signal } : undefined
+    );
   },
+
+  /**
+   * Aborts a login that is still waiting for authorization. The server drops the
+   * pending session, so a retry started afterwards is not rejected as a duplicate.
+   */
+  cancelSession: (state: string, signal?: AbortSignal) =>
+    apiClient.delete<OAuthSessionCancelResponse>(
+      '/oauth-session',
+      withSignal({ params: { state } }, signal)
+    ),
 
   submitCode: (provider: OAuthProvider, state: string, code: string) => {
     const callbackProvider = CALLBACK_PROVIDER_MAP[provider] ?? provider;

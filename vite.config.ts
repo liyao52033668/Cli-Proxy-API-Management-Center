@@ -12,9 +12,13 @@ function getVersion(): string {
     return process.env.VERSION;
   }
 
-  // 2. Try git tag
+  // 2. Try git tag. stderr stays closed so a missing tag, or git itself, does not
+  // print shell noise on Windows.
   try {
-    const gitTag = execSync('git describe --tags --exact-match 2>/dev/null || git describe --tags 2>/dev/null || echo ""', { encoding: 'utf8' }).trim();
+    const gitTag = execSync('git describe --tags --exact-match || git describe --tags || echo ""', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
     if (gitTag) {
       return gitTag;
     }
@@ -97,9 +101,10 @@ export default defineConfig({
     assetsInlineLimit: 100000000,
     chunkSizeWarningLimit: 100000000,
     cssCodeSplit: false,
+    // Single chunk output: the singlefile plugin already disables code splitting,
+    // so inlineDynamicImports would only be ignored.
     rollupOptions: {
       output: {
-        inlineDynamicImports: true,
         manualChunks: undefined
       }
     }

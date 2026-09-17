@@ -1081,6 +1081,56 @@ export function VisualConfigEditor({
                   />
                 </SectionGrid>
               </SectionSubsection>
+
+              <SectionSubsection
+                title={t('config_management.visual.sections.network.sensitive_words_title')}
+                description={t(
+                  'config_management.visual.sections.network.sensitive_words_description'
+                )}
+              >
+                <SectionStack>
+                  <FieldShell
+                    label={t(
+                      'config_management.visual.sections.network.devin_sensitive_words_label'
+                    )}
+                    hint={t('config_management.visual.sections.network.devin_sensitive_words_hint')}
+                  >
+                    <StringListEditor
+                      value={values.devinSensitiveWords}
+                      disabled={disabled}
+                      placeholder={t(
+                        'config_management.visual.sections.network.devin_sensitive_words_placeholder'
+                      )}
+                      inputAriaLabel={t(
+                        'config_management.visual.sections.network.devin_sensitive_words_label'
+                      )}
+                      onChange={(devinSensitiveWords) => onChange({ devinSensitiveWords })}
+                    />
+                  </FieldShell>
+                  <FieldShell
+                    label={t(
+                      'config_management.visual.sections.network.antigravity_sensitive_words_label'
+                    )}
+                    hint={t(
+                      'config_management.visual.sections.network.antigravity_sensitive_words_hint'
+                    )}
+                  >
+                    <StringListEditor
+                      value={values.antigravitySensitiveWords}
+                      disabled={disabled}
+                      placeholder={t(
+                        'config_management.visual.sections.network.antigravity_sensitive_words_placeholder'
+                      )}
+                      inputAriaLabel={t(
+                        'config_management.visual.sections.network.antigravity_sensitive_words_label'
+                      )}
+                      onChange={(antigravitySensitiveWords) =>
+                        onChange({ antigravitySensitiveWords })
+                      }
+                    />
+                  </FieldShell>
+                </SectionStack>
+              </SectionSubsection>
             </SectionStack>
           </ConfigSection>
 

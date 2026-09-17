@@ -50,6 +50,8 @@ interface ProviderState {
   callbackError?: string;
   /** Follow-up URL that must be opened to finish authorization (CodeArts remote flow). */
   finalizeUrl?: string;
+  /** Set while a cancel request for the pending attempt is in flight. */
+  cancelling?: boolean;
   phone?: string;
   password?: string;
   authMode?: 'token' | 'oauth' | 'aksk';
@@ -127,12 +129,19 @@ const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-',
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>
   `auth_login.${getProviderI18nPrefix(provider)}_${suffix}`;
 
+// A cancel button is offered whenever an attempt is still waiting for the provider,
+// so a stuck login does not block the next one until the server session expires.
+const canCancelAttempt = (state?: ProviderState): boolean =>
+  Boolean(state?.state) &&
+  (state?.polling === true || state?.status === 'waiting') &&
+  !state?.callbackSubmitting;
+
 const getIcon = (icon: string | { light: string; dark: string }, theme: 'light' | 'dark') => {
   return typeof icon === 'string' ? icon : icon[theme];
 };
 
 export function OAuthPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { showNotification } = useNotificationStore();
   const { copy } = useCopy();
@@ -190,6 +199,51 @@ export function OAuthPage() {
   const clearProviderTimers = (provider: OAuthProvider) => {
     clearPollingTimer(provider);
     clearSuccessResetTimer(provider);
+  };
+
+  /**
+   * Provider-specific wording wins; providers without their own strings fall
+   * back to the generic key.
+   */
+  const authLabel = (provider: OAuthProvider, suffix: string, fallbackKey: string) => {
+    const providerKey = getAuthKey(provider, suffix);
+    return i18n.exists(providerKey) ? t(providerKey) : t(fallbackKey);
+  };
+
+  const cancelAuth = async (provider: OAuthProvider) => {
+    const attemptState = states[provider]?.state;
+    if (!attemptState) return;
+
+    updateProviderState(provider, { cancelling: true });
+    try {
+      await oauthApi.cancelSession(attemptState);
+      clearPollingTimer(provider);
+      // Drop the attempt so the card returns to idle and a new login can start
+      // before the abandoned server-side session would have expired.
+      updateProviderState(provider, {
+        url: undefined,
+        state: undefined,
+        status: undefined,
+        error: undefined,
+        deviceCode: undefined,
+        polling: false,
+        cancelling: false,
+        callbackStatus: undefined,
+        callbackError: undefined
+      });
+      showNotification(
+        authLabel(provider, 'oauth_cancelled', 'auth_login.oauth_cancelled'),
+        'success'
+      );
+    } catch (err: unknown) {
+      updateProviderState(provider, { cancelling: false });
+      const cancelledMessage = authLabel(
+        provider,
+        'oauth_cancel_error',
+        'auth_login.oauth_cancel_error'
+      );
+      showNotification(`${cancelledMessage} ${getErrorMessage(err)}`, 'error');
+    }
   };
 
   const getQoderAuthMode = (providerState?: ProviderState): 'token' | 'oauth' => {
@@ -1178,6 +1232,16 @@ export function OAuthPage() {
                         >
                           {t(getAuthKey(provider.id, 'open_link'))}
                         </Button>
+                        {canCancelAttempt(state) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            loading={state.cancelling}
+                            onClick={() => void cancelAuth(provider.id)}
+                          >
+                            {authLabel(provider.id, 'oauth_cancel', 'auth_login.oauth_cancel')}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}

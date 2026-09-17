@@ -127,6 +127,24 @@ function setIntFromStringInDoc(doc: YamlDocument, path: YamlPath, value: unknown
   }
 }
 
+function setStringSeqInDoc(doc: YamlDocument, path: YamlPath, values: string[]): void {
+  const existing = doc.getIn(path, true);
+  if (!isSeq(existing)) {
+    doc.setIn(path, values);
+    return;
+  }
+  // Rewrite the sequence in place, reusing the item nodes whose text is unchanged so
+  // per-item comments survive the edit.
+  const available = existing.items.slice();
+  existing.items = values.map((value) => {
+    const matchIndex = available.findIndex(
+      (item) => isScalar(item) && typeof item.value === 'string' && item.value.trim() === value
+    );
+    if (matchIndex === -1) return doc.createNode(value);
+    return available.splice(matchIndex, 1)[0];
+  });
+}
+
 function getIntegerError(value: string): 'integer' | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -863,6 +881,22 @@ function getNextDirtyFields(
         baselineValues.antigravityConnectionPoolMaxIdleConnsPerHost
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'devinSensitiveWords')) {
+    const left = nextValues.devinSensitiveWords;
+    const right = baselineValues.devinSensitiveWords;
+    updateDirty(
+      'devinSensitiveWords',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'antigravitySensitiveWords')) {
+    const left = nextValues.antigravitySensitiveWords;
+    const right = baselineValues.antigravitySensitiveWords;
+    updateDirty(
+      'antigravitySensitiveWords',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'routingStrategy')) {
     updateDirty('routingStrategy', nextValues.routingStrategy === baselineValues.routingStrategy);
   }
@@ -1014,6 +1048,7 @@ export function useVisualConfig() {
       const quotaExceeded = asRecord(parsed['quota-exceeded']);
       const antigravity = asRecord(parsed.antigravity);
       const antigravityConnPool = asRecord(antigravity?.['connection-pool']);
+      const devin = asRecord(parsed.devin);
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
@@ -1090,6 +1125,12 @@ export function useVisualConfig() {
         antigravityConnectionPoolMaxIdleConnsPerHost: String(
           antigravityConnPool?.['max-idle-conns-per-host'] ?? ''
         ),
+        devinSensitiveWords: Array.isArray(devin?.['sensitive-words'])
+          ? devin['sensitive-words'].map(String)
+          : [],
+        antigravitySensitiveWords: Array.isArray(antigravity?.['sensitive-words'])
+          ? antigravity['sensitive-words'].map(String)
+          : [],
 
         routingStrategy: routing?.strategy === 'fill-first' ? 'fill-first' : 'round-robin',
         routingSessionAffinity: Boolean(
@@ -1358,6 +1399,32 @@ export function useVisualConfig() {
           deleteIfMapEmpty(doc, ['antigravity']);
         }
 
+        if (isDirty('devinSensitiveWords')) {
+          const devinSensitiveWords = values.devinSensitiveWords
+            .map((word) => word.trim())
+            .filter(Boolean);
+          if (devinSensitiveWords.length > 0) {
+            ensureMapInDoc(doc, ['devin']);
+            setStringSeqInDoc(doc, ['devin', 'sensitive-words'], devinSensitiveWords);
+          } else if (docHas(doc, ['devin', 'sensitive-words'])) {
+            doc.deleteIn(['devin', 'sensitive-words']);
+          }
+          deleteIfMapEmpty(doc, ['devin']);
+        }
+
+        if (isDirty('antigravitySensitiveWords')) {
+          const antigravitySensitiveWords = values.antigravitySensitiveWords
+            .map((word) => word.trim())
+            .filter(Boolean);
+          if (antigravitySensitiveWords.length > 0) {
+            ensureMapInDoc(doc, ['antigravity']);
+            setStringSeqInDoc(doc, ['antigravity', 'sensitive-words'], antigravitySensitiveWords);
+          } else if (docHas(doc, ['antigravity', 'sensitive-words'])) {
+            doc.deleteIn(['antigravity', 'sensitive-words']);
+          }
+          deleteIfMapEmpty(doc, ['antigravity']);
+        }
+
         if (
           isDirty('quotaSwitchProject', 'quotaSwitchPreviewModel', 'quotaAntigravityCredits')
         ) {
@@ -1475,6 +1542,7 @@ export function useVisualConfig() {
   return {
     visualValues,
     visualDirty,
+    visualDirtyFields: dirtyFields,
     visualParseError,
     visualValidationErrors,
     visualHasPayloadValidationErrors,

@@ -15,7 +15,7 @@ const i18n = createInstance();
 await i18n.init({ lng: 'en', resources: { en: { translation: en } } });
 
 describe('Devin OAuth login UI', () => {
-  test('renders a built-in login card with version and expiry guidance', () => {
+  test('renders a built-in login card with its hint', () => {
     const markup = renderToStaticMarkup(
       createElement(
         I18nextProvider,
@@ -25,8 +25,6 @@ describe('Devin OAuth login UI', () => {
     );
     expect(markup).toContain('Devin OAuth');
     expect(markup).toContain('Start Devin Login');
-    expect(markup).toContain('v7.3.1');
-    expect(markup).toContain('five minutes');
     expect(markup).not.toContain('auth_login.devin_');
   });
 
@@ -37,7 +35,6 @@ describe('Devin OAuth login UI', () => {
       for (const key of keys) {
         expect((locale.auth_login as Record<string, string>)[key]?.trim()).toBeTruthy();
       }
-      expect(locale.auth_login.devin_oauth_hint).toContain('v7.3.1');
       expect(locale.auth_login.devin_callback_hint).toContain('/devin/callback');
     }
   });

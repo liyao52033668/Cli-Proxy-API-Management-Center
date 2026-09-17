@@ -1214,6 +1214,9 @@
     "oauth_finalize_hint": "请在刚才完成授权的同一个浏览器中打开下面的链接，登录才会最终生效；打开后本页会自动检测结果。",
     "oauth_finalize_open": "打开链接完成授权",
     "oauth_auth_url_changed": "授权链接已更新，请重新点击打开链接完成授权。",
+    "oauth_cancel": "取消登录",
+    "oauth_cancelled": "已取消登录。",
+    "oauth_cancel_error": "取消登录失败：",
     "oauth_callback_error": "提交回调 URL 失败:",
     "oauth_callback_upgrade_hint": "请更新CLI Proxy API或检查连接",
     "oauth_callback_status_success": "回调 URL 已提交，等待认证中...",
@@ -1867,7 +1870,15 @@
           "antigravity_pool_idle_timeout": "空闲超时 (idle-conn-timeout)",
           "antigravity_pool_idle_timeout_hint": "空闲连接在连接池中保留的最长时间，例如 30s。上限 210s（防止触发 GFE 240s 强制断开）",
           "antigravity_pool_max_idle_conns": "单凭证单主机最大空闲连接数",
-          "antigravity_pool_max_idle_conns_hint": "每个认证凭据针对单个上游主机最多保留的空闲连接数，默认 2"
+          "antigravity_pool_max_idle_conns_hint": "每个认证凭据针对单个上游主机最多保留的空闲连接数，默认 2",
+          "sensitive_words_title": "敏感词混淆",
+          "sensitive_words_description": "这里列出的词会在请求转发前用零宽字符混淆，使上游的敏感词过滤不再命中",
+          "devin_sensitive_words_label": "Devin 敏感词",
+          "devin_sensitive_words_placeholder": "例如 internal-project",
+          "devin_sensitive_words_hint": "每行一个词，作用于 Devin 的系统指令和提示词；全部清空后会自动移除 devin 配置段",
+          "antigravity_sensitive_words_label": "Antigravity 敏感词",
+          "antigravity_sensitive_words_placeholder": "例如 internal-project",
+          "antigravity_sensitive_words_hint": "每行一个词，作用于 Antigravity 的系统指令"
         },
         "quota": {
           "title": "配额回退",
