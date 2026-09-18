@@ -1460,6 +1460,16 @@
     "freebuff_oauth_polling_error": "Не удалось проверить статус авторизации:",
     "freebuff_copy_link": "Копировать ссылку",
     "freebuff_open_link": "Открыть ссылку",
+    "lobsterai_oauth_title": "LobsterAI OAuth",
+    "lobsterai_oauth_button": "Начать вход в LobsterAI",
+    "lobsterai_oauth_hint": "Вход в LobsterAI (NetEase Youdao) через браузерный портал. Адрес перенаправления должен быть http://127.0.0.1:<порт>/auth/callback, поэтому браузер должен работать на той же машине, что и сервер.",
+    "lobsterai_oauth_url_label": "Ссылка авторизации:",
+    "lobsterai_oauth_status_waiting": "Ожидание авторизации LobsterAI...",
+    "lobsterai_oauth_status_success": "Авторизация LobsterAI выполнена!",
+    "lobsterai_oauth_status_error": "Ошибка авторизации LobsterAI:",
+    "lobsterai_oauth_start_error": "Не удалось запустить LobsterAI OAuth:",
+    "lobsterai_copy_link": "Копировать ссылку",
+    "lobsterai_open_link": "Открыть ссылку",
     "remote_access_disabled": "Этот способ входа недоступен при удалённом доступе. Подключитесь с localhost."
   },
   "usage_stats": {

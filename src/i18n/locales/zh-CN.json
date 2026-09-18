@@ -1469,6 +1469,16 @@
     "freebuff_oauth_polling_error": "检查认证状态失败:",
     "freebuff_copy_link": "复制链接",
     "freebuff_open_link": "打开链接",
+    "lobsterai_oauth_title": "LobsterAI 登录",
+    "lobsterai_oauth_button": "开始 LobsterAI 登录",
+    "lobsterai_oauth_hint": "通过浏览器登录 LobsterAI（有道龙虾）。回调地址必须是 http://127.0.0.1:<本机端口>/auth/callback，因此浏览器需要运行在本服务所在的机器上。",
+    "lobsterai_oauth_url_label": "授权链接：",
+    "lobsterai_oauth_status_waiting": "等待 LobsterAI 认证中...",
+    "lobsterai_oauth_status_success": "LobsterAI 认证成功！",
+    "lobsterai_oauth_status_error": "LobsterAI 认证失败：",
+    "lobsterai_oauth_start_error": "启动 LobsterAI OAuth 失败：",
+    "lobsterai_copy_link": "复制链接",
+    "lobsterai_open_link": "打开链接",
     "remote_access_disabled": "远程访问不支持此登录方式，请从本地 (localhost) 访问"
   },
   "usage_stats": {

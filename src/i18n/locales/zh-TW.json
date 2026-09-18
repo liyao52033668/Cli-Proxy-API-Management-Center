@@ -1489,6 +1489,16 @@
     "freebuff_oauth_polling_error": "檢查認證狀態失敗:",
     "freebuff_copy_link": "複製連結",
     "freebuff_open_link": "開啟連結",
+    "lobsterai_oauth_title": "LobsterAI 登入",
+    "lobsterai_oauth_button": "開始 LobsterAI 登入",
+    "lobsterai_oauth_hint": "透過瀏覽器登入 LobsterAI（有道龍蝦）。回呼位址必須是 http://127.0.0.1:<本機連接埠>/auth/callback，因此瀏覽器需要執行在本服務所在的機器上。",
+    "lobsterai_oauth_url_label": "授權連結：",
+    "lobsterai_oauth_status_waiting": "等待 LobsterAI 認證中...",
+    "lobsterai_oauth_status_success": "LobsterAI 認證成功！",
+    "lobsterai_oauth_status_error": "LobsterAI 認證失敗：",
+    "lobsterai_oauth_start_error": "啟動 LobsterAI OAuth 失敗：",
+    "lobsterai_copy_link": "複製連結",
+    "lobsterai_open_link": "開啟連結",
     "remote_access_disabled": "遠端存取不支援此登入方式，請從本地（localhost）存取"
   },
   "usage_stats": {

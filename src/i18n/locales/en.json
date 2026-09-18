@@ -1469,6 +1469,16 @@
     "freebuff_oauth_polling_error": "Failed to check authorization status:",
     "freebuff_copy_link": "Copy Link",
     "freebuff_open_link": "Open Link",
+    "lobsterai_oauth_title": "LobsterAI OAuth",
+    "lobsterai_oauth_button": "Start LobsterAI Login",
+    "lobsterai_oauth_hint": "Sign in to LobsterAI (NetEase Youdao) through the browser portal. The redirect target must be http://127.0.0.1:<port>/auth/callback, so the browser has to run on the same machine as this server.",
+    "lobsterai_oauth_url_label": "Authorization URL:",
+    "lobsterai_oauth_status_waiting": "Waiting for LobsterAI authorization...",
+    "lobsterai_oauth_status_success": "LobsterAI authorization succeeded!",
+    "lobsterai_oauth_status_error": "LobsterAI authorization failed:",
+    "lobsterai_oauth_start_error": "Failed to start LobsterAI OAuth:",
+    "lobsterai_copy_link": "Copy Link",
+    "lobsterai_open_link": "Open Link",
     "remote_access_disabled": "This login method is not available for remote access. Please access from localhost."
   },
   "usage_stats": {

@@ -19,6 +19,7 @@ import iconKilo from '@/assets/icons/kilo.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKiro from '@/assets/icons/kiro.svg';
+import iconLobsterai from '@/assets/icons/lobsterai.svg';
 import iconQoder from '@/assets/icons/qoder.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import { Button } from '@/components/ui/Button';
@@ -114,6 +115,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codebuddy-ai', titleKey: 'auth_login.codebuddy_ai_oauth_title', hintKey: 'auth_login.codebuddy_ai_oauth_hint', urlLabelKey: 'auth_login.codebuddy_ai_oauth_url_label', icon: iconCodebuddyAI },
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconJoycode },
+  { id: 'lobsterai', titleKey: 'auth_login.lobsterai_oauth_title', hintKey: 'auth_login.lobsterai_oauth_hint', urlLabelKey: 'auth_login.lobsterai_oauth_url_label', icon: iconLobsterai },
   { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt },
 
 ];
@@ -123,7 +125,9 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
 // CodeArts uses the PKCE flow with is_redirect=true: HuaweiCloud redirects back to
 // the local /oauth/callback. For remote deployments, users must manually copy the
 // redirect URL from the browser address bar and paste it here.
-const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts', 'devin'];
+// LobsterAI only accepts a loopback redirect_uri, so a remote browser cannot reach
+// the callback and the pasted-URL flow is the fallback.
+const CALLBACK_SUPPORTED: OAuthProvider[] = ['codex', 'anthropic', 'antigravity', 'gemini-cli', 'codearts', 'devin', 'lobsterai'];
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: OAuthProvider) => provider.replace('-', '_');
 const getAuthKey = (provider: OAuthProvider, suffix: string) =>

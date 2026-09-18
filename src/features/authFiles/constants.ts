@@ -23,6 +23,7 @@ import iconKilo from '@/assets/icons/kilo.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKiro from '@/assets/icons/kiro.svg';
+import iconLobsterai from '@/assets/icons/lobsterai.svg';
 import iconJoycode from '@/assets/icons/joycode.svg';
 import iconMinimax from '@/assets/icons/minimax.svg';
 import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
@@ -286,6 +287,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#ede9fe', text: '#6d28d9', border: '1px solid #c4b5fd' },
     dark: { bg: '#4c1d95', text: '#c4b5fd', border: '1px solid #8b5cf6' },
   },
+  // LobsterAI (NetEase Youdao): 龙虾红
+  lobsterai: {
+    light: { bg: '#fee2e2', text: '#b91c1c', border: '1px solid #fca5a5' },
+    dark: { bg: '#7f1d1d', text: '#fca5a5', border: '1px solid #ef4444' },
+  },
   // DeepSeek: 深蓝
   deepseek: {
     light: { bg: '#dbeafe', text: '#1d4ed8', border: '1px solid #93c5fd' },
@@ -353,6 +359,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   'github-copilot': iconGithub,
   gitlab: iconGitlab,
   glm: iconGlm,
+  lobsterai: iconLobsterai,
   iflow: iconIflow,
   joycode: iconJoycode,
   kilo: iconKilo,
@@ -484,6 +491,7 @@ export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
   'commandcode',
   'xai',
   'freebuff',
+  'lobsterai',
 ];
 
 export const DEFAULT_OAUTH_PROVIDER_EXCLUDES = new Set([
