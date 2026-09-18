@@ -276,6 +276,46 @@ export function AuthFilesOAuthModelAliasEditPage() {
       })
       .filter(Boolean) as OAuthModelAliasEntry[];
 
+    // Rows whose alias differs from the source name only by case are identity
+    // mappings for the backend (model names compare case-insensitively) and are
+    // silently dropped on save, so reject them up front.
+    const caseOnlyNames: string[] = [];
+    for (const entry of normalized) {
+      if (entry.alias.toLowerCase() !== entry.name.toLowerCase()) continue;
+      if (!caseOnlyNames.some((value) => value.toLowerCase() === entry.name.toLowerCase())) {
+        caseOnlyNames.push(entry.name);
+      }
+    }
+    if (caseOnlyNames.length) {
+      showNotification(
+        t('oauth_model_alias.same_as_name', { names: caseOnlyNames.join(', ') }),
+        'error'
+      );
+      return;
+    }
+
+    // The backend keeps only the first entry per alias within a channel, so a
+    // duplicated alias would silently drop rows on save. Reject it up front.
+    const aliasSeen = new Set<string>();
+    const duplicateAliases: string[] = [];
+    for (const entry of normalized) {
+      const aliasKey = entry.alias.toLowerCase();
+      if (aliasSeen.has(aliasKey)) {
+        if (!duplicateAliases.some((value) => value.toLowerCase() === aliasKey)) {
+          duplicateAliases.push(entry.alias);
+        }
+        continue;
+      }
+      aliasSeen.add(aliasKey);
+    }
+    if (duplicateAliases.length) {
+      showNotification(
+        t('oauth_model_alias.duplicate_alias', { alias: duplicateAliases.join(', ') }),
+        'error'
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       if (normalized.length) {

@@ -1118,6 +1118,8 @@
     "save": "Save/Update",
     "save_success": "Model aliases updated",
     "save_failed": "Failed to update model aliases",
+    "duplicate_alias": "Each alias can only map to one source model per provider. Duplicate alias: {{alias}}",
+    "same_as_name": "The alias must differ from the source model name (compared case-insensitively); these rows cannot be saved: {{names}}",
     "delete": "Delete Provider",
     "delete_confirm": "Delete model aliases for {{provider}}?",
     "delete_link_title": "Unlink mapping",

@@ -1112,6 +1112,8 @@
     "save": "儲存/更新",
     "save_success": "模型別名已更新",
     "save_failed": "更新模型別名失敗",
+    "duplicate_alias": "同一別名在每個供應商下只能對應一個來源模型，重複的別名：{{alias}}",
+    "same_as_name": "別名不能與來源模型名相同（忽略大小寫比較），這些行無法儲存：{{names}}",
     "delete": "刪除供應商",
     "delete_confirm": "確定要刪除 {{provider}} 的模型別名嗎？",
     "delete_link_title": "取消連結",
