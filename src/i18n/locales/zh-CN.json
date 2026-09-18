@@ -950,6 +950,26 @@
     "limit_index": "限额 #{{index}}",
     "reset_hint": "{{hint}} 后重置"
   },
+  "lobsterai_quota": {
+    "title": "LobsterAI 额度",
+    "empty_title": "暂无 LobsterAI 认证",
+    "empty_desc": "上传 LobsterAI 认证文件后即可查看剩余积分。",
+    "idle": "点击此处刷新额度",
+    "loading": "正在加载额度...",
+    "load_failed": "额度获取失败：{{message}}",
+    "missing_auth_index": "认证文件缺少 auth_index",
+    "empty_data": "暂无额度数据",
+    "refresh_button": "刷新额度",
+    "fetch_all": "全部获取",
+    "plan_unknown": "LobsterAI",
+    "total_remaining": "{{credits}} 积分",
+    "item_subscription": "订阅积分",
+    "item_free": "免费额度",
+    "item_campaign": "活动赠送",
+    "item_bonus": "奖励积分",
+    "item_invitation": "邀请奖励",
+    "item_boost": "加速包"
+  },
   "qoder_quota": {
     "title": "Qoder 额度",
     "empty_title": "暂无 Qoder 认证",

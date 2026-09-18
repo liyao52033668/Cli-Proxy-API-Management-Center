@@ -393,6 +393,35 @@ export interface KimiQuotaState {
   errorStatus?: number;
 }
 
+// LobsterAI (NetEase Youdao) credit snapshot. The upstream reports the account
+// total plus a per-bucket breakdown (subscription, free grant, campaign bonus),
+// so both the aggregate and the individual buckets are kept.
+export interface LobsterAICreditItem {
+  type: string;
+  label?: string;
+  labelEn?: string;
+  creditsRemaining: number;
+  /** ISO timestamp; absent when the bucket never expires. */
+  expiresAt?: string;
+}
+
+export interface LobsterAIQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  /** Ledger balance: the authoritative spendable credit total. */
+  creditsRemaining: number;
+  /**
+   * Plan cycle counters. They exclude campaign grants, so they describe
+   * consumption pace and are NOT a limit for creditsRemaining.
+   */
+  cycleCreditsLimit?: number;
+  cycleCreditsUsed?: number;
+  planName?: string;
+  subscriptionStatus?: string;
+  items: LobsterAICreditItem[];
+  error?: string;
+  errorStatus?: number;
+}
+
 // Qoder official quota API payload types
 export interface QoderUserQuota {
   total?: number;

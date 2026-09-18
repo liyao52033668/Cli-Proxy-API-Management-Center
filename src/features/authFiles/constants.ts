@@ -127,6 +127,7 @@ export type QuotaProviderType =
   | 'gemini-cli'
   | 'kimi'
   | 'kiro'
+  | 'lobsterai'
   | 'qoder'
   | 'xai';
 
@@ -142,6 +143,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'gemini-cli',
   'kimi',
   'kiro',
+  'lobsterai',
   'qoder',
   'xai',
 ]);

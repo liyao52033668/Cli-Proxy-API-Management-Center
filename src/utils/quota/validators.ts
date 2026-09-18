@@ -53,6 +53,10 @@ export function isKimiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'kimi';
 }
 
+export function isLobsterAIFile(file: AuthFileItem): boolean {
+  return resolveAuthProvider(file) === 'lobsterai';
+}
+
 export function isQoderFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'qoder';
 }

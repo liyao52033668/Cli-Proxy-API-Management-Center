@@ -944,6 +944,26 @@
     "limit_index": "限額 #{{index}}",
     "reset_hint": "{{hint}} 後重置"
   },
+  "lobsterai_quota": {
+    "title": "LobsterAI 配額",
+    "empty_title": "暫無 LobsterAI 認證",
+    "empty_desc": "上傳 LobsterAI 認證檔案後即可查看剩餘積分。",
+    "idle": "點擊此處重新整理配額",
+    "loading": "正在載入配額...",
+    "load_failed": "配額取得失敗：{{message}}",
+    "missing_auth_index": "認證檔案缺少 auth_index",
+    "empty_data": "暫無配額資料",
+    "refresh_button": "重新整理配額",
+    "fetch_all": "取得全部",
+    "plan_unknown": "LobsterAI",
+    "total_remaining": "{{credits}} 積分",
+    "item_subscription": "訂閱積分",
+    "item_free": "免費額度",
+    "item_campaign": "活動贈送",
+    "item_bonus": "獎勵積分",
+    "item_invitation": "邀請獎勵",
+    "item_boost": "加速包"
+  },
   "qoder_quota": {
     "title": "Qoder 配額",
     "empty_title": "暫無 Qoder 驗證",

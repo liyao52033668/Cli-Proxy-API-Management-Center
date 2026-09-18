@@ -13,6 +13,7 @@ import {
   GEMINI_CLI_CONFIG,
   KIMI_CONFIG,
   KIRO_CONFIG,
+  LOBSTERAI_CONFIG,
   QODER_CONFIG,
   XAI_CONFIG,
   QuotaSection
@@ -147,6 +148,12 @@ export function QuotaPage() {
       />
       <QuotaSection
         config={KIRO_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={LOBSTERAI_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}

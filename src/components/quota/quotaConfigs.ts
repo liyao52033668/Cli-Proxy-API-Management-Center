@@ -56,6 +56,8 @@ import type {
   KiroQuotaData,
   KiroQuotaRow,
   KiroQuotaState,
+  LobsterAICreditItem,
+  LobsterAIQuotaState,
   QoderQuotaRow,
   QoderQuotaState,
   XaiBillingSummary,
@@ -106,6 +108,7 @@ import {
   isGeminiCliFile,
   isKimiFile,
   isKiroFile,
+  isLobsterAIFile,
   isQoderFile,
   isXaiFile,
   isRuntimeOnlyAuthFile,
@@ -143,7 +146,7 @@ import type { QuotaRenderHelpers } from './QuotaCard';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'commandcode' | 'codex' | 'copilot' | 'cursor' | 'devin' | 'gemini-cli' | 'kimi' | 'kiro' | 'qoder' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codebuddy' | 'commandcode' | 'codex' | 'copilot' | 'cursor' | 'devin' | 'gemini-cli' | 'kimi' | 'kiro' | 'lobsterai' | 'qoder' | 'xai';
 
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
@@ -165,6 +168,7 @@ export interface QuotaStore {
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
+  lobsteraiQuota: Record<string, LobsterAIQuotaState>;
   qoderQuota: Record<string, QoderQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
@@ -178,6 +182,7 @@ export interface QuotaStore {
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
+  setLobsterAIQuota: (updater: QuotaUpdater<Record<string, LobsterAIQuotaState>>) => void;
   setQoderQuota: (updater: QuotaUpdater<Record<string, QoderQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   clearQuotaCache: () => void;
@@ -3660,5 +3665,207 @@ export const DEVIN_CONFIG: QuotaConfig<DevinQuotaState, DevinQuotaData> = {
   controlClassName: styles.codexControl,
   gridClassName: styles.codexGrid,
   renderQuotaItems: renderDevinItems,
+};
+
+const fetchLobsterAIQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<LobsterAIQuotaState> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('lobsterai_quota.missing_auth_index'));
+  }
+
+  const result = await apiClient.get<Record<string, unknown>>(
+    `/lobsterai-quota?auth_index=${encodeURIComponent(authIndex)}`
+  );
+
+  const payload = result as Record<string, unknown>;
+  const readNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  const readString = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  };
+
+  const creditsRemaining = readNumber(payload.credits_remaining);
+  if (creditsRemaining === undefined) {
+    throw new Error(t('lobsterai_quota.empty_data'));
+  }
+
+  const rawItems = Array.isArray(payload.items) ? payload.items : [];
+  const items = rawItems
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      type: readString(item.type) ?? 'credit',
+      label: readString(item.label),
+      labelEn: readString(item.label_en),
+      creditsRemaining: readNumber(item.credits_remaining) ?? 0,
+      expiresAt: readString(item.expires_at),
+    }));
+
+  return {
+    status: 'success',
+    creditsRemaining,
+    cycleCreditsLimit: readNumber(payload.cycle_credits_limit),
+    cycleCreditsUsed: readNumber(payload.cycle_credits_used),
+    planName: readString(payload.plan_name),
+    subscriptionStatus: readString(payload.subscription_status),
+    items,
+  };
+};
+
+// groupCreditItems collapses the ledger's per-grant entries into one row per
+// bucket type.
+//
+// The upstream models a bucket as a single type (subscription / free / campaign
+// / bonus / invitation / boost) but can emit several entries for one type when
+// grants carry different expiries — a daily check-in campaign credits the
+// account once per day, for instance. Rendering those verbatim would produce a
+// row per grant, so amounts are summed per type and the soonest expiry is kept
+// as the one deadline the user can act on.
+const groupCreditItems = (items: LobsterAICreditItem[]): LobsterAICreditItem[] => {
+  const grouped: LobsterAICreditItem[] = [];
+  const indexByType = new Map<string, number>();
+  for (const item of items) {
+    const existing = indexByType.get(item.type);
+    if (existing === undefined) {
+      indexByType.set(item.type, grouped.length);
+      grouped.push({ ...item });
+      continue;
+    }
+    const target = grouped[existing];
+    target.creditsRemaining += item.creditsRemaining;
+    if (!target.label && item.label) target.label = item.label;
+    if (!target.labelEn && item.labelEn) target.labelEn = item.labelEn;
+    // Expiries arrive as RFC3339 from one server, so a string comparison orders
+    // them correctly; the earliest one is what the user has to spend before.
+    if (item.expiresAt && (!target.expiresAt || item.expiresAt < target.expiresAt)) {
+      target.expiresAt = item.expiresAt;
+    }
+  }
+  return grouped;
+};
+
+const renderLobsterAIItems = (
+  quota: LobsterAIQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+
+  // The headline and the bucket rows read the credit ledger behind
+  // profile-summary, so they always reconcile with each other.
+  const summary = h(
+    'div',
+    { key: 'summary', className: styleMap.codexPlan },
+    h(
+      'span',
+      { className: styleMap.codexPlanLabel },
+      quota.planName ? quota.planName : t('lobsterai_quota.plan_unknown')
+    ),
+    h(
+      'span',
+      { className: styleMap.quotaAmount },
+      t('lobsterai_quota.total_remaining', { credits: formatCreditAmount(quota.creditsRemaining) })
+    )
+  );
+
+  // The plan/free cycle counter is the only part of the snapshot with a limit,
+  // so it is the only thing that can carry a meter. It describes exactly one
+  // ledger bucket — the subscription on a paid plan, the free grant otherwise —
+  // so the meter is drawn inside that bucket's row instead of as a separate
+  // row. A separate row printed the same credits twice and, on a free account,
+  // mislabelled the free grant as a plan the account does not have.
+  const status = (quota.subscriptionStatus ?? '').toLowerCase();
+  const cycleBucketType = status === 'active' || status === 'enterprise' ? 'subscription' : 'free';
+  const cycleLimit = quota.cycleCreditsLimit ?? 0;
+  const cycleUsed = quota.cycleCreditsUsed ?? 0;
+  let cyclePercent: number | null = null;
+  if (cycleLimit > 0) {
+    cyclePercent = Math.max(
+      0,
+      Math.min(100, Math.round(((cycleLimit - cycleUsed) / cycleLimit) * 100))
+    );
+  }
+
+  const itemNodes = groupCreditItems(quota.items).map((item) => {
+    const label = item.label || item.labelEn || t(`lobsterai_quota.item_${item.type}`, {
+      defaultValue: item.type
+    });
+    const expiry = item.expiresAt ? formatQuotaResetDate(item.expiresAt) : '';
+    // Draw the meter only when it describes this bucket and both sources still
+    // agree on the remainder. On a disagreement the bucket keeps its own number
+    // and the bar is skipped, so the two can never contradict each other.
+    const showMeter =
+      cyclePercent !== null &&
+      item.type === cycleBucketType &&
+      item.creditsRemaining <= cycleLimit;
+    return h(
+      'div',
+      { key: item.type, className: styleMap.quotaRow },
+      h(
+        'div',
+        { className: styleMap.quotaRowHeader },
+        h('span', { className: styleMap.quotaModel }, label),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          h(
+            'span',
+            { className: styleMap.quotaAmount },
+            formatCreditAmount(item.creditsRemaining)
+          ),
+          expiry ? h('span', { className: styleMap.quotaReset }, expiry) : null
+        )
+      ),
+      showMeter
+        ? h(QuotaProgressBar, {
+            percent: cyclePercent,
+            highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+            mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD
+          })
+        : null
+    );
+  });
+
+  return h(Fragment, null, summary, ...itemNodes);
+};
+
+/** formatCreditAmount trims trailing zeros so whole credits read as integers. */
+const formatCreditAmount = (value: number): string => {
+  if (!Number.isFinite(value)) return '-';
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
+};
+
+export const LOBSTERAI_CONFIG: QuotaConfig<LobsterAIQuotaState, LobsterAIQuotaState> = {
+  type: 'lobsterai',
+  i18nPrefix: 'lobsterai_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isLobsterAIFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchLobsterAIQuota,
+  storeSelector: (state) => state.lobsteraiQuota,
+  storeSetter: 'setLobsterAIQuota',
+  buildLoadingState: () => ({
+    status: 'loading',
+    creditsRemaining: 0,
+    items: [],
+  }),
+  buildSuccessState: (data) => data,
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    creditsRemaining: 0,
+    items: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.lobsteraiCard,
+  controlsClassName: styles.lobsteraiControls,
+  controlClassName: styles.lobsteraiControl,
+  gridClassName: styles.lobsteraiGrid,
+  renderQuotaItems: renderLobsterAIItems,
 };
 

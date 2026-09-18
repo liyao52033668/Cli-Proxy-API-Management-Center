@@ -14,6 +14,7 @@ import type {
   GeminiCliQuotaState,
   KimiQuotaState,
   KiroQuotaState,
+  LobsterAIQuotaState,
   QoderQuotaState,
   XaiQuotaState
 } from '@/types';
@@ -33,6 +34,7 @@ interface QuotaStoreState {
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   kiroQuota: Record<string, KiroQuotaState>;
+  lobsteraiQuota: Record<string, LobsterAIQuotaState>;
   qoderQuota: Record<string, QoderQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
@@ -46,6 +48,7 @@ interface QuotaStoreState {
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setKiroQuota: (updater: QuotaUpdater<Record<string, KiroQuotaState>>) => void;
+  setLobsterAIQuota: (updater: QuotaUpdater<Record<string, LobsterAIQuotaState>>) => void;
   setQoderQuota: (updater: QuotaUpdater<Record<string, QoderQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   clearQuotaCache: () => void;
@@ -70,6 +73,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   geminiCliQuota: {},
   kimiQuota: {},
   kiroQuota: {},
+  lobsteraiQuota: {},
   qoderQuota: {},
   xaiQuota: {},
   setAntigravityQuota: (updater) =>
@@ -116,6 +120,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     set((state) => ({
       kiroQuota: resolveUpdater(updater, state.kiroQuota)
     })),
+  setLobsterAIQuota: (updater) =>
+    set((state) => ({
+      lobsteraiQuota: resolveUpdater(updater, state.lobsteraiQuota)
+    })),
   setQoderQuota: (updater) =>
     set((state) => ({
       qoderQuota: resolveUpdater(updater, state.qoderQuota)
@@ -137,6 +145,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       geminiCliQuota: {},
       kimiQuota: {},
       kiroQuota: {},
+      lobsteraiQuota: {},
       qoderQuota: {},
       xaiQuota: {}
     })

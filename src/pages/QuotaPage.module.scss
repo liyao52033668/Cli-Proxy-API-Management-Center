@@ -115,6 +115,7 @@
 .codexGrid,
 .geminiCliGrid,
 .kimiGrid,
+.lobsteraiGrid,
 .qoderGrid {
   display: grid;
   gap: $spacing-md;
@@ -130,6 +131,7 @@
 .codexControls,
 .geminiCliControls,
 .kimiControls,
+.lobsteraiControls,
 .qoderControls {
   display: flex;
   gap: $spacing-md;
@@ -143,6 +145,7 @@
 .codexControl,
 .geminiCliControl,
 .kimiControl,
+.lobsteraiControl,
 .qoderControl {
   display: flex;
   flex-direction: column;
@@ -277,6 +280,12 @@
   background-image: linear-gradient(180deg,
       rgba(220, 232, 255, 0.2),
       rgba(220, 232, 255, 0));
+}
+
+.lobsteraiCard {
+  background-image: linear-gradient(180deg,
+      rgba(254, 226, 226, 0.22),
+      rgba(254, 226, 226, 0));
 }
 
 .qoderCard {
