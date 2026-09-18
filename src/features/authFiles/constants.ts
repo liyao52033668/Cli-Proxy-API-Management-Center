@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import iconAlysis from '@/assets/icons/alysis.svg';
 import iconAmp from '@/assets/icons/amp.svg';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
 import iconBt from '@/assets/icons/bt.svg';
@@ -289,6 +290,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#ede9fe', text: '#6d28d9', border: '1px solid #c4b5fd' },
     dark: { bg: '#4c1d95', text: '#c4b5fd', border: '1px solid #8b5cf6' },
   },
+  // Alysis Code Pro: 天蓝 (gateway brand)
+  alysis: {
+    light: { bg: '#e0f2fe', text: '#0369a1', border: '1px solid #7dd3fc' },
+    dark: { bg: '#0c4a6e', text: '#7dd3fc', border: '1px solid #0ea5e9' },
+  },
   // LobsterAI (NetEase Youdao): 龙虾红
   lobsterai: {
     light: { bg: '#fee2e2', text: '#b91c1c', border: '1px solid #fca5a5' },
@@ -340,6 +346,7 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
 };
 
 export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
+  alysis: iconAlysis,
   amp: iconAmp,
   antigravity: iconAntigravity,
   aistudio: iconGemini,
@@ -494,6 +501,7 @@ export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
   'xai',
   'freebuff',
   'lobsterai',
+  'alysis',
 ];
 
 export const DEFAULT_OAUTH_PROVIDER_EXCLUDES = new Set([

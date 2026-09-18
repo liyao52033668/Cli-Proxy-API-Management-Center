@@ -26,7 +26,8 @@ export type OAuthProvider =
   | 'commandcode'
   | 'devin'
   | 'freebuff'
-  | 'lobsterai';
+  | 'lobsterai'
+  | 'alysis';
 
 export interface OAuthStartResponse {
   status?: 'ok' | 'wait' | 'error' | 'device_code';
@@ -35,6 +36,8 @@ export interface OAuthStartResponse {
   user_code?: string;
   verification_url?: string;
   verification_uri?: string;
+  flow?: string;
+  expires_in?: number;
 }
 
 export interface OAuthCallbackResponse {
@@ -98,7 +101,8 @@ const WEBUI_SUPPORTED: OAuthProvider[] = [
   'commandcode',
   'devin',
   'freebuff',
-  'lobsterai'
+  'lobsterai',
+  'alysis'
 ];
 const CALLBACK_PROVIDER_MAP: Partial<Record<OAuthProvider, string>> = {
   'gemini-cli': 'gemini'

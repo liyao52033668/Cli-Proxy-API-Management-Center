@@ -1,3 +1,4 @@
+import iconAlysis from '@/assets/icons/alysis.svg';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
 import iconBt from '@/assets/icons/bt.svg';
 import iconClaude from '@/assets/icons/claude.svg';
@@ -109,6 +110,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'devin', titleKey: 'auth_login.devin_oauth_title', hintKey: 'auth_login.devin_oauth_hint', urlLabelKey: 'auth_login.devin_oauth_url_label', icon: { light: iconDevin, dark: iconDevinDark } },
   { id: 'commandcode', titleKey: 'auth_login.commandcode_oauth_title', hintKey: 'auth_login.commandcode_oauth_hint', urlLabelKey: 'auth_login.commandcode_oauth_url_label', icon: iconCommandCode },
   { id: 'freebuff', titleKey: 'auth_login.freebuff_oauth_title', hintKey: 'auth_login.freebuff_oauth_hint', urlLabelKey: 'auth_login.freebuff_oauth_url_label', icon: iconFreebuff },
+  { id: 'alysis', titleKey: 'auth_login.alysis_oauth_title', hintKey: 'auth_login.alysis_oauth_hint', urlLabelKey: 'auth_login.alysis_oauth_url_label', icon: iconAlysis },
   { id: 'kimi', titleKey: 'auth_login.kimi_oauth_title', hintKey: 'auth_login.kimi_oauth_hint', urlLabelKey: 'auth_login.kimi_oauth_url_label', icon: { light: iconKimiLight, dark: iconKimiDark } },
   { id: 'qoder', titleKey: 'auth_login.qoder_oauth_title', hintKey: 'auth_login.qoder_oauth_hint', urlLabelKey: 'auth_login.qoder_oauth_url_label', icon: iconQoder },
   { id: 'codebuddy', titleKey: 'auth_login.codebuddy_oauth_title', hintKey: 'auth_login.codebuddy_oauth_hint', urlLabelKey: 'auth_login.codebuddy_oauth_url_label', icon: iconCodebuddy },
