@@ -1926,6 +1926,8 @@
           "disable_cooling_desc": "Keep retrying credentials after failures instead of applying cooldown periods. This may increase upstream load.",
           "codex_model_level_cooling": "Codex Model-Level Cooling",
           "codex_model_level_cooling_desc": "Scope usage_limit_reached quota cooldowns to the requested model rather than cooling down the entire credential across all sibling models",
+          "claude_model_level_cooling": "Claude Model-Level Cooling",
+          "claude_model_level_cooling_desc": "Scope quota cooldowns to the requested model rather than cooling down the entire credential across all sibling models",
           "switch_project": "Switch Project",
           "switch_project_desc": "Automatically switch to another project when quota is exceeded",
           "switch_preview_model": "Switch to Preview Model",

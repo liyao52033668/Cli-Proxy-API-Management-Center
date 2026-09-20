@@ -834,6 +834,12 @@ function getNextDirtyFields(
       nextValues.codexModelLevelCooling === baselineValues.codexModelLevelCooling
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'claudeModelLevelCooling')) {
+    updateDirty(
+      'claudeModelLevelCooling',
+      nextValues.claudeModelLevelCooling === baselineValues.claudeModelLevelCooling
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'wsAuth')) {
     updateDirty('wsAuth', nextValues.wsAuth === baselineValues.wsAuth);
   }
@@ -1053,6 +1059,7 @@ export function useVisualConfig() {
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
       const xai = asRecord(parsed.xai);
+      const claude = asRecord(parsed.claude);
 
       const newValues: VisualConfigValues = {
         host: typeof parsed.host === 'string' ? parsed.host : '',
@@ -1111,6 +1118,7 @@ export function useVisualConfig() {
         authAutoRefreshWorkers: String(parsed['auth-auto-refresh-workers'] ?? ''),
         disableCooling: Boolean(parsed['disable-cooling']),
         codexModelLevelCooling: Boolean(parsed['codex-model-level-cooling']),
+        claudeModelLevelCooling: Boolean(claude?.['model-level-cooling']),
         wsAuth: Boolean(parsed['ws-auth']),
         xaiInjectXSearch: Boolean(xai?.['inject-x-search']),
 
@@ -1360,6 +1368,16 @@ export function useVisualConfig() {
         }
         if (isDirty('codexModelLevelCooling')) {
           setBooleanInDoc(doc, ['codex-model-level-cooling'], values.codexModelLevelCooling);
+        }
+
+        if (isDirty('claudeModelLevelCooling')) {
+          ensureMapInDoc(doc, ['claude']);
+          setBooleanInDoc(
+            doc,
+            ['claude', 'model-level-cooling'],
+            values.claudeModelLevelCooling
+          );
+          deleteIfMapEmpty(doc, ['claude']);
         }
         if (isDirty('wsAuth')) {
           setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);

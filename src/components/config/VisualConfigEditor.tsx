@@ -1162,6 +1162,15 @@ export function VisualConfigEditor({
                 onChange={(codexModelLevelCooling) => onChange({ codexModelLevelCooling })}
               />
               <ToggleRow
+                title={t('config_management.visual.sections.quota.claude_model_level_cooling')}
+                description={t(
+                  'config_management.visual.sections.quota.claude_model_level_cooling_desc'
+                )}
+                checked={values.claudeModelLevelCooling}
+                disabled={disabled}
+                onChange={(claudeModelLevelCooling) => onChange({ claudeModelLevelCooling })}
+              />
+              <ToggleRow
                 title={t('config_management.visual.sections.quota.switch_project')}
                 description={t('config_management.visual.sections.quota.switch_project_desc')}
                 checked={values.quotaSwitchProject}

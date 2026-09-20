@@ -102,6 +102,7 @@ export type VisualConfigValues = {
   authAutoRefreshWorkers: string;
   disableCooling: boolean;
   codexModelLevelCooling: boolean;
+  claudeModelLevelCooling: boolean;
   quotaSwitchProject: boolean;
   quotaSwitchPreviewModel: boolean;
   quotaAntigravityCredits: boolean;
@@ -166,6 +167,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   authAutoRefreshWorkers: '',
   disableCooling: false,
   codexModelLevelCooling: false,
+  claudeModelLevelCooling: false,
   quotaSwitchProject: true,
   quotaSwitchPreviewModel: true,
   quotaAntigravityCredits: true,

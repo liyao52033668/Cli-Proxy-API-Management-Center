@@ -1946,6 +1946,8 @@
           "disable_cooling_desc": "失敗後繼續嘗試憑證，不套用冷卻時間。此設定可能增加上游請求壓力。",
           "codex_model_level_cooling": "Codex 模型級作用域冷卻",
           "codex_model_level_cooling_desc": "當觸發 usage_limit_reached 時，僅冷卻超限的特定模型，而不冷卻該憑證下的同級其他模型",
+          "claude_model_level_cooling": "Claude 模型級作用域冷卻",
+          "claude_model_level_cooling_desc": "當觸發配額冷卻時，僅冷卻超限的特定模型，而不冷卻該憑證下的同級其他模型",
           "switch_project": "切換專案",
           "switch_project_desc": "配額耗盡時自動切換到其他專案",
           "switch_preview_model": "切換預覽模型",

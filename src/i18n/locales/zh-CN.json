@@ -1930,6 +1930,8 @@
           "disable_cooling_desc": "失败后继续尝试凭据，不应用冷却时间。此设置可能增加上游请求压力。",
           "codex_model_level_cooling": "Codex 模型级作用域冷却",
           "codex_model_level_cooling_desc": "当触发 usage_limit_reached 时，仅冷却超限的特定模型，而不冷却该凭据下的同级其他模型",
+          "claude_model_level_cooling": "Claude 模型级作用域冷却",
+          "claude_model_level_cooling_desc": "当触发配额冷却时，仅冷却超限的特定模型，而不冷却该凭据下的同级其他模型",
           "switch_project": "切换项目",
           "switch_project_desc": "配额耗尽时自动切换到其他项目",
           "switch_preview_model": "切换预览模型",
