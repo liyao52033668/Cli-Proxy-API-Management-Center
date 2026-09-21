@@ -1493,9 +1493,9 @@
     "lobsterai_oauth_start_error": "Не удалось запустить LobsterAI OAuth:",
     "lobsterai_copy_link": "Копировать ссылку",
     "lobsterai_open_link": "Открыть ссылку",
-    "alysis_oauth_title": "Alysis Code Pro OAuth",
+    "alysis_oauth_title": "Alysis Code OAuth",
     "alysis_oauth_button": "Войти в Alysis",
-    "alysis_oauth_hint": "Вход в Alysis Code Pro через авторизацию устройства: откройте ссылку авторизации и подтвердите код на странице — файл аутентификации сохранится автоматически.",
+    "alysis_oauth_hint": "Вход в Alysis Code через авторизацию устройства: откройте ссылку авторизации и подтвердите код на странице — файл аутентификации сохранится автоматически.",
     "alysis_oauth_url_label": "Ссылка авторизации:",
     "alysis_oauth_status_waiting": "Ожидание авторизации Alysis...",
     "alysis_oauth_status_success": "Авторизация Alysis выполнена!",
@@ -1910,7 +1910,10 @@
           "devin_sensitive_words_hint": "Одно слово на строку. Применяется к системным инструкциям и подсказкам Devin; при очистке всех слов блок devin удаляется",
           "antigravity_sensitive_words_label": "Чувствительные слова Antigravity",
           "antigravity_sensitive_words_placeholder": "например internal-project",
-          "antigravity_sensitive_words_hint": "Одно слово на строку. Применяется к системным инструкциям Antigravity"
+          "antigravity_sensitive_words_hint": "Одно слово на строку. Применяется к системным инструкциям Antigravity",
+          "codebuddy_ai_sensitive_words_label": "Чувствительные слова CodeBuddy AI",
+          "codebuddy_ai_sensitive_words_placeholder": "например custom-sensitive-word",
+          "codebuddy_ai_sensitive_words_hint": "Одно слово на строку. Объединяется со встроенными словами по умолчанию и применяется к системным инструкциям и подсказкам CodeBuddy AI; при очистке всех слов блок codebuddy-ai удаляется"
         },
         "quota": {
           "title": "Резерв по квоте",

@@ -111,6 +111,7 @@ export type VisualConfigValues = {
   antigravityConnectionPoolMaxIdleConnsPerHost: string;
   devinSensitiveWords: string[];
   antigravitySensitiveWords: string[];
+  codebuddyAiSensitiveWords: string[];
   routingStrategy: 'round-robin' | 'fill-first';
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
@@ -176,6 +177,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   antigravityConnectionPoolMaxIdleConnsPerHost: '',
   devinSensitiveWords: [],
   antigravitySensitiveWords: [],
+  codebuddyAiSensitiveWords: [],
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',

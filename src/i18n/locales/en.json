@@ -1502,9 +1502,9 @@
     "lobsterai_oauth_start_error": "Failed to start LobsterAI OAuth:",
     "lobsterai_copy_link": "Copy Link",
     "lobsterai_open_link": "Open Link",
-    "alysis_oauth_title": "Alysis Code Pro OAuth",
+    "alysis_oauth_title": "Alysis Code OAuth",
     "alysis_oauth_button": "Start Alysis Login",
-    "alysis_oauth_hint": "Sign in to Alysis Code Pro via device authorization: open the authorization link, approve the displayed code, and the credential file is saved automatically once the login completes.",
+    "alysis_oauth_hint": "Sign in to Alysis Code via device authorization: open the authorization link, approve the displayed code, and the credential file is saved automatically once the login completes.",
     "alysis_oauth_url_label": "Authorization URL:",
     "alysis_oauth_status_waiting": "Waiting for Alysis authorization...",
     "alysis_oauth_status_success": "Alysis authorization succeeded!",
@@ -1917,7 +1917,10 @@
           "devin_sensitive_words_hint": "One word per entry. Applies to Devin system instructions and prompts; clearing every entry removes the devin block",
           "antigravity_sensitive_words_label": "Antigravity sensitive words",
           "antigravity_sensitive_words_placeholder": "e.g. internal-project",
-          "antigravity_sensitive_words_hint": "One word per entry. Applies to Antigravity system instructions"
+          "antigravity_sensitive_words_hint": "One word per entry. Applies to Antigravity system instructions",
+          "codebuddy_ai_sensitive_words_label": "CodeBuddy AI sensitive words",
+          "codebuddy_ai_sensitive_words_placeholder": "e.g. custom-sensitive-word",
+          "codebuddy_ai_sensitive_words_hint": "One word per entry. Merged with built-in defaults and applied to CodeBuddy AI system instructions and prompts; clearing every entry removes the codebuddy-ai block"
         },
         "quota": {
           "title": "Quota Fallback",

@@ -1502,9 +1502,9 @@
     "lobsterai_oauth_start_error": "启动 LobsterAI OAuth 失败：",
     "lobsterai_copy_link": "复制链接",
     "lobsterai_open_link": "打开链接",
-    "alysis_oauth_title": "Alysis Code Pro 登录",
+    "alysis_oauth_title": "Alysis Code OAuth",
     "alysis_oauth_button": "开始 Alysis 登录",
-    "alysis_oauth_hint": "通过设备授权登录 Alysis Code Pro：打开授权链接并在页面输入设备码完成批准，认证完成后会自动保存认证文件。",
+    "alysis_oauth_hint": "通过设备授权登录 Alysis Code：打开授权链接并在页面输入设备码完成批准，认证完成后会自动保存认证文件。",
     "alysis_oauth_url_label": "授权链接：",
     "alysis_oauth_status_waiting": "等待 Alysis 认证中...",
     "alysis_oauth_status_success": "Alysis 认证成功！",
@@ -1921,7 +1921,10 @@
           "devin_sensitive_words_hint": "每行一个词，作用于 Devin 的系统指令和提示词；全部清空后会自动移除 devin 配置段",
           "antigravity_sensitive_words_label": "Antigravity 敏感词",
           "antigravity_sensitive_words_placeholder": "例如 internal-project",
-          "antigravity_sensitive_words_hint": "每行一个词，作用于 Antigravity 的系统指令"
+          "antigravity_sensitive_words_hint": "每行一个词，作用于 Antigravity 的系统指令",
+          "codebuddy_ai_sensitive_words_label": "CodeBuddy AI 敏感词",
+          "codebuddy_ai_sensitive_words_placeholder": "例如 custom-sensitive-word",
+          "codebuddy_ai_sensitive_words_hint": "每行一个词，与内置默认词合并后作用于 CodeBuddy AI 的系统指令和提示词；全部清空后会自动移除 codebuddy-ai 配置段"
         },
         "quota": {
           "title": "配额回退",

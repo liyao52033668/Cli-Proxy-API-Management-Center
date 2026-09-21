@@ -1129,6 +1129,28 @@ export function VisualConfigEditor({
                       }
                     />
                   </FieldShell>
+                  <FieldShell
+                    label={t(
+                      'config_management.visual.sections.network.codebuddy_ai_sensitive_words_label'
+                    )}
+                    hint={t(
+                      'config_management.visual.sections.network.codebuddy_ai_sensitive_words_hint'
+                    )}
+                  >
+                    <StringListEditor
+                      value={values.codebuddyAiSensitiveWords}
+                      disabled={disabled}
+                      placeholder={t(
+                        'config_management.visual.sections.network.codebuddy_ai_sensitive_words_placeholder'
+                      )}
+                      inputAriaLabel={t(
+                        'config_management.visual.sections.network.codebuddy_ai_sensitive_words_label'
+                      )}
+                      onChange={(codebuddyAiSensitiveWords) =>
+                        onChange({ codebuddyAiSensitiveWords })
+                      }
+                    />
+                  </FieldShell>
                 </SectionStack>
               </SectionSubsection>
             </SectionStack>

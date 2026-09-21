@@ -903,6 +903,14 @@ function getNextDirtyFields(
       left.length === right.length && left.every((item, index) => item === right[index])
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'codebuddyAiSensitiveWords')) {
+    const left = nextValues.codebuddyAiSensitiveWords;
+    const right = baselineValues.codebuddyAiSensitiveWords;
+    updateDirty(
+      'codebuddyAiSensitiveWords',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'routingStrategy')) {
     updateDirty('routingStrategy', nextValues.routingStrategy === baselineValues.routingStrategy);
   }
@@ -1055,6 +1063,7 @@ export function useVisualConfig() {
       const antigravity = asRecord(parsed.antigravity);
       const antigravityConnPool = asRecord(antigravity?.['connection-pool']);
       const devin = asRecord(parsed.devin);
+      const codebuddyAi = asRecord(parsed['codebuddy-ai']);
       const routing = asRecord(parsed.routing);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
@@ -1138,6 +1147,9 @@ export function useVisualConfig() {
           : [],
         antigravitySensitiveWords: Array.isArray(antigravity?.['sensitive-words'])
           ? antigravity['sensitive-words'].map(String)
+          : [],
+        codebuddyAiSensitiveWords: Array.isArray(codebuddyAi?.['sensitive-words'])
+          ? codebuddyAi['sensitive-words'].map(String)
           : [],
 
         routingStrategy: routing?.strategy === 'fill-first' ? 'fill-first' : 'round-robin',
@@ -1441,6 +1453,19 @@ export function useVisualConfig() {
             doc.deleteIn(['antigravity', 'sensitive-words']);
           }
           deleteIfMapEmpty(doc, ['antigravity']);
+        }
+
+        if (isDirty('codebuddyAiSensitiveWords')) {
+          const codebuddyAiSensitiveWords = values.codebuddyAiSensitiveWords
+            .map((word) => word.trim())
+            .filter(Boolean);
+          if (codebuddyAiSensitiveWords.length > 0) {
+            ensureMapInDoc(doc, ['codebuddy-ai']);
+            setStringSeqInDoc(doc, ['codebuddy-ai', 'sensitive-words'], codebuddyAiSensitiveWords);
+          } else if (docHas(doc, ['codebuddy-ai', 'sensitive-words'])) {
+            doc.deleteIn(['codebuddy-ai', 'sensitive-words']);
+          }
+          deleteIfMapEmpty(doc, ['codebuddy-ai']);
         }
 
         if (

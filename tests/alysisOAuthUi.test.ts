@@ -24,7 +24,7 @@ describe('Alysis OAuth login UI', () => {
         createElement(MemoryRouter, null, createElement(OAuthPage))
       )
     );
-    expect(markup).toContain('Alysis Code Pro OAuth');
+    expect(markup).toContain('Alysis Code OAuth');
     expect(markup).toContain('Start Alysis Login');
     expect(markup).not.toContain('auth_login.alysis_');
   });
