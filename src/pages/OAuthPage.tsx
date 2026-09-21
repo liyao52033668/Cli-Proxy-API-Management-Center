@@ -21,6 +21,7 @@ import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKiro from '@/assets/icons/kiro.svg';
 import iconLobsterai from '@/assets/icons/lobsterai.svg';
+import iconMeta from '@/assets/icons/meta.svg';
 import iconQoder from '@/assets/icons/qoder.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import { Button } from '@/components/ui/Button';
@@ -118,6 +119,7 @@ const PROVIDERS: { id: OAuthProvider; titleKey: string; hintKey: string; urlLabe
   { id: 'codearts', titleKey: 'auth_login.codearts_oauth_title', hintKey: 'auth_login.codearts_oauth_hint', urlLabelKey: 'auth_login.codearts_oauth_url_label', icon: iconCodearts },
   { id: 'joycode', titleKey: 'auth_login.joycode_oauth_title', hintKey: 'auth_login.joycode_oauth_hint', urlLabelKey: 'auth_login.joycode_oauth_url_label', icon: iconJoycode },
   { id: 'lobsterai', titleKey: 'auth_login.lobsterai_oauth_title', hintKey: 'auth_login.lobsterai_oauth_hint', urlLabelKey: 'auth_login.lobsterai_oauth_url_label', icon: iconLobsterai },
+  { id: 'meta', titleKey: 'auth_login.meta_oauth_title', hintKey: 'auth_login.meta_oauth_hint', urlLabelKey: 'auth_login.meta_oauth_url_label', icon: iconMeta },
   { id: 'bt', titleKey: 'auth_login.bt_oauth_title', hintKey: 'auth_login.bt_oauth_hint', urlLabelKey: 'auth_login.bt_oauth_url_label', icon: iconBt },
 
 ];

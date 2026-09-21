@@ -25,6 +25,7 @@ import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKiro from '@/assets/icons/kiro.svg';
 import iconLobsterai from '@/assets/icons/lobsterai.svg';
+import iconMeta from '@/assets/icons/meta.svg';
 import iconJoycode from '@/assets/icons/joycode.svg';
 import iconMinimax from '@/assets/icons/minimax.svg';
 import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
@@ -300,6 +301,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#fee2e2', text: '#b91c1c', border: '1px solid #fca5a5' },
     dark: { bg: '#7f1d1d', text: '#fca5a5', border: '1px solid #ef4444' },
   },
+  // Meta (Muse Code): Meta 品牌蓝
+  meta: {
+    light: { bg: '#dbeafe', text: '#1877F2', border: '1px solid #93c5fd' },
+    dark: { bg: '#1e3a8a', text: '#93c5fd', border: '1px solid #3b82f6' },
+  },
   // DeepSeek: 深蓝
   deepseek: {
     light: { bg: '#dbeafe', text: '#1d4ed8', border: '1px solid #93c5fd' },
@@ -369,6 +375,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   gitlab: iconGitlab,
   glm: iconGlm,
   lobsterai: iconLobsterai,
+  meta: iconMeta,
   iflow: iconIflow,
   joycode: iconJoycode,
   kilo: iconKilo,
@@ -502,6 +509,7 @@ export const DEFAULT_OAUTH_PROVIDER_PRESETS = [
   'freebuff',
   'lobsterai',
   'alysis',
+  'meta',
 ];
 
 export const DEFAULT_OAUTH_PROVIDER_EXCLUDES = new Set([

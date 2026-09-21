@@ -19,6 +19,7 @@ export type AuthFileType =
   | 'kiro'
   | 'devin'
   | 'alysis'
+  | 'meta'
   | 'empty'
   | 'unknown';
 
