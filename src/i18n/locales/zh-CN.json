@@ -2321,7 +2321,10 @@
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "pay_as_you_go_label": "按量付费",
     "pay_as_you_go_enabled": "已启用，封顶 {{cap}}",
-    "pay_as_you_go_disabled": "未启用"
+    "pay_as_you_go_disabled": "未启用",
+    "usage_unavailable": "xAI 用量暂不可用",
+    "plan_paid": "付费",
+    "paid_health": "付费 API 对话可用。xAI 暂不为此 OAuth 凭证提供额度总量数据。"
   },
   "cursor_quota": {
     "title": "Cursor 额度",

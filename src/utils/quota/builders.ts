@@ -34,6 +34,7 @@ import {
 } from './constants';
 import { normalizeNumberValue, normalizeQuotaFraction, normalizeStringValue } from './parsers';
 import type { CommandCodeCreditsResponse, CommandCodeWindowLimitsWire, CommandCodeWindowWire } from './parsers';
+import { resolveResetMs } from './resetInstants';
 import { isIgnoredGeminiCliModel } from './validators';
 
 export function pickEarlierResetTime(current?: string, next?: string): string | undefined {
@@ -598,6 +599,7 @@ function normalizeXaiProductUsage(
 }
 
 const emptyXaiBillingSummary = (): XaiBillingSummary => ({
+  mode: 'billing',
   periodType: 'unknown',
   usagePercent: null,
   productUsage: [],
@@ -609,6 +611,27 @@ const emptyXaiBillingSummary = (): XaiBillingSummary => ({
   onDemandUsedPercent: null,
   usedPercent: null,
 });
+
+/**
+ * Reset instant and length of an xAI period.
+ *
+ * The length comes from the period's own start → end span rather than being
+ * assumed, so a non-standard cycle still positions correctly. Null when the
+ * payload states an end without a start; the caller supplies the default it
+ * knows is right for the period type.
+ */
+function xaiPeriodInstants(
+  periodStart: string | undefined,
+  periodEnd: string | undefined
+): { resetAtMs: number | null; periodHours: number | null } {
+  const resetAtMs = resolveResetMs([periodEnd]);
+  const startMs = resolveResetMs([periodStart]);
+  const periodHours =
+    resetAtMs !== null && startMs !== null && resetAtMs > startMs
+      ? (resetAtMs - startMs) / 3_600_000
+      : null;
+  return { resetAtMs, periodHours };
+}
 
 export function buildXaiBillingSummary(
   config: XaiBillingConfig | null | undefined
@@ -693,6 +716,10 @@ export function buildXaiBillingSummary(
   summary.billingPeriodEnd = hasMonthlyData ? billingPeriodEnd : undefined;
   summary.usedPercent = usedPercent;
 
+  const periodInstants = xaiPeriodInstants(summary.periodStart, summary.periodEnd);
+  summary.resetAtMs = periodInstants.resetAtMs;
+  summary.periodHours = periodInstants.periodHours;
+
   return summary;
 }
 
@@ -703,11 +730,30 @@ export function mergeXaiBillingSummaries(
   if (!primary) return fallback;
   if (!fallback) return primary;
 
+  // Keep the active period atomic. The primary (weekly endpoint) and fallback
+  // (monthly endpoint) describe different clocks, so borrowing one endpoint's
+  // dates for the other's period type would turn a billing rollover into a
+  // quota reset. Keep usage with that same period too: monthly spending must
+  // not replace an unavailable weekly percentage.
+  const periodSummary =
+    primary.periodType !== 'unknown'
+      ? primary
+      : fallback.periodType !== 'unknown'
+        ? fallback
+        : primary;
+  const periodStart = periodSummary.periodStart;
+  const periodEnd = periodSummary.periodEnd;
+  const periodInstants = xaiPeriodInstants(periodStart, periodEnd);
+
   return {
-    periodType: primary.periodType !== 'unknown' ? primary.periodType : fallback.periodType,
-    usagePercent: primary.usagePercent ?? fallback.usagePercent,
-    periodStart: primary.periodStart ?? fallback.periodStart,
-    periodEnd: primary.periodEnd ?? fallback.periodEnd,
+    mode: 'billing',
+    source: 'cli-chat-proxy',
+    periodType: periodSummary.periodType,
+    usagePercent: periodSummary.usagePercent,
+    periodStart,
+    periodEnd,
+    resetAtMs: periodInstants.resetAtMs,
+    periodHours: periodInstants.periodHours,
     productUsage: primary.productUsage.length > 0 ? primary.productUsage : fallback.productUsage,
     monthlyLimitCents: primary.monthlyLimitCents ?? fallback.monthlyLimitCents,
     usedCents: primary.usedCents ?? fallback.usedCents,

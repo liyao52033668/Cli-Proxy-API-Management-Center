@@ -2317,7 +2317,10 @@
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "pay_as_you_go_label": "Pay as you go",
     "pay_as_you_go_enabled": "Enabled, cap {{cap}}",
-    "pay_as_you_go_disabled": "Disabled"
+    "pay_as_you_go_disabled": "Disabled",
+    "usage_unavailable": "Usage unavailable from xAI",
+    "plan_paid": "Paid",
+    "paid_health": "Paid API chat is available. xAI does not expose quota totals for this OAuth credential."
   },
   "cursor_quota": {
     "title": "Cursor Quota",

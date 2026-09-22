@@ -646,6 +646,12 @@ export interface XaiProductUsageSummary {
 }
 
 export interface XaiBillingSummary {
+  mode: 'billing' | 'paid-health';
+  source?: 'cli-chat-proxy' | 'api.x.ai-fallback';
+  planType?: 'paid';
+  healthStatus?: 'chat-ok';
+  userId?: string;
+  teamId?: string;
   periodType: XaiBillingPeriodType;
   usagePercent: number | null;
   periodStart?: string;
@@ -660,6 +666,16 @@ export interface XaiBillingSummary {
   billingPeriodStart?: string;
   billingPeriodEnd?: string;
   usedPercent: number | null;
+  /**
+   * Reset instant of the *active* period (`periodEnd`) in epoch ms.
+   *
+   * Only meaningful as a quota window when `periodType` is 'weekly' — for a
+   * monthly summary this is the billing cycle rollover, which is a spend cap
+   * resetting, not rate-limited capacity coming back.
+   */
+  resetAtMs?: number | null;
+  /** Active period length in hours, derived from `periodStart` → `periodEnd`. */
+  periodHours?: number | null;
 }
 
 export interface XaiQuotaState {
