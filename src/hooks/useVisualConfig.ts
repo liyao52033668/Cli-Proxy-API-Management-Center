@@ -680,6 +680,14 @@ function getNextDirtyFields(
   if (Object.prototype.hasOwnProperty.call(patch, 'tlsKey')) {
     updateDirty('tlsKey', nextValues.tlsKey === baselineValues.tlsKey);
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'trustedProxies')) {
+    const left = nextValues.trustedProxies;
+    const right = baselineValues.trustedProxies;
+    updateDirty(
+      'trustedProxies',
+      left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'rmAllowRemote')) {
     updateDirty('rmAllowRemote', nextValues.rmAllowRemote === baselineValues.rmAllowRemote);
   }
@@ -1078,6 +1086,10 @@ export function useVisualConfig() {
         tlsCert: typeof tls?.cert === 'string' ? tls.cert : '',
         tlsKey: typeof tls?.key === 'string' ? tls.key : '',
 
+        trustedProxies: Array.isArray(parsed['trusted-proxies'])
+          ? parsed['trusted-proxies'].map(String)
+          : [],
+
         rmAllowRemote: Boolean(remoteManagement?.['allow-remote']),
         rmSecretKey:
           typeof remoteManagement?.['secret-key'] === 'string'
@@ -1215,6 +1227,19 @@ export function useVisualConfig() {
           setStringInDoc(doc, ['tls', 'cert'], values.tlsCert);
           setStringInDoc(doc, ['tls', 'key'], values.tlsKey);
           deleteIfMapEmpty(doc, ['tls']);
+        }
+
+        if (isDirty('trustedProxies')) {
+          const trustedProxies = values.trustedProxies
+            .map((item) => item.trim())
+            .filter(Boolean);
+          if (trustedProxies.length > 0) {
+            // An empty list means "do not trust forwarded headers" (backend default),
+            // so a cleared list removes the key instead of writing an empty sequence.
+            setStringSeqInDoc(doc, ['trusted-proxies'], trustedProxies);
+          } else if (docHas(doc, ['trusted-proxies'])) {
+            doc.deleteIn(['trusted-proxies']);
+          }
         }
 
         if (

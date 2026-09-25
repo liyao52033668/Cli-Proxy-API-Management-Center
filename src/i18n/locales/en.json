@@ -1821,7 +1821,10 @@
           "title": "Server Configuration",
           "description": "Basic server settings",
           "host": "Host Address",
-          "port": "Port"
+          "port": "Port",
+          "trusted_proxies": "Trusted Proxies",
+          "trusted_proxies_desc": "IP addresses or CIDRs of proxies allowed to supply forwarded client IP headers (X-Forwarded-For etc.); leave empty to ignore forwarded headers. Restart after changing.",
+          "trusted_proxies_input": "Enter an IP or CIDR, e.g. 192.0.2.0/24"
         },
         "tls": {
           "title": "TLS/SSL Configuration",

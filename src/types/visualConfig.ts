@@ -70,6 +70,7 @@ export type VisualConfigValues = {
   tlsEnable: boolean;
   tlsCert: string;
   tlsKey: string;
+  trustedProxies: string[];
   rmAllowRemote: boolean;
   rmSecretKey: string;
   rmDisableControlPanel: boolean;
@@ -136,6 +137,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   tlsEnable: false,
   tlsCert: '',
   tlsKey: '',
+  trustedProxies: [],
   rmAllowRemote: false,
   rmSecretKey: '',
   rmDisableControlPanel: false,

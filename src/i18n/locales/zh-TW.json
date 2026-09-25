@@ -1841,7 +1841,10 @@
           "title": "伺服器設定",
           "description": "基本伺服器設定",
           "host": "主機位址",
-          "port": "連接埠"
+          "port": "連接埠",
+          "trusted_proxies": "信任代理",
+          "trusted_proxies_desc": "允許提供轉發用戶端 IP 標頭（X-Forwarded-For 等）的代理 IP 或 CIDR 清單；留空表示不信任轉發標頭。修改後需重啟生效。",
+          "trusted_proxies_input": "輸入 IP 或 CIDR，例如 192.0.2.0/24"
         },
         "tls": {
           "title": "TLS/SSL 設定",

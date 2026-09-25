@@ -575,6 +575,22 @@ export function VisualConfigEditor({
                 error={portError}
               />
             </SectionGrid>
+            <SectionStack>
+              <SectionSubsection
+                title={t('config_management.visual.sections.server.trusted_proxies')}
+                description={t('config_management.visual.sections.server.trusted_proxies_desc')}
+              >
+                <StringListEditor
+                  value={values.trustedProxies}
+                  disabled={disabled}
+                  placeholder="192.0.2.0/24"
+                  inputAriaLabel={t(
+                    'config_management.visual.sections.server.trusted_proxies_input'
+                  )}
+                  onChange={(trustedProxies) => onChange({ trustedProxies })}
+                />
+              </SectionSubsection>
+            </SectionStack>
           </ConfigSection>
 
           <ConfigSection

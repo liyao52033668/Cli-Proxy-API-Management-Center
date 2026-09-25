@@ -1825,7 +1825,10 @@
           "title": "服务器配置",
           "description": "基础服务器设置",
           "host": "主机地址",
-          "port": "端口"
+          "port": "端口",
+          "trusted_proxies": "信任代理",
+          "trusted_proxies_desc": "允许提供转发客户端 IP 头（X-Forwarded-For 等）的代理 IP 或 CIDR 列表；留空表示不信任转发头。修改后需重启生效。",
+          "trusted_proxies_input": "输入 IP 或 CIDR，例如 192.0.2.0/24"
         },
         "tls": {
           "title": "TLS/SSL 配置",
