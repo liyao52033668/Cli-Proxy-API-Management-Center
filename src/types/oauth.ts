@@ -43,3 +43,13 @@ export interface OAuthModelAliasEntry {
 }
 
 export type OAuthModelAlias = Record<string, OAuthModelAliasEntry[]>;
+
+// OAuth channel model settings (per-channel overrides such as max context length)
+export interface OAuthModelSettingEntry {
+  name: string;
+  alias?: string;
+  /** Positive integer overriding the context window the channel advertises. */
+  maxContextLength?: number;
+}
+
+export type OAuthModelSettings = Record<string, OAuthModelSettingEntry[]>;

@@ -47,6 +47,7 @@ import { AuthFileModelsModal } from '@/features/authFiles/components/AuthFileMod
 import { AuthFilesPrefixProxyEditorModal } from '@/features/authFiles/components/AuthFilesPrefixProxyEditorModal';
 import { OAuthExcludedCard } from '@/features/authFiles/components/OAuthExcludedCard';
 import { OAuthModelAliasCard } from '@/features/authFiles/components/OAuthModelAliasCard';
+import { OAuthModelSettingsCard } from '@/features/authFiles/components/OAuthModelSettingsCard';
 import { useAuthFilesData } from '@/features/authFiles/hooks/useAuthFilesData';
 import { useAuthFilesModels } from '@/features/authFiles/hooks/useAuthFilesModels';
 import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth';
@@ -285,11 +286,15 @@ export function AuthFilesPage() {
     excludedError,
     modelAlias,
     modelAliasError,
+    modelSettings,
+    modelSettingsError,
     allProviderModels,
     loadExcluded,
     loadModelAlias,
+    loadModelSettings,
     deleteExcluded,
     deleteModelAlias,
+    deleteModelSettings,
     handleMappingUpdate,
     handleDeleteLink,
     handleToggleFork,
@@ -426,8 +431,8 @@ export function AuthFilesPage() {
   );
 
   const handleHeaderRefresh = useCallback(async () => {
-    await Promise.all([loadFiles(), refreshKeyStats(), loadExcluded(), loadModelAlias()]);
-  }, [loadFiles, refreshKeyStats, loadExcluded, loadModelAlias]);
+    await Promise.all([loadFiles(), refreshKeyStats(), loadExcluded(), loadModelAlias(), loadModelSettings()]);
+  }, [loadFiles, refreshKeyStats, loadExcluded, loadModelAlias, loadModelSettings]);
 
   useHeaderRefresh(handleHeaderRefresh);
 
@@ -437,7 +442,8 @@ export function AuthFilesPage() {
     void loadKeyStats().catch(() => { });
     loadExcluded();
     loadModelAlias();
-  }, [isCurrentLayer, loadFiles, loadKeyStats, loadExcluded, loadModelAlias]);
+    loadModelSettings();
+  }, [isCurrentLayer, loadFiles, loadKeyStats, loadExcluded, loadModelAlias, loadModelSettings]);
 
   useInterval(
     () => {
@@ -605,6 +611,21 @@ export function AuthFilesPage() {
       }
       const nextSearch = params.toString();
       navigate(`/auth-files/oauth-model-alias${nextSearch ? `?${nextSearch}` : ''}`, {
+        state: { fromAuthFiles: true },
+      });
+    },
+    [filter, navigate]
+  );
+
+  const openModelSettingsEditor = useCallback(
+    (provider?: string) => {
+      const providerValue = (provider || (filter !== 'all' ? String(filter) : '')).trim();
+      const params = new URLSearchParams();
+      if (providerValue) {
+        params.set('provider', providerValue);
+      }
+      const nextSearch = params.toString();
+      navigate(`/auth-files/oauth-settings${nextSearch ? `?${nextSearch}` : ''}`, {
         state: { fromAuthFiles: true },
       });
     },
@@ -1052,6 +1073,15 @@ export function AuthFilesPage() {
         onToggleFork={handleToggleFork}
         onRenameAlias={handleRenameAlias}
         onDeleteAlias={handleDeleteAlias}
+      />
+
+      <OAuthModelSettingsCard
+        disableControls={disableControls}
+        onAdd={() => openModelSettingsEditor()}
+        onEditProvider={openModelSettingsEditor}
+        onDeleteProvider={deleteModelSettings}
+        modelSettingsError={modelSettingsError}
+        modelSettings={modelSettings}
       />
 
       <AuthFileModelsModal

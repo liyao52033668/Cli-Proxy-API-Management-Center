@@ -4,7 +4,7 @@
 
 import { apiClient } from './client';
 import type { AuthFilePatchFields, AuthFilesRefreshAllResponse, AuthFilesResponse } from '@/types/authFile';
-import type { OAuthModelAliasEntry } from '@/types';
+import type { OAuthModelAliasEntry, OAuthModelSettingEntry } from '@/types';
 import { parseTimestampMs } from '@/utils/timestamp';
 import { normalizeAuthIndex } from '@/utils/usage';
 import { AUTH_FILES_UPLOAD_BATCH_SIZE, AUTH_FILES_UPLOAD_TIMEOUT_MS } from '@/utils/constants';
@@ -497,7 +497,69 @@ const normalizeOauthModelAlias = (payload: unknown): Record<string, OAuthModelAl
   return result;
 };
 
+const normalizeOauthModelSettings = (payload: unknown): Record<string, OAuthModelSettingEntry[]> => {
+  if (!payload || typeof payload !== 'object') return {};
+
+  const record = payload as Record<string, unknown>;
+  const source =
+    record['oauth-settings'] ??
+    record.items ??
+    payload;
+  if (!source || typeof source !== 'object') return {};
+
+  const result: Record<string, OAuthModelSettingEntry[]> = {};
+
+  Object.entries(source as Record<string, unknown>).forEach(([channel, settings]) => {
+    const key = String(channel ?? '')
+      .trim()
+      .toLowerCase();
+    if (!key) return;
+    if (!Array.isArray(settings)) return;
+
+    // Mirrors backend sanitization: entries without a name are dropped and the
+    // last occurrence of a duplicated name+alias pair wins.
+    const lastIndexByKey = new Map<string, { index: number; entry: OAuthModelSettingEntry }>();
+    settings.forEach((item, index) => {
+      if (!item || typeof item !== 'object') return;
+      const entry = item as Record<string, unknown>;
+      const name = String(entry.name ?? entry.id ?? entry.model ?? '').trim();
+      if (!name) return;
+      const alias = String(entry.alias ?? '').trim();
+      const maxContextLength = normalizeMaxContextLength(
+        entry['max-context-length'] ?? entry.maxContextLength ?? entry.max_context_length
+      );
+      const setting: OAuthModelSettingEntry = {
+        name,
+        ...(alias ? { alias } : {}),
+        ...(maxContextLength ? { maxContextLength } : {}),
+      };
+      lastIndexByKey.set(`${name.toLowerCase()}::${alias.toLowerCase()}`, { index, entry: setting });
+    });
+
+    const normalized = Array.from(lastIndexByKey.values())
+      .sort((left, right) => left.index - right.index)
+      .map((item) => item.entry);
+
+    if (normalized.length) {
+      result[key] = normalized;
+    }
+  });
+
+  return result;
+};
+
 const OAUTH_MODEL_ALIAS_ENDPOINT = '/oauth-model-alias';
+
+const OAUTH_MODEL_SETTINGS_ENDPOINT = '/oauth-settings';
+
+const normalizeMaxContextLength = (value: unknown): number | undefined => {
+  if (value == null || value === '') return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  const rounded = Math.round(parsed);
+  // Only positive integers take effect on the backend.
+  return rounded > 0 ? rounded : undefined;
+};
 
 export interface AuthFilesListParams {
   name?: string;
@@ -707,6 +769,43 @@ export const authFilesApi = {
       const status = getStatusCode(err);
       if (status !== 405) throw err;
       await apiClient.delete(`${OAUTH_MODEL_ALIAS_ENDPOINT}?channel=${encodeURIComponent(normalizedChannel)}`);
+    }
+  },
+
+  // OAuth channel model settings (max context length overrides)
+  async getOauthModelSettings(): Promise<Record<string, OAuthModelSettingEntry[]>> {
+    const data = await apiClient.get(OAUTH_MODEL_SETTINGS_ENDPOINT);
+    return normalizeOauthModelSettings(data);
+  },
+
+  saveOauthModelSettings: async (channel: string, settings: OAuthModelSettingEntry[]) => {
+    const normalizedChannel = String(channel ?? '')
+      .trim()
+      .toLowerCase();
+    const normalizedSettings =
+      normalizeOauthModelSettings({ [normalizedChannel]: settings })[normalizedChannel] ?? [];
+    await apiClient.patch(OAUTH_MODEL_SETTINGS_ENDPOINT, {
+      channel: normalizedChannel,
+      settings: normalizedSettings.map((entry) => ({
+        name: entry.name,
+        ...(entry.alias ? { alias: entry.alias } : {}),
+        // The backend binds entries through the `max-context-length` JSON tag.
+        ...(entry.maxContextLength ? { 'max-context-length': entry.maxContextLength } : {}),
+      })),
+    });
+  },
+
+  deleteOauthModelSettings: async (channel: string) => {
+    const normalizedChannel = String(channel ?? '')
+      .trim()
+      .toLowerCase();
+
+    try {
+      await apiClient.patch(OAUTH_MODEL_SETTINGS_ENDPOINT, { channel: normalizedChannel, settings: [] });
+    } catch (err: unknown) {
+      const status = getStatusCode(err);
+      if (status !== 405) throw err;
+      await apiClient.delete(`${OAUTH_MODEL_SETTINGS_ENDPOINT}?channel=${encodeURIComponent(normalizedChannel)}`);
     }
   },
 

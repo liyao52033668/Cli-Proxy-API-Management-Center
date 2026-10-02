@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { useNotificationStore } from '@/stores';
-import type { AuthFileItem, OAuthModelAliasEntry } from '@/types';
+import type { AuthFileItem, OAuthModelAliasEntry, OAuthModelSettingEntry } from '@/types';
 import type { AuthFileModelItem } from '@/features/authFiles/constants';
 import { normalizeProviderKey } from '@/features/authFiles/constants';
 
@@ -14,12 +14,16 @@ export type UseAuthFilesOauthResult = {
   excludedError: UnsupportedError;
   modelAlias: Record<string, OAuthModelAliasEntry[]>;
   modelAliasError: UnsupportedError;
+  modelSettings: Record<string, OAuthModelSettingEntry[]>;
+  modelSettingsError: UnsupportedError;
   allProviderModels: Record<string, AuthFileModelItem[]>;
   providerList: string[];
   loadExcluded: () => Promise<void>;
   loadModelAlias: () => Promise<void>;
+  loadModelSettings: () => Promise<void>;
   deleteExcluded: (provider: string) => void;
   deleteModelAlias: (provider: string) => void;
+  deleteModelSettings: (provider: string) => void;
   handleMappingUpdate: (provider: string, sourceModel: string, newAlias: string) => Promise<void>;
   handleDeleteLink: (provider: string, sourceModel: string, alias: string) => void;
   handleToggleFork: (
@@ -46,12 +50,15 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
   const [excludedError, setExcludedError] = useState<UnsupportedError>(null);
   const [modelAlias, setModelAlias] = useState<Record<string, OAuthModelAliasEntry[]>>({});
   const [modelAliasError, setModelAliasError] = useState<UnsupportedError>(null);
+  const [modelSettings, setModelSettings] = useState<Record<string, OAuthModelSettingEntry[]>>({});
+  const [modelSettingsError, setModelSettingsError] = useState<UnsupportedError>(null);
   const [allProviderModels, setAllProviderModels] = useState<Record<string, AuthFileModelItem[]>>(
     {}
   );
 
   const excludedUnsupportedRef = useRef(false);
   const mappingsUnsupportedRef = useRef(false);
+  const settingsUnsupportedRef = useRef(false);
 
   const providerList = useMemo(() => {
     const providers = new Set<string>();
@@ -165,6 +172,31 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
     }
   }, [showNotification, t]);
 
+  const loadModelSettings = useCallback(async () => {
+    try {
+      const res = await authFilesApi.getOauthModelSettings();
+      settingsUnsupportedRef.current = false;
+      setModelSettings(res || {});
+      setModelSettingsError(null);
+    } catch (err: unknown) {
+      const status =
+        typeof err === 'object' && err !== null && 'status' in err
+          ? (err as { status?: unknown }).status
+          : undefined;
+
+      if (status === 404) {
+        setModelSettings({});
+        setModelSettingsError('unsupported');
+        if (!settingsUnsupportedRef.current) {
+          settingsUnsupportedRef.current = true;
+          showNotification(t('oauth_model_settings.upgrade_required'), 'warning');
+        }
+        return;
+      }
+      // 静默失败
+    }
+  }, [showNotification, t]);
+
   const deleteExcluded = useCallback(
     (provider: string) => {
       const providerLabel = provider.trim() || provider;
@@ -230,6 +262,28 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
       });
     },
     [loadModelAlias, showConfirmation, showNotification, t]
+  );
+
+  const deleteModelSettings = useCallback(
+    (provider: string) => {
+      showConfirmation({
+        title: t('oauth_model_settings.delete_title', { defaultValue: 'Delete Settings' }),
+        message: t('oauth_model_settings.delete_confirm', { provider }),
+        variant: 'danger',
+        confirmText: t('common.confirm'),
+        onConfirm: async () => {
+          try {
+            await authFilesApi.deleteOauthModelSettings(provider);
+            await loadModelSettings();
+            showNotification(t('oauth_model_settings.delete_success'), 'success');
+          } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : '';
+            showNotification(`${t('oauth_model_settings.delete_failed')}: ${errorMessage}`, 'error');
+          }
+        }
+      });
+    },
+    [loadModelSettings, showConfirmation, showNotification, t]
   );
 
   const handleMappingUpdate = useCallback(
@@ -488,12 +542,16 @@ export function useAuthFilesOauth(options: UseAuthFilesOauthOptions): UseAuthFil
     excludedError,
     modelAlias,
     modelAliasError,
+    modelSettings,
+    modelSettingsError,
     allProviderModels,
     providerList,
     loadExcluded,
     loadModelAlias,
+    loadModelSettings,
     deleteExcluded,
     deleteModelAlias,
+    deleteModelSettings,
     handleMappingUpdate,
     handleDeleteLink,
     handleToggleFork,

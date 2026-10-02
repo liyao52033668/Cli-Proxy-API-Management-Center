@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
-import type { AuthFileItem, OAuthModelAliasEntry } from '@/types';
+import type { AuthFileItem, OAuthModelAliasEntry, OAuthModelSettingEntry } from '@/types';
 import {
   DEFAULT_OAUTH_PROVIDER_EXCLUDES,
   DEFAULT_OAUTH_PROVIDER_PRESETS,
@@ -20,6 +20,7 @@ export interface OAuthProviderSelectBarProps {
   files?: AuthFileItem[];
   excluded?: Record<string, string[]>;
   modelAlias?: Record<string, OAuthModelAliasEntry[]>;
+  modelSettings?: Record<string, OAuthModelSettingEntry[]>;
   presets?: string[];
   excludes?: Set<string>;
   options?: string[];
@@ -37,6 +38,7 @@ export function OAuthProviderSelectBar({
   files = [],
   excluded = {},
   modelAlias = {},
+  modelSettings = {},
   presets = DEFAULT_OAUTH_PROVIDER_PRESETS,
   excludes = DEFAULT_OAUTH_PROVIDER_EXCLUDES,
   options: overrideOptions,
@@ -61,6 +63,7 @@ export function OAuthProviderSelectBar({
     const extraProviders = new Set<string>();
     Object.keys(excluded).forEach((value) => extraProviders.add(value));
     Object.keys(modelAlias).forEach((value) => extraProviders.add(value));
+    Object.keys(modelSettings).forEach((value) => extraProviders.add(value));
     files.forEach((file) => {
       if (typeof file.type === 'string') extraProviders.add(file.type);
       if (typeof file.provider === 'string') extraProviders.add(file.provider);
@@ -76,7 +79,7 @@ export function OAuthProviderSelectBar({
       .sort((a, b) => a.localeCompare(b));
 
     return [...presets, ...extraList];
-  }, [overrideOptions, excluded, modelAlias, files, excludes, presets]);
+  }, [overrideOptions, excluded, modelAlias, modelSettings, files, excludes, presets]);
 
   const activeProviderKey = normalizeProviderKey(provider);
 
