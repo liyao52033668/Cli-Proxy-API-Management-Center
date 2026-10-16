@@ -71,6 +71,14 @@ export interface GitLabPATResponse {
 
 export type QoderTokenAuthResponse = BasicTokenAuthResponse;
 
+export interface KiroTokenImportResponse {
+  status: 'ok' | 'error';
+  error?: string;
+  message?: string;
+  /** Auth file name the imported token was saved to. */
+  file?: string;
+}
+
 export interface CodeArtsAKSKResponse {
   status: 'ok' | 'error';
   error?: string;
@@ -223,6 +231,16 @@ export const oauthApi = {
   qoderTokenAuth: (personalAccessToken: string) => {
     return apiClient.post<QoderTokenAuthResponse>('/qoder-auth-url', {
       personal_access_token: personalAccessToken
+    });
+  },
+
+  /**
+   * Kiro 手动导入：接受裸 refresh token 或 Kiro IDE 完整凭证 JSON
+   * （accessToken/refreshToken/profileArn/...，camelCase 或 snake_case）。
+   */
+  kiroTokenImport: (payload: string) => {
+    return apiClient.post<KiroTokenImportResponse>('/kiro-import-token', payload, {
+      headers: { 'Content-Type': 'application/json' }
     });
   },
 

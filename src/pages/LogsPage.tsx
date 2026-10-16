@@ -23,7 +23,7 @@ import {
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
-import { logsApi } from '@/services/api/logs';
+import { logsApi, type LogsQuery } from '@/services/api/logs';
 import { copyToClipboard } from '@/utils/clipboard';
 import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
@@ -46,6 +46,23 @@ interface ErrorLogItem {
   size?: number;
   modified?: number;
 }
+
+interface TimeRangeValue {
+  start: string;
+  end: string;
+}
+
+const TIME_RANGE_ALL: TimeRangeValue = { start: '', end: '' };
+
+// datetime-local 值（本地时间）转 Unix 秒；空值返回 0 表示不限制
+const datetimeLocalToUnixSeconds = (value: string): number => {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
+};
+
+const hasTimeRange = (range: TimeRangeValue): boolean =>
+  Boolean(range.start.trim() || range.end.trim());
 
 // 初始只渲染最近 100 行，滚动到顶部再逐步加载更多（避免一次性渲染过多导致卡顿）
 const INITIAL_DISPLAY_LINES = 100;
@@ -88,6 +105,8 @@ export function LogsPage() {
     'logsPage.structuredFiltersExpanded',
     true
   );
+  const [timeRange, setTimeRange] = useState<TimeRangeValue>(TIME_RANGE_ALL);
+  const [timeRangeDraft, setTimeRangeDraft] = useState<TimeRangeValue>(TIME_RANGE_ALL);
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [loadingErrors, setLoadingErrors] = useState(false);
   const [errorLogsError, setErrorLogsError] = useState('');
@@ -112,6 +131,9 @@ export function LogsPage() {
 
   // 保存最新时间戳用于增量获取
   const latestTimestampRef = useRef<number>(0);
+
+  // 供增量/定时刷新读取最新时间段筛选（避免闭包过期）
+  const timeRangeRef = useRef<TimeRangeValue>(TIME_RANGE_ALL);
 
   const disableControls = connectionStatus !== 'connected';
 
@@ -141,8 +163,18 @@ export function LogsPage() {
         requestScrollToBottom();
       }
 
-      const params =
-        incremental && latestTimestampRef.current > 0 ? { after: latestTimestampRef.current } : {};
+      // 时间段筛选激活时走服务端窗口过滤；此时禁用增量 after，保证窗口语义正确
+      const range = timeRangeRef.current;
+      const useWindow = hasTimeRange(range);
+      const params: LogsQuery = {};
+      if (useWindow) {
+        const after = datetimeLocalToUnixSeconds(range.start);
+        const before = datetimeLocalToUnixSeconds(range.end);
+        if (after > 0) params.after = after;
+        if (before > 0) params.before = before;
+      } else if (incremental && latestTimestampRef.current > 0) {
+        params.after = latestTimestampRef.current;
+      }
       const data = await logsApi.fetchLogs(params);
 
       // 更新时间戳
@@ -214,6 +246,28 @@ export function LogsPage() {
         }
       },
     });
+  };
+
+  const applyTimeRange = () => {
+    const start = timeRangeDraft.start;
+    const end = timeRangeDraft.end;
+    if (start && end && datetimeLocalToUnixSeconds(start) > datetimeLocalToUnixSeconds(end)) {
+      showNotification(t('logs.time_range_invalid'), 'error');
+      return;
+    }
+    const next: TimeRangeValue = { start, end };
+    timeRangeRef.current = next;
+    setTimeRange(next);
+    latestTimestampRef.current = 0;
+    void loadLogs(false);
+  };
+
+  const clearTimeRange = () => {
+    timeRangeRef.current = TIME_RANGE_ALL;
+    setTimeRange(TIME_RANGE_ALL);
+    setTimeRangeDraft(TIME_RANGE_ALL);
+    latestTimestampRef.current = 0;
+    void loadLogs(false);
   };
 
   const downloadLogs = () => {
@@ -313,8 +367,12 @@ export function LogsPage() {
 
   const filters = useLogFilters({ parsedLines: parsedSearchLines });
   const structuredFiltersPanelId = 'logs-structured-filters';
+  const timeRangeActive = hasTimeRange(timeRange);
   const structuredFilterCount =
-    filters.methodFilters.length + filters.statusFilters.length + filters.pathFilters.length;
+    (timeRangeActive ? 1 : 0) +
+    filters.methodFilters.length +
+    filters.statusFilters.length +
+    filters.pathFilters.length;
 
   const { filteredParsedLines, filteredLines, removedCount } = useMemo(() => {
     const filteredParsed = parsedSearchLines.filter((line) => {
@@ -550,6 +608,49 @@ export function LogsPage() {
                     )}
                   </span>
                 </Button>
+
+                <div className={styles.timeRangeWrapper}>
+                  <input
+                    type="datetime-local"
+                    className={`input ${styles.timeRangeInput}`}
+                    value={timeRangeDraft.start}
+                    max={timeRangeDraft.end || undefined}
+                    onChange={(e) => setTimeRangeDraft((prev) => ({ ...prev, start: e.target.value }))}
+                    aria-label={t('logs.time_range_start')}
+                    title={t('logs.time_range_start')}
+                    disabled={disableControls}
+                  />
+                  <span className={styles.timeRangeSeparator}>–</span>
+                  <input
+                    type="datetime-local"
+                    className={`input ${styles.timeRangeInput}`}
+                    value={timeRangeDraft.end}
+                    min={timeRangeDraft.start || undefined}
+                    onChange={(e) => setTimeRangeDraft((prev) => ({ ...prev, end: e.target.value }))}
+                    aria-label={t('logs.time_range_end')}
+                    title={t('logs.time_range_end')}
+                    disabled={disableControls}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={applyTimeRange}
+                    disabled={disableControls || !hasTimeRange(timeRangeDraft)}
+                    title={t('logs.time_range_apply')}
+                  >
+                    {t('logs.time_range_apply')}
+                  </Button>
+                  {timeRangeActive && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearTimeRange}
+                      title={t('logs.time_range_clear')}
+                    >
+                      <IconX size={16} />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {structuredFiltersExpanded && (

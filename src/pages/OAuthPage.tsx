@@ -59,6 +59,8 @@ interface ProviderState {
   password?: string;
   authMode?: 'token' | 'oauth' | 'aksk';
   personalAccessToken?: string;
+  /** Kiro: raw Kiro IDE token JSON or bare refresh token (import mode). */
+  kiroImportPayload?: string;
   gitlabPersonalAccessToken?: string;
   gitlabBaseUrl?: string;
   /** CodeArts 永久 IAM 访问密钥（AK/SK 模式）。 */
@@ -358,6 +360,59 @@ export function OAuthPage() {
     });
   };
 
+  // Kiro 默认走 OAuth/设备码流程；token 模式直接粘贴 Kiro IDE 凭证 JSON
+  // 或裸 refresh token，适合远程部署等无法完成本地回调的场景。
+  const getKiroAuthMode = (providerState?: ProviderState): 'token' | 'oauth' => {
+    return providerState?.authMode === 'token' ? 'token' : 'oauth';
+  };
+
+  const clearKiroImportInputState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      kiroImportPayload: undefined
+    };
+  };
+
+  const clearKiroOAuthFlowState = (providerState?: ProviderState): ProviderState => {
+    return {
+      ...providerState,
+      url: undefined,
+      state: undefined,
+      callbackUrl: undefined,
+      callbackStatus: undefined,
+      callbackError: undefined,
+      callbackSubmitting: false,
+      finalizeUrl: undefined,
+      deviceCode: undefined,
+      polling: false
+    };
+  };
+
+  const switchKiroAuthMode = (mode: 'token' | 'oauth') => {
+    clearProviderTimers('kiro');
+    setStates((prev) => {
+      const current = prev.kiro ?? {};
+      const currentMode = getKiroAuthMode(current);
+      let next = current;
+
+      if (currentMode === 'token' && mode === 'oauth') {
+        next = clearKiroImportInputState(next);
+      } else if (currentMode === 'oauth' && mode === 'token') {
+        next = clearKiroOAuthFlowState(next);
+      }
+
+      return {
+        ...prev,
+        kiro: {
+          ...next,
+          authMode: mode,
+          status: undefined,
+          error: undefined
+        }
+      };
+    });
+  };
+
 
 
 
@@ -378,6 +433,16 @@ export function OAuthPage() {
         ...prev,
         [provider]: {
           authMode: getCodeArtsAuthMode(prev[provider])
+        }
+      }));
+      return;
+    }
+    if (provider === 'kiro') {
+      // 保留用户选择的认证方式，默认回到 OAuth。
+      setStates((prev) => ({
+        ...prev,
+        [provider]: {
+          authMode: getKiroAuthMode(prev[provider])
         }
       }));
       return;
@@ -516,6 +581,65 @@ export function OAuthPage() {
         }
         return;
       }
+    }
+
+    if (provider === 'kiro' && getKiroAuthMode(states[provider]) === 'token') {
+      const kiroState = states[provider];
+      const importPayload = (kiroState?.kiroImportPayload || '').trim();
+
+      if (!importPayload) {
+        showNotification(t('auth_login.kiro_import_required', { defaultValue: '请粘贴 Kiro IDE 凭证 JSON 或 refresh token' }), 'warning');
+        return;
+      }
+      if (!importPayload.startsWith('{') && !importPayload.startsWith('aorAAAAAG')) {
+        showNotification(
+          t('auth_login.kiro_import_format_error', {
+            defaultValue: '格式错误：请粘贴完整凭证 JSON，或以 aorAAAAAG 开头的 refresh token'
+          }),
+          'warning'
+        );
+        return;
+      }
+
+      updateProviderState(provider, {
+        url: undefined,
+        state: undefined,
+        status: 'waiting',
+        polling: true,
+        error: undefined,
+        deviceCode: undefined,
+        callbackStatus: undefined,
+        callbackError: undefined,
+        callbackUrl: '',
+        callbackToken: ''
+      });
+
+      try {
+        const res = await oauthApi.kiroTokenImport(
+          importPayload.startsWith('{') ? importPayload : JSON.stringify({ refreshToken: importPayload })
+        );
+        if (res.status === 'ok') {
+          completeProviderAuth(provider);
+          showNotification(
+            `${t('auth_login.kiro_import_success', { defaultValue: 'Kiro 凭证导入成功' })}${res.file ? ` (${res.file})` : ''}`,
+            'success'
+          );
+        } else {
+          updateProviderState(provider, { status: 'error', error: res.error, polling: false });
+          showNotification(
+            `${t('auth_login.kiro_import_error', { defaultValue: 'Kiro 凭证导入失败' })}${res.error ? ` ${res.error}` : ''}`,
+            'error'
+          );
+        }
+      } catch (err: unknown) {
+        const message = getErrorMessage(err);
+        updateProviderState(provider, { status: 'error', error: message, polling: false });
+        showNotification(
+          `${t('auth_login.kiro_import_error', { defaultValue: 'Kiro 凭证导入失败' })}${message ? ` ${message}` : ''}`,
+          'error'
+        );
+      }
+      return;
     }
 
     if (provider === 'commandcode') {
@@ -932,9 +1056,12 @@ export function OAuthPage() {
           const isQoder = provider.id === 'qoder';
           const isCommandCode = provider.id === 'commandcode';
           const isCodeArts = provider.id === 'codearts';
+          const isKiro = provider.id === 'kiro';
           const qoderAuthMode = isQoder ? getQoderAuthMode(state) : undefined;
           const isQoderTokenMode = qoderAuthMode === 'token';
           const isQoderOAuthMode = qoderAuthMode === 'oauth';
+          const kiroAuthMode = isKiro ? getKiroAuthMode(state) : undefined;
+          const isKiroImportMode = kiroAuthMode === 'token';
           const codeartsAuthMode = isCodeArts ? getCodeArtsAuthMode(state) : undefined;
           const isCodeArtsAKSKMode = codeartsAuthMode === 'aksk';
           const isCodeArtsOAuthMode = codeartsAuthMode === 'oauth';
@@ -948,11 +1075,13 @@ export function OAuthPage() {
               ? t('auth_login.login_another_account')
               : isQoderTokenMode
                 ? t('auth_login.qoder_token_button', { defaultValue: '使用 Token 登录' })
-                : isCodeArtsAKSKMode
-                  ? t('auth_login.codearts_aksk_button', { defaultValue: '使用 AK/SK 登录' })
-                  : isCommandCode
-                    ? t('auth_login.commandcode_token_button', { defaultValue: '保存 API Key 登录' })
-                    : t(getAuthKey(provider.id, 'oauth_button'));
+                : isKiroImportMode
+                  ? t('auth_login.kiro_import_button', { defaultValue: '导入凭证登录' })
+                  : isCodeArtsAKSKMode
+                    ? t('auth_login.codearts_aksk_button', { defaultValue: '使用 AK/SK 登录' })
+                    : isCommandCode
+                      ? t('auth_login.commandcode_token_button', { defaultValue: '保存 API Key 登录' })
+                      : t(getAuthKey(provider.id, 'oauth_button'));
           const statusBadgeClassName = [
             'status-badge',
             state.status === 'success' ? 'success' : '',
@@ -985,7 +1114,11 @@ export function OAuthPage() {
                       ? t('auth_login.qoder_token_hint', {
                         defaultValue: '请输入 Qoder Personal Access Token 直接完成登录；切换到 OAuth 模式可使用浏览器设备授权。'
                       })
-                      : isCodeArtsAKSKMode
+                      : isKiroImportMode
+                        ? t('auth_login.kiro_import_hint', {
+                          defaultValue: '粘贴 Kiro IDE 凭证 JSON（~/.aws/sso/cache/kiro-auth-token.json 的完整内容）或裸 refresh token，直接完成导入；OAuth 模式通过浏览器授权自动完成。'
+                        })
+                        : isCodeArtsAKSKMode
                         ? t('auth_login.codearts_aksk_hint', {
                           defaultValue: '填入华为云永久 IAM 访问密钥直接完成登录，凭据不会过期；OAuth 授权仅 24 小时有效。'
                         })
@@ -1070,6 +1203,60 @@ export function OAuthPage() {
                         }
                         placeholder={t('auth_login.qoder_token_placeholder', {
                           defaultValue: '请输入 Personal Access Token'
+                        })}
+                      />
+                    </div>
+                  )}
+                  {isKiro && (
+                    <div className={styles.qoderModeField}>
+                      <label className={styles.formItemLabel} htmlFor="kiro-auth-mode">
+                        {t('auth_login.kiro_auth_mode_label', { defaultValue: '认证方式' })}
+                      </label>
+                      <Select
+                        id="kiro-auth-mode"
+                        value={kiroAuthMode || 'oauth'}
+                        options={[
+                          {
+                            value: 'oauth',
+                            label: t('auth_login.kiro_auth_mode_oauth', { defaultValue: 'OAuth' })
+                          },
+                          {
+                            value: 'token',
+                            label: t('auth_login.kiro_auth_mode_token', { defaultValue: '导入凭证' })
+                          }
+                        ]}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        ariaLabel={t('auth_login.kiro_auth_mode_label', { defaultValue: '认证方式' })}
+                        onChange={(value) => switchKiroAuthMode(value as 'token' | 'oauth')}
+                      />
+                      <div className={styles.cardHintSecondary}>
+                        {t('auth_login.kiro_auth_mode_hint', {
+                          defaultValue: 'OAuth 模式通过浏览器授权自动完成；导入凭证模式适合粘贴 Kiro IDE 凭证 JSON 或 refresh token。'
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {isKiroImportMode && (
+                    <div className={styles.qoderTokenField}>
+                      <Input
+                        type="password"
+                        label={t('auth_login.kiro_import_label', {
+                          defaultValue: 'Kiro 凭证 JSON / Refresh Token'
+                        })}
+                        hint={t('auth_login.kiro_import_input_hint', {
+                          defaultValue: '粘贴 ~/.aws/sso/cache/kiro-auth-token.json 的完整内容，或仅其 refreshToken 字段（以 aorAAAAAG 开头）。'
+                        })}
+                        value={state.kiroImportPayload || ''}
+                        disabled={Boolean(state.polling || state.callbackSubmitting)}
+                        onChange={(e) =>
+                          updateProviderState(provider.id, {
+                            kiroImportPayload: e.target.value,
+                            status: undefined,
+                            error: undefined
+                          })
+                        }
+                        placeholder={t('auth_login.kiro_import_placeholder', {
+                          defaultValue: '{"accessToken": "..."} 或 aorAAAAAG...'
                         })}
                       />
                     </div>
