@@ -146,6 +146,22 @@ export const modelsApi = {
     if (!endpoint) {
       throw new Error('Invalid base url');
     }
+    return this.fetchModelsEndpointViaApiCall(endpoint, apiKey, headers);
+  },
+
+  /**
+   * Fetch models from an exact endpoint URL via api-call, without appending /models.
+   * Used when the user manually edits the discovery request URL.
+   */
+  async fetchModelsEndpointViaApiCall(
+    endpoint: string,
+    apiKey?: string,
+    headers: Record<string, string> = {}
+  ) {
+    const trimmed = endpoint.trim();
+    if (!trimmed || !/^https?:\/\//i.test(trimmed)) {
+      throw new Error('Invalid base url');
+    }
 
     const resolvedHeaders = { ...headers };
     if (apiKey && !hasHeader(resolvedHeaders, 'authorization')) {
@@ -154,7 +170,7 @@ export const modelsApi = {
 
     const result = await apiCallApi.request({
       method: 'GET',
-      url: endpoint,
+      url: trimmed,
       header: Object.keys(resolvedHeaders).length ? resolvedHeaders : undefined
     });
 

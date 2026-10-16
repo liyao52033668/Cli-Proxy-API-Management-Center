@@ -25,6 +25,7 @@ export type OpenAIEditBaseline = {
   priority: number | null;
   prefix: string;
   baseUrl: string;
+  modelsFetchUrl: string;
   quotaEndpoint: string;
   quotaToken: string;
   quotaDivisor: string;
@@ -75,6 +76,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   name: '',
   prefix: '',
   baseUrl: '',
+  modelsFetchUrl: '',
   quotaEndpoint: '',
   quotaToken: '',
   quotaDivisor: '',

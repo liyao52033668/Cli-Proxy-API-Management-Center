@@ -46,6 +46,7 @@ const buildEmptyForm = (): OpenAIFormState => ({
   priority: undefined,
   prefix: '',
   baseUrl: '',
+  modelsFetchUrl: '',
   quotaEndpoint: '',
   quotaToken: '',
   quotaDivisor: '',
@@ -117,8 +118,9 @@ const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEd
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
-  baseUrl: String(form.baseUrl ?? '').trim(),
-  quotaEndpoint: String(form.quotaEndpoint ?? '').trim(),
+        baseUrl: String(form.baseUrl ?? '').trim(),
+        modelsFetchUrl: String(form.modelsFetchUrl ?? '').trim(),
+        quotaEndpoint: String(form.quotaEndpoint ?? '').trim(),
   quotaToken: String(form.quotaToken ?? '').trim(),
   quotaDivisor: String(form.quotaDivisor ?? '').trim(),
   disabled: Boolean(form.disabled),
@@ -308,6 +310,7 @@ export function AiProvidersOpenAIEditLayout() {
         priority: initialData.priority,
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
+        modelsFetchUrl: initialData.modelsFetchUrl ?? '',
         quotaEndpoint: initialData.quotaEndpoint ?? '',
         quotaToken: initialData.quotaToken ?? '',
         quotaDivisor: initialData.quotaDivisor != null ? String(initialData.quotaDivisor) : '',
@@ -439,6 +442,7 @@ export function AiProvidersOpenAIEditLayout() {
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
+      baseline.modelsFetchUrl !== form.modelsFetchUrl.trim() ||
       baseline.quotaEndpoint !== form.quotaEndpoint.trim() ||
       baseline.quotaToken !== form.quotaToken.trim() ||
       baseline.quotaDivisor !== form.quotaDivisor.trim() ||
@@ -489,6 +493,7 @@ export function AiProvidersOpenAIEditLayout() {
         name,
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
+        modelsFetchUrl: form.modelsFetchUrl?.trim() || undefined,
         quotaEndpoint: form.quotaEndpoint?.trim() || undefined,
         quotaToken: form.quotaToken?.trim() || undefined,
         quotaDivisor: parseQuotaDivisor(form.quotaDivisor),

@@ -257,6 +257,8 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   const testModel = provider['test-model'] ?? provider.testModel;
   const quotaEndpoint = provider['quota-endpoint'] ?? provider.quotaEndpoint ?? provider['quota_endpoint'];
   const quotaToken = provider['quota-token'] ?? provider.quotaToken ?? provider['quota_token'];
+  const modelsFetchUrl =
+    provider['models-fetch-url'] ?? provider.modelsFetchUrl ?? provider['models_fetch_url'];
 
   const result: OpenAIProviderConfig = {
     name: String(name),
@@ -276,6 +278,9 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   if (testModel) result.testModel = String(testModel);
   if (typeof quotaEndpoint === 'string' && quotaEndpoint.trim()) result.quotaEndpoint = quotaEndpoint.trim();
   if (typeof quotaToken === 'string' && quotaToken.trim()) result.quotaToken = quotaToken.trim();
+  if (typeof modelsFetchUrl === 'string' && modelsFetchUrl.trim()) {
+    result.modelsFetchUrl = modelsFetchUrl.trim();
+  }
   const quotaDivisorRaw =
     provider['quota-divisor'] ?? provider.quotaDivisor ?? provider['quota_divisor'];
   const parsedDivisor = Number(quotaDivisorRaw);

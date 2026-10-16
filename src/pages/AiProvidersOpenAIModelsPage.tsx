@@ -29,10 +29,24 @@ export function AiProvidersOpenAIModelsPage() {
     loading: initialLoading,
     saving,
     form,
+    setForm,
     mergeDiscoveredModels,
   } = useOutletContext<OpenAIEditOutletContext>();
 
-  const endpoint = useMemo(() => buildOpenAIModelsEndpoint(form.baseUrl), [form.baseUrl]);
+  const derivedEndpoint = useMemo(
+    () => buildOpenAIModelsEndpoint(form.baseUrl),
+    [form.baseUrl]
+  );
+  // The saved/manual endpoint (form.modelsFetchUrl) wins over the derived one;
+  // editing the Base URL clears it so the endpoint follows the new Base URL.
+  const [lastBaseUrl, setLastBaseUrl] = useState(form.baseUrl);
+  if (lastBaseUrl !== form.baseUrl) {
+    setLastBaseUrl(form.baseUrl);
+    if (form.modelsFetchUrl) {
+      setForm((prev) => ({ ...prev, modelsFetchUrl: '' }));
+    }
+  }
+  const endpoint = form.modelsFetchUrl.trim() || derivedEndpoint;
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState('');
@@ -78,8 +92,8 @@ export function AiProvidersOpenAIModelsPage() {
 
   const fetchOpenaiModelDiscovery = useCallback(
     async ({ allowFallback = true }: { allowFallback?: boolean } = {}) => {
-      const trimmedBaseUrl = form.baseUrl.trim();
-      if (!trimmedBaseUrl) return;
+      const trimmedEndpoint = endpoint.trim();
+      if (!trimmedEndpoint) return;
 
       setFetching(true);
       setError('');
@@ -87,8 +101,8 @@ export function AiProvidersOpenAIModelsPage() {
         const headerObject = buildHeaderObject(form.headers);
         const firstKey = form.apiKeyEntries.find((entry) => entry.apiKey?.trim())?.apiKey?.trim();
         const hasAuthHeader = hasHeader(headerObject, 'authorization');
-        const list = await modelsApi.fetchModelsViaApiCall(
-          trimmedBaseUrl,
+        const list = await modelsApi.fetchModelsEndpointViaApiCall(
+          trimmedEndpoint,
           hasAuthHeader ? undefined : firstKey,
           headerObject
         );
@@ -96,7 +110,7 @@ export function AiProvidersOpenAIModelsPage() {
       } catch (err: unknown) {
         if (allowFallback) {
           try {
-            const list = await modelsApi.fetchModelsViaApiCall(trimmedBaseUrl);
+            const list = await modelsApi.fetchModelsEndpointViaApiCall(trimmedEndpoint);
             applyModels(list);
             return;
           } catch (fallbackErr: unknown) {
@@ -112,12 +126,12 @@ export function AiProvidersOpenAIModelsPage() {
         setFetching(false);
       }
     },
-    [form.apiKeyEntries, form.baseUrl, form.headers, t]
+    [endpoint, form.apiKeyEntries, form.headers, t]
   );
 
   useEffect(() => {
     if (initialLoading) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the shared model-fetch loader marks loading and clears the error synchronously, and is also used by the refresh button, so its prefix cannot be deferred
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the shared fetch loader sets loading/error state synchronously and is also bound to the refresh button, so it cannot be deferred
     void fetchOpenaiModelDiscovery();
   }, [fetchOpenaiModelDiscovery, form.baseUrl, initialLoading]);
 
@@ -214,8 +228,10 @@ export function AiProvidersOpenAIModelsPage() {
             <div className={styles.openaiModelsEndpointControls}>
               <input
                 className={`input ${styles.openaiModelsEndpointInput}`}
-                readOnly
                 value={endpoint}
+                onChange={(e) => setForm((prev) => ({ ...prev, modelsFetchUrl: e.target.value }))}
+                disabled={disableControls || fetching}
+                spellCheck={false}
               />
               <Button
                 variant="secondary"

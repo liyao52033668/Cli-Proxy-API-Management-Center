@@ -60,6 +60,8 @@ export interface OpenAIProviderConfig {
   quotaToken?: string;
   /** 额度换算除数：将原始额度值除以该值得到余额（如 NEW API 的 quota 需除以 500000）。 */
   quotaDivisor?: number;
+  /** 模型发现请求地址：填写后 /models 拉取使用该完整 URL；留空则由 base-url 派生。 */
+  modelsFetchUrl?: string;
   apiKeyEntries: ApiKeyEntry[];
   headers?: Record<string, string>;
   models?: ModelAlias[];

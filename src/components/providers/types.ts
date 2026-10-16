@@ -12,6 +12,8 @@ export interface OpenAIFormState {
   priority?: number;
   prefix: string;
   baseUrl: string;
+  /** 模型发现请求地址：填写后 /models 拉取使用该完整 URL；留空则由 baseUrl 派生。 */
+  modelsFetchUrl: string;
   quotaEndpoint: string;
   quotaToken: string;
   quotaDivisor: string;
