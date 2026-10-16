@@ -808,7 +808,9 @@
     "weekly_limit": "週限額",
     "daily_limit": "日限額",
     "five_hour_limit": "5 小時限額",
-    "monthly_limit": "月限額"
+    "monthly_limit": "月限額",
+    "quota_available": "配額可用",
+    "remaining_percent": "剩餘 {{percent}}%"
   },
   "devin_quota": {
     "daily": "每日剩餘額度",

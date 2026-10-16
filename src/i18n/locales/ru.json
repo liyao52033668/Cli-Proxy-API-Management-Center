@@ -805,7 +805,9 @@
     "weekly_limit": "Недельный лимит",
     "daily_limit": "Дневной лимит",
     "five_hour_limit": "Лимит на 5 часов",
-    "monthly_limit": "Месячный лимит"
+    "monthly_limit": "Месячный лимит",
+    "quota_available": "Квота доступна",
+    "remaining_percent": "Осталось {{percent}}%"
   },
   "devin_quota": {
     "daily": "Остаток на день",

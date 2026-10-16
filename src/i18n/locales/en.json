@@ -808,7 +808,9 @@
     "weekly_limit": "Weekly limit",
     "daily_limit": "Daily limit",
     "five_hour_limit": "5-hour limit",
-    "monthly_limit": "Monthly limit"
+    "monthly_limit": "Monthly limit",
+    "quota_available": "Quota available",
+    "remaining_percent": "{{percent}}% remaining"
   },
   "devin_quota": {
     "daily": "Daily remaining",

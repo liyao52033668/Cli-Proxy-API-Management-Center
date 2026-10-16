@@ -145,6 +145,12 @@ import {
   resolveGeminiCliProjectId
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/usage';
+import {
+  resolveAntigravityBucketLabelKey,
+  resolveAntigravityGroupLabelKey,
+  resolveAntigravityGroupModels,
+  shouldShowAntigravityQuotaAvailable,
+} from '@/utils/quota/antigravityLabels';
 import type { TFunction } from 'i18next';
 import type { ReactNode } from 'react';
 import React from 'react';
@@ -955,35 +961,8 @@ const fetchGeminiCliQuota = async (
   };
 };
 
-const ANTIGRAVITY_GROUP_LABEL_KEYS = new Map<string, string>([
-  ['gemini models', 'group_gemini_models'],
-  ['claude and gpt models', 'group_claude_gpt_models'],
-]);
-
-const ANTIGRAVITY_BUCKET_LABEL_KEYS = new Map<string, string>([
-  ['weekly limit', 'weekly_limit'],
-  ['daily limit', 'daily_limit'],
-  ['5 hour limit', 'five_hour_limit'],
-  ['5-hour limit', 'five_hour_limit'],
-  ['five hour limit', 'five_hour_limit'],
-  ['monthly limit', 'monthly_limit'],
-]);
-
-const normalizeAntigravityQuotaText = (value: string): string => {
-  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
-  // 接口 bucket label 可能带 "Remaining" 后缀（如 "Weekly Limit Remaining"），
-  // 去掉末尾 "remaining" 以命中基础 key 映射（weekly_limit 等）。
-  return normalized.replace(/\s+remaining$/, '');
-};
-
-const translateAntigravityQuotaLabel = (
-  value: string,
-  keys: Map<string, string>,
-  t: TFunction
-): string => {
-  const key = keys.get(normalizeAntigravityQuotaText(value));
-  return key ? t(`antigravity_quota.${key}`) : value;
-};
+const translateAntigravityQuotaLabel = (value: string, key: string | null, t: TFunction): string =>
+  key ? t(`antigravity_quota.${key}`) : value;
 
 const translateAntigravityQuotaDescription = (
   value: string | undefined,
@@ -1058,16 +1037,20 @@ const renderAntigravityItems = (
   groups.forEach((group) => {
     const groupLabel = translateAntigravityQuotaLabel(
       group.label,
-      ANTIGRAVITY_GROUP_LABEL_KEYS,
+      resolveAntigravityGroupLabelKey(group.label),
       t
     );
-    const groupDescription =
-      translateAntigravityQuotaDescription(group.description, t) ??
-      (group.models.length > 0
-        ? t('antigravity_quota.group_models_description', {
-            models: group.models.join(', '),
-          })
-        : undefined);
+    const groupModels = resolveAntigravityGroupModels(group.label, group.description);
+    const groupDescription = groupModels
+      ? t('antigravity_quota.group_models_description', {
+          models: groupModels.join(', '),
+        })
+      : translateAntigravityQuotaDescription(group.description, t) ??
+        (group.models.length > 0
+          ? t('antigravity_quota.group_models_description', {
+              models: group.models.join(', '),
+            })
+          : undefined);
 
     nodes.push(
       h(
@@ -1084,8 +1067,12 @@ const renderAntigravityItems = (
           )
         ),
         ...(group.buckets && group.buckets.length > 0
-          ? group.buckets.map((bucket) =>
-              h(
+          ? group.buckets.map((bucket) => {
+              const percent = Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100);
+              const percentLabel = shouldShowAntigravityQuotaAvailable(bucket, group.buckets ?? [])
+                ? t('antigravity_quota.quota_available')
+                : t('antigravity_quota.remaining_percent', { percent });
+              return h(
                 'div',
                 { key: bucket.id, className: styleMap.quotaRow },
                 h(
@@ -1095,28 +1082,28 @@ const renderAntigravityItems = (
                     'span',
                     {
                       className: styleMap.quotaModel,
-                      title: bucket.description,
+                      title: translateAntigravityQuotaDescription(bucket.description, t),
                     },
-                    translateAntigravityQuotaLabel(bucket.label, ANTIGRAVITY_BUCKET_LABEL_KEYS, t)
+                    translateAntigravityQuotaLabel(
+                      bucket.label,
+                      resolveAntigravityBucketLabelKey(bucket.label, bucket.window),
+                      t
+                    )
                   ),
                   h(
                     'div',
                     { className: styleMap.quotaMeta },
-                    h(
-                      'span',
-                      { className: styleMap.quotaPercent },
-                      `${Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100)}%`
-                    ),
+                    h('span', { className: styleMap.quotaPercent }, percentLabel),
                     h('span', { className: styleMap.quotaReset }, formatQuotaResetTime(bucket.resetTime))
                   )
                 ),
                 h(QuotaProgressBar, {
-                  percent: Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100),
+                  percent,
                   highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
                   mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
                 })
-              )
-            )
+              );
+            })
           : [
               h(
                 'div',
