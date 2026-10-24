@@ -810,7 +810,14 @@
     "five_hour_limit": "5 小時限額",
     "monthly_limit": "月限額",
     "quota_available": "配額可用",
-    "remaining_percent": "剩餘 {{percent}}%"
+    "remaining_percent": "剩餘 {{percent}}%",
+    "argon_pro_description": "付費 Pro 方案的 Argon 額度獨立計算。Ultra 方案包含更高的 Argon 額度（併入更大的 Gemini 額度池）。",
+    "refreshes_in": "{{duration}} 後重新整理",
+    "refresh_available": "可重新整理",
+    "duration_day_hour": "{{days}} 天 {{hours}} 小時",
+    "duration_hour_minute": "{{hours}} 小時 {{minutes}} 分鐘",
+    "duration_minute": "{{minutes}} 分鐘",
+    "duration_less_than_minute": "小於 1 分鐘"
   },
   "devin_quota": {
     "daily": "每日剩餘額度",
@@ -2172,7 +2179,9 @@
     "no_status_code_rules": "暫無自訂狀態碼分類。",
     "scheduled_actions_hint": "啟用定時巡檢後，將自動執行「建議停用」、「建議啟用」和「建議刪除」分類。",
     "xai_probe_title": "Grok OAuth 巡檢",
-    "xai_probe_hint": "使用 grok-4.5 驗證帳號是否具備實際的 Grok 對話能力；對話正常時會自動啟用已停用帳號。不會探測可能產生費用的官方按量 API Key。",
+    "xai_probe_hint": "使用下方設定的探測模型驗證帳號是否具備實際的 Grok 對話能力；對話正常時會自動啟用已停用帳號。不會探測可能產生費用的官方按量 API Key。",
+    "xai_probe_model": "探測模型",
+    "xai_probe_model_placeholder": "預設：grok-4.7",
     "xai_status_override_hint": "裸 HTTP 402、403、429 預設僅標記為待複查或暫時失敗。自訂狀態碼規則仍具有最高優先級，定時巡檢可能自動執行其中的停用或刪除動作。",
     "workers": "併發數",
     "timeout_seconds": "逾時秒數",

@@ -320,7 +320,7 @@ export const XAI_BILLING_WEEKLY_URL = 'https://cli-chat-proxy.grok.com/v1/billin
 export const XAI_BILLING_MONTHLY_URL = 'https://cli-chat-proxy.grok.com/v1/billing';
 export const XAI_API_ME_URL = 'https://api.x.ai/v1/me';
 export const XAI_API_CHAT_URL = 'https://api.x.ai/v1/chat/completions';
-export const XAI_PAID_HEALTH_MODEL = 'grok-4.5';
+export const XAI_PAID_HEALTH_MODEL = 'grok-4.7';
 export const XAI_GROK_CLIENT_VERSION = '0.2.93';
 export const XAI_GROK_USER_AGENT = 'grok-pager/0.2.93 grok-shell/0.2.93 (macos; aarch64)';
 

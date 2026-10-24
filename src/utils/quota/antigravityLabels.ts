@@ -32,10 +32,13 @@ const BUCKET_WINDOW_KEYS = new Map<string, string>([
   ['month', 'monthly_limit'],
 ]);
 
-/** 上游分组描述未列出、但实际共享该分组额度的模型，追加到「此分组包含」列表末尾。 */
-const GROUP_EXTRA_MODELS = new Map<string, readonly string[]>([
-  ['group_gemini_models', ['Gemini Argon']],
-]);
+/** 后端返回的自由文本分组描述 → i18n key（按归一化前缀匹配）。 */
+const DESCRIPTION_KEYS: readonly { pattern: RegExp; key: string }[] = [
+  {
+    pattern: /^for paid pro plans, argon quota is separate\b/i,
+    key: 'argon_pro_description',
+  },
+];
 
 const GROUP_MODELS_PATTERN = /^models within this group:\s*(.+)$/i;
 
@@ -51,29 +54,23 @@ export function resolveAntigravityGroupLabelKey(label: string): string | null {
 }
 
 /**
- * 解析分组描述中的模型列表，并追加该分组的补充模型（大小写不敏感去重）。
- * 描述不是「Models within this group: ...」格式时返回 null，由调用方显示原文。
+ * 解析分组描述中的模型列表。描述不是「Models within this group: ...」格式时
+ * 返回 null，由调用方按自由文本描述处理。
  */
-export function resolveAntigravityGroupModels(
-  label: string,
-  description: string | undefined
-): string[] | null {
+export function resolveAntigravityGroupModels(description: string | undefined): string[] | null {
   const match = description?.trim().match(GROUP_MODELS_PATTERN);
   if (!match) return null;
 
-  const models = match[1]
+  return match[1]
     .split(',')
     .map((model) => model.trim())
     .filter(Boolean);
-  const groupKey = resolveAntigravityGroupLabelKey(label);
-  const extras = groupKey ? (GROUP_EXTRA_MODELS.get(groupKey) ?? []) : [];
-  const seen = new Set(models.map(normalizeText));
-  extras.forEach((model) => {
-    if (seen.has(normalizeText(model))) return;
-    seen.add(normalizeText(model));
-    models.push(model);
-  });
-  return models;
+}
+
+/** 翻译后端返回的自由文本分组/桶描述，未收录的原文返回。 */
+export function resolveAntigravityDescriptionKey(description: string): string | null {
+  const normalized = normalizeText(description);
+  return DESCRIPTION_KEYS.find(({ pattern }) => pattern.test(normalized))?.key ?? null;
 }
 
 export function resolveAntigravityBucketLabelKey(
@@ -86,29 +83,4 @@ export function resolveAntigravityBucketLabelKey(
   if (byLabel) return byLabel;
   if (!window) return null;
   return BUCKET_WINDOW_KEYS.get(normalizeText(window)) ?? null;
-}
-
-interface AntigravityBucketLike {
-  label: string;
-  window?: string;
-  remainingFraction: number;
-}
-
-/**
- * 满额桶是否显示「额度可用」。同组周限额已耗尽时，5 小时限额即使满额也不可用
- * （上游会把它标为 disabled 且 remainingFraction 仍为 1），此时不显示「额度可用」。
- */
-export function shouldShowAntigravityQuotaAvailable(
-  bucket: AntigravityBucketLike,
-  groupBuckets: readonly AntigravityBucketLike[]
-): boolean {
-  if (bucket.remainingFraction !== 1) return false;
-  if (resolveAntigravityBucketLabelKey(bucket.label, bucket.window) !== 'five_hour_limit') {
-    return true;
-  }
-  return !groupBuckets.some(
-    (item) =>
-      resolveAntigravityBucketLabelKey(item.label, item.window) === 'weekly_limit' &&
-      item.remainingFraction <= 0
-  );
 }

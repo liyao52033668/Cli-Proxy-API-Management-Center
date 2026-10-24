@@ -18,6 +18,7 @@ export interface CodexInspectionSettings {
   fiveHourUsedPercentThreshold: number;
   weeklyUsedPercentThreshold: number;
   statusCodeActions?: Record<string, Record<string, CodexInspectionAction>>;
+  probeModels?: Record<string, string>;
   schedules: Record<string, CodexInspectionSchedule>;
   usedPercentThreshold?: number;
   schedule?: CodexInspectionSchedule;

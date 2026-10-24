@@ -147,11 +147,17 @@ import {
 import { normalizeAuthIndex } from '@/utils/usage';
 import {
   resolveAntigravityBucketLabelKey,
+  resolveAntigravityDescriptionKey,
   resolveAntigravityGroupLabelKey,
   resolveAntigravityGroupModels,
-  shouldShowAntigravityQuotaAvailable,
 } from '@/utils/quota/antigravityLabels';
+import {
+  formatAntigravityResetLabel,
+  getNextAntigravityCountdownUpdateDelay,
+  resolveResponseServerTimeOffsetMs,
+} from '@/utils/quota/antigravityCountdown';
 import type { TFunction } from 'i18next';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import React from 'react';
 import type { QuotaRenderHelpers } from './QuotaCard';
@@ -278,6 +284,7 @@ const resolveAntigravityProjectId = async (file: AuthFileItem): Promise<string> 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
   subscription: AntigravityQuotaSubscription | null;
+  serverTimeOffsetMs: number | null;
 };
 
 const toAntigravityQuotaSubscription = (
@@ -350,6 +357,7 @@ const fetchAntigravityQuota = async (
       return {
         groups,
         subscription: await subscriptionPromise,
+        serverTimeOffsetMs: resolveResponseServerTimeOffsetMs(result.header),
       };
     } catch (err: unknown) {
       lastError = err instanceof Error ? err.message : t('common.unknown_error');
@@ -364,7 +372,7 @@ const fetchAntigravityQuota = async (
   }
 
   if (hadSuccess) {
-    return { groups: [], subscription: await subscriptionPromise };
+    return { groups: [], subscription: await subscriptionPromise, serverTimeOffsetMs: null };
   }
 
   throw createStatusError(lastError || t('common.unknown_error'), priorityStatus ?? lastStatus);
@@ -975,6 +983,8 @@ const translateAntigravityQuotaDescription = (
       models: modelsMatch[1].trim(),
     });
   }
+  const descriptionKey = resolveAntigravityDescriptionKey(value);
+  if (descriptionKey) return t(`antigravity_quota.${descriptionKey}`);
   return value;
 };
 
@@ -994,10 +1004,65 @@ const getAntigravityPlanLabel = (
   );
 };
 
-const renderAntigravityItems = (
+/**
+ * Antigravity 渲染入口：承载倒计时状态（renderQuotaItems 是普通函数，无法挂 hooks）。
+ * 倒计时基准为「Date.now + 服务器时钟偏移」，并在最近的分钟边界自动刷新。
+ */
+const AntigravityQuotaItems = ({
+  quota,
+  t,
+  helpers,
+}: {
+  quota: AntigravityQuotaState;
+  t: TFunction;
+  helpers: QuotaRenderHelpers;
+}): ReactNode => {
+  const serverTimeOffsetMs = quota.serverTimeOffsetMs ?? 0;
+  const resetTimestamps = useMemo(
+    () =>
+      (quota.groups ?? []).flatMap((group) =>
+        (group.buckets ?? [])
+          .map((bucket) => (bucket.resetTime ? new Date(bucket.resetTime).getTime() : Number.NaN))
+          .filter(Number.isFinite)
+      ),
+    [quota.groups]
+  );
+  // 首屏直接显示准确文案；后续 effect 会在最近的分钟边界更新并重新排程。
+  const [nowMs, setNowMs] = useState(() => Date.now() + serverTimeOffsetMs);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const updateCountdown = () => {
+      const currentNowMs = Date.now() + serverTimeOffsetMs;
+      setNowMs(currentNowMs);
+      const delay = getNextAntigravityCountdownUpdateDelay(resetTimestamps, currentNowMs);
+      if (delay !== null) {
+        timeoutId = setTimeout(updateCountdown, delay);
+      }
+    };
+
+    updateCountdown();
+    return () => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
+  }, [resetTimestamps, serverTimeOffsetMs]);
+
+  return renderAntigravityItems(quota, t, helpers, nowMs);
+};
+
+/** renderQuotaItems 以普通函数调用，无法挂 hooks；此处经 createElement 挂载倒计时组件。 */
+const renderAntigravityItemsWithCountdown = (
   quota: AntigravityQuotaState,
   t: TFunction,
   helpers: QuotaRenderHelpers
+): ReactNode => React.createElement(AntigravityQuotaItems, { quota, t, helpers });
+
+const renderAntigravityItems = (
+  quota: AntigravityQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers,
+  nowMs: number
 ): ReactNode => {
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h } = React;
@@ -1040,7 +1105,7 @@ const renderAntigravityItems = (
       resolveAntigravityGroupLabelKey(group.label),
       t
     );
-    const groupModels = resolveAntigravityGroupModels(group.label, group.description);
+    const groupModels = resolveAntigravityGroupModels(group.description);
     const groupDescription = groupModels
       ? t('antigravity_quota.group_models_description', {
           models: groupModels.join(', '),
@@ -1069,9 +1134,7 @@ const renderAntigravityItems = (
         ...(group.buckets && group.buckets.length > 0
           ? group.buckets.map((bucket) => {
               const percent = Math.round(Math.max(0, Math.min(1, bucket.remainingFraction)) * 100);
-              const percentLabel = shouldShowAntigravityQuotaAvailable(bucket, group.buckets ?? [])
-                ? t('antigravity_quota.quota_available')
-                : t('antigravity_quota.remaining_percent', { percent });
+              const percentLabel = t('antigravity_quota.remaining_percent', { percent });
               return h(
                 'div',
                 { key: bucket.id, className: styleMap.quotaRow },
@@ -1094,7 +1157,11 @@ const renderAntigravityItems = (
                     'div',
                     { className: styleMap.quotaMeta },
                     h('span', { className: styleMap.quotaPercent }, percentLabel),
-                    h('span', { className: styleMap.quotaReset }, formatQuotaResetTime(bucket.resetTime))
+                    h(
+                      'span',
+                      { className: styleMap.quotaReset },
+                      formatAntigravityResetLabel(bucket.resetTime, t, nowMs)
+                    )
                   )
                 ),
                 h(QuotaProgressBar, {
@@ -1123,7 +1190,7 @@ const renderAntigravityItems = (
                     h(
                       'span',
                       { className: styleMap.quotaReset },
-                      formatQuotaResetTime(group.resetTime)
+                      formatAntigravityResetLabel(group.resetTime, t, nowMs)
                     )
                   )
                 ),
@@ -1613,6 +1680,7 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
     status: 'success',
     groups: data.groups,
     subscription: data.subscription,
+    serverTimeOffsetMs: data.serverTimeOffsetMs,
   }),
   buildErrorState: (message, status) => ({
     status: 'error',
@@ -1625,7 +1693,7 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
   controlsClassName: styles.antigravityControls,
   controlClassName: styles.antigravityControl,
   gridClassName: styles.antigravityGrid,
-  renderQuotaItems: renderAntigravityItems,
+  renderQuotaItems: renderAntigravityItemsWithCountdown,
 };
 
 export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {

@@ -115,6 +115,7 @@ export function CodexInspectionSettingsPanel({
   const newStatusCode = newStatusCodes[provider] ?? '';
   const newStatusAction = newStatusActions[provider] ?? 'reauth';
   const providerStatusCodeActions = settings.statusCodeActions?.[provider] ?? {};
+  const providerProbeModel = settings.probeModels?.[provider] ?? '';
   const statusCodeEntries = Object.entries(providerStatusCodeActions).sort(
     ([left], [right]) => Number(left) - Number(right)
   );
@@ -182,8 +183,18 @@ export function CodexInspectionSettingsPanel({
     window.requestAnimationFrame(() => newStatusCodeInputRef.current?.focus());
   };
 
-  const updateProviderSchedule = (nextSchedule: typeof providerSchedule) => {
-    onChange({
+  const updateProviderProbeModel = (model: string) => {
+    const nextProbeModels = { ...(settings.probeModels ?? {}) };
+    const trimmed = model.trim();
+    if (trimmed) {
+      nextProbeModels[provider] = trimmed;
+    } else {
+      delete nextProbeModels[provider];
+    }
+    onChange({ ...settings, probeModels: nextProbeModels });
+  };
+
+  const updateProviderSchedule = (nextSchedule: typeof providerSchedule) => {    onChange({
       ...settings,
       schedules: {
         ...settings.schedules,
@@ -369,9 +380,24 @@ export function CodexInspectionSettingsPanel({
             <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
               {t('codex_inspection.xai_probe_hint', {
                 defaultValue:
-                  'Uses grok-4.5 to verify actual Grok chat access. Healthy disabled accounts are enabled automatically. Official pay-as-you-go API keys are not probed.',
+                  'Verifies actual Grok chat access with the configured probe model. Healthy disabled accounts are enabled automatically. Official pay-as-you-go API keys are not probed.',
               })}
             </div>
+            <label style={{ ...fieldStyle, minWidth: 220 }}>
+              <span>
+                {t('codex_inspection.xai_probe_model', { defaultValue: 'Probe model' })}
+              </span>
+              <input
+                style={inputStyle}
+                type="text"
+                value={providerProbeModel}
+                disabled={disabled}
+                placeholder={t('codex_inspection.xai_probe_model_placeholder', {
+                  defaultValue: 'Default: grok-4.7',
+                })}
+                onChange={(event) => updateProviderProbeModel(event.target.value)}
+              />
+            </label>
             <div style={{ color: 'var(--text-secondary, #666)', fontSize: 13 }}>
               {t('codex_inspection.xai_status_override_hint', {
                 defaultValue:
