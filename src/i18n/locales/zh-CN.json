@@ -289,6 +289,8 @@
     "codex_add_modal_proxy_placeholder": "例如: socks5://proxy.example.com:1080",
     "codex_websockets_label": "Websockets",
     "codex_websockets_hint": "开启 Responses API 的 websocket 传输。",
+    "codex_disable_image_generation_label": "禁用图像生成注入",
+    "codex_disable_image_generation_hint": "开启后此凭证的上游请求不再注入 image_generation 工具（适用于 Azure OpenAI 等拒绝该工具的 Responses 兼容端点）。",
     "codex_models_label": "自定义模型 (可选):",
     "codex_models_hint": "为空表示使用全部模型；可填写 name[, alias] 以限制或重命名模型。",
     "codex_models_add_btn": "添加模型",

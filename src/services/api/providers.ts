@@ -63,13 +63,20 @@ const serializeApiKeyEntry = (entry: ApiKeyEntry) => {
   return payload;
 };
 
-const serializeProviderKey = (config: ProviderKeyConfig) => {
+const serializeProviderKey = (
+  config: ProviderKeyConfig,
+  options?: { includeDisableImageGeneration?: boolean }
+) => {
   const payload: Record<string, unknown> = { 'api-key': config.apiKey };
   if (config.priority !== undefined) payload.priority = config.priority;
   if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
   if (config.baseUrl) payload['base-url'] = config.baseUrl;
   if (config.websockets !== undefined) payload.websockets = config.websockets;
   if (config.proxyUrl) payload['proxy-url'] = config.proxyUrl;
+  // Codex-only field; claude-api-key upstream does not accept it.
+  if (options?.includeDisableImageGeneration && config.disableImageGeneration !== undefined) {
+    payload['disable-image-generation'] = config.disableImageGeneration;
+  }
   const headers = serializeHeaders(config.headers);
   if (headers) payload.headers = headers;
   const models = serializeModelAliases(config.models);
@@ -186,10 +193,16 @@ export const providersApi = {
   },
 
   saveCodexConfigs: (configs: ProviderKeyConfig[]) =>
-    apiClient.put('/codex-api-key', configs.map((item) => serializeProviderKey(item))),
+    apiClient.put(
+      '/codex-api-key',
+      configs.map((item) => serializeProviderKey(item, { includeDisableImageGeneration: true }))
+    ),
 
   updateCodexConfig: (index: number, value: ProviderKeyConfig) =>
-    apiClient.patch('/codex-api-key', { index, value: serializeProviderKey(value) }),
+    apiClient.patch('/codex-api-key', {
+      index,
+      value: serializeProviderKey(value, { includeDisableImageGeneration: true }),
+    }),
 
   deleteCodexConfig: (apiKey: string, baseUrl?: string) =>
     apiClient.delete(`/codex-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),

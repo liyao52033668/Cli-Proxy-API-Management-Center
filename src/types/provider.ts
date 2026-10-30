@@ -47,6 +47,12 @@ export interface ProviderKeyConfig {
   excludedModels?: string[];
   cloak?: CloakConfig;
   authIndex?: string;
+  /**
+   * Codex 专属：为 true 时该凭证的上游请求不注入 image_generation 工具
+   * （用于 Azure OpenAI 等拒绝该工具的 Responses 兼容端点）。
+   * undefined 表示未设置，沿用全局行为。
+   */
+  disableImageGeneration?: boolean;
 }
 
 

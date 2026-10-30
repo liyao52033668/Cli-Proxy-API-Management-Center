@@ -289,6 +289,8 @@
     "codex_add_modal_proxy_placeholder": "e.g.: socks5://proxy.example.com:1080",
     "codex_websockets_label": "Websockets",
     "codex_websockets_hint": "Enable Responses API websocket transport for this key.",
+    "codex_disable_image_generation_label": "Disable Image Generation Injection",
+    "codex_disable_image_generation_hint": "When enabled, upstream requests for this key no longer get the image_generation tool injected (for Responses-compatible endpoints such as Azure OpenAI that reject it).",
     "codex_models_label": "Custom Models (Optional):",
     "codex_models_hint": "Leave empty to allow all models, or add name[, alias] entries to limit/alias them.",
     "codex_models_add_btn": "Add Model",

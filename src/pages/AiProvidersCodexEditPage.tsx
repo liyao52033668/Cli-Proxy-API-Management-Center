@@ -48,6 +48,7 @@ const buildEmptyForm = (): ProviderFormState => ({
   excludedModels: [],
   modelEntries: [{ name: '', alias: '' }],
   excludedText: '',
+  disableImageGeneration: false,
 });
 
 const getErrorMessage = (err: unknown) => {
@@ -75,6 +76,7 @@ type CodexFormBaseline = {
   baseUrl: string;
   websockets: boolean;
   proxyUrl: string;
+  disableImageGeneration: boolean;
   headers: ReturnType<typeof normalizeHeaderEntries>;
   models: ReturnType<typeof normalizeModelEntries>;
   excludedModels: string[];
@@ -88,6 +90,7 @@ const buildCodexBaseline = (form: ProviderFormState): CodexFormBaseline => ({
   baseUrl: String(form.baseUrl ?? '').trim(),
   websockets: Boolean(form.websockets),
   proxyUrl: String(form.proxyUrl ?? '').trim(),
+  disableImageGeneration: Boolean(form.disableImageGeneration),
   headers: normalizeHeaderEntries(form.headers),
   models: normalizeModelEntries(form.modelEntries),
   excludedModels: parseExcludedModels(form.excludedText ?? ''),
@@ -211,6 +214,7 @@ export function AiProvidersCodexEditPage() {
           ? {
               ...nextData,
               websockets: Boolean(nextData.websockets),
+              disableImageGeneration: Boolean(nextData.disableImageGeneration),
               headers: headersToEntries(nextData.headers),
               modelEntries: modelsToEntries(nextData.models),
               excludedText: excludedModelsToText(nextData.excludedModels),
@@ -266,6 +270,7 @@ export function AiProvidersCodexEditPage() {
     baseline.prefix !== String(form.prefix ?? '').trim() ||
     baseline.baseUrl !== String(form.baseUrl ?? '').trim() ||
     baseline.websockets !== Boolean(form.websockets) ||
+    baseline.disableImageGeneration !== Boolean(form.disableImageGeneration) ||
     baseline.proxyUrl !== String(form.proxyUrl ?? '').trim() ||
     isHeadersDirty ||
     isModelsDirty ||
@@ -648,6 +653,7 @@ export function AiProvidersCodexEditPage() {
         baseUrl,
         websockets: Boolean(form.websockets),
         proxyUrl: form.proxyUrl?.trim() || undefined,
+        disableImageGeneration: Boolean(form.disableImageGeneration),
         headers: buildHeaderObject(form.headers),
         models: entriesToModels(form.modelEntries),
         excludedModels: parseExcludedModels(form.excludedText),
@@ -791,6 +797,16 @@ export function AiProvidersCodexEditPage() {
                 ariaLabel={t('ai_providers.codex_websockets_label')}
               />
               <div className="hint">{t('ai_providers.codex_websockets_hint')}</div>
+            </div>
+            <div className="form-group">
+              <label>{t('ai_providers.codex_disable_image_generation_label')}</label>
+              <ToggleSwitch
+                checked={Boolean(form.disableImageGeneration)}
+                onChange={(value) => setForm((prev) => ({ ...prev, disableImageGeneration: value }))}
+                disabled={formDisabled}
+                ariaLabel={t('ai_providers.codex_disable_image_generation_label')}
+              />
+              <div className="hint">{t('ai_providers.codex_disable_image_generation_hint')}</div>
             </div>
             <Input
               label={t('ai_providers.codex_add_modal_proxy_label')}

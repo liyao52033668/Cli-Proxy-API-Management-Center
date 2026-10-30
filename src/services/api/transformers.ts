@@ -161,6 +161,11 @@ const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => 
     record?.['auth-index'] ?? record?.authIndex ?? record?.['auth_index']
   );
   if (authIndex) config.authIndex = authIndex;
+  // Codex-only field; ignored for claude/vertex which do not support it server-side.
+  const disableImageGeneration = normalizeBoolean(
+    record?.['disable-image-generation'] ?? record?.disableImageGeneration
+  );
+  if (disableImageGeneration !== undefined) config.disableImageGeneration = disableImageGeneration;
 
   const cloakRaw = record?.cloak;
   if (isRecord(cloakRaw)) {
