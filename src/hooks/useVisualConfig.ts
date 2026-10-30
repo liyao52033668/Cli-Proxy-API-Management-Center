@@ -806,6 +806,12 @@ function getNextDirtyFields(
       nextValues.disableImageGeneration === baselineValues.disableImageGeneration
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'gptImage2BaseModel')) {
+    updateDirty(
+      'gptImage2BaseModel',
+      nextValues.gptImage2BaseModel === baselineValues.gptImage2BaseModel
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'requestRetry')) {
     updateDirty('requestRetry', nextValues.requestRetry === baselineValues.requestRetry);
   }
@@ -1132,6 +1138,10 @@ export function useVisualConfig() {
         enableGeminiCliEndpoint: Boolean(parsed['enable-gemini-cli-endpoint']),
         disableUtls: Boolean(parsed['disable-utls']),
         disableImageGeneration: parseDisableImageGenerationValue(parsed['disable-image-generation']),
+        gptImage2BaseModel:
+          typeof parsed['gpt-image-2-base-model'] === 'string'
+            ? parsed['gpt-image-2-base-model']
+            : '',
         requestRetry: String(parsed['request-retry'] ?? ''),
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
@@ -1375,6 +1385,14 @@ export function useVisualConfig() {
             doc.setIn(['disable-image-generation'], 'chat');
           } else if (docHas(doc, ['disable-image-generation'])) {
             doc.setIn(['disable-image-generation'], false);
+          }
+        }
+        if (isDirty('gptImage2BaseModel')) {
+          const trimmedBaseModel = values.gptImage2BaseModel.trim();
+          if (trimmedBaseModel !== '') {
+            doc.setIn(['gpt-image-2-base-model'], trimmedBaseModel);
+          } else if (docHas(doc, ['gpt-image-2-base-model'])) {
+            doc.deleteIn(['gpt-image-2-base-model']);
           }
         }
         if (isDirty('requestRetry')) {

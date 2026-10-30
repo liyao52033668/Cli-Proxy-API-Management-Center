@@ -878,6 +878,14 @@ export function VisualConfigEditor({
                     }
                   />
                 </FieldShell>
+                <Input
+                  label={t('config_management.visual.sections.system.gpt_image_2_base_model')}
+                  placeholder="gpt-5.4-mini"
+                  value={values.gptImage2BaseModel}
+                  onChange={(e) => onChange({ gptImage2BaseModel: e.target.value })}
+                  disabled={disabled}
+                  hint={t('config_management.visual.sections.system.gpt_image_2_base_model_hint')}
+                />
               </SectionGrid>
             </SectionStack>
           </ConfigSection>

@@ -96,6 +96,7 @@ export type VisualConfigValues = {
   enableGeminiCliEndpoint: boolean;
   disableUtls: boolean;
   disableImageGeneration: DisableImageGenerationValue;
+  gptImage2BaseModel: string;
   requestRetry: string;
   maxRetryCredentials: string;
   maxRetryInterval: string;
@@ -163,6 +164,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   enableGeminiCliEndpoint: false,
   disableUtls: false,
   disableImageGeneration: 'false',
+  gptImage2BaseModel: '',
   requestRetry: '',
   maxRetryCredentials: '',
   maxRetryInterval: '',

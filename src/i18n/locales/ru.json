@@ -1937,6 +1937,8 @@
           "redis_usage_retention_hint": "Задаёт срок хранения событий очереди usage в Redis. Оставьте пустым, чтобы использовать значение сервера по умолчанию.",
           "disable_image_generation": "Возможность генерации изображений",
           "disable_image_generation_hint": "Управляет тем, пропускать ли запросы, связанные с генерацией изображений.",
+          "gpt_image_2_base_model": "Базовая модель GPT Image 2",
+          "gpt_image_2_base_model_hint": "Модель, управляющая инструментом image_generation для запросов Codex, которые не проксируются напрямую через Image API. Должна начинаться с \"gpt-\"; оставьте пустым для значения по умолчанию (gpt-5.4-mini).",
           "image_generation_enabled": "Разрешить генерацию изображений",
           "image_generation_chat_disabled": "Отключить генерацию изображений только в чате",
           "image_generation_disabled": "Отключить всю генерацию изображений",

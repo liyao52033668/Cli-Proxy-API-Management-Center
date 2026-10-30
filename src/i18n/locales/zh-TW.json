@@ -1966,6 +1966,8 @@
           "redis_usage_retention_hint": "控制 Redis usage 佇列事件保留時間，留空表示使用伺服器預設值。",
           "disable_image_generation": "圖片生成能力",
           "disable_image_generation_hint": "控制圖片生成相關請求是否允許通過。",
+          "gpt_image_2_base_model": "GPT Image 2 宿主模型",
+          "gpt_image_2_base_model_hint": "Codex 圖片請求未走 Image API 直連時，驅動 image_generation 工具的宿主模型。必須以 \"gpt-\" 開頭，留空使用預設值（gpt-5.4-mini）。",
           "image_generation_enabled": "允許圖片生成",
           "image_generation_chat_disabled": "僅停用聊天中的圖片生成",
           "image_generation_disabled": "停用全部圖片生成"
