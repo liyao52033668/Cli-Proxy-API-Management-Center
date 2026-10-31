@@ -228,6 +228,7 @@ export function AuthFilesPage() {
     refreshingAll,
     statusUpdating,
     batchStatusUpdating,
+    batchDownloading,
     fileInputRef,
     loadFiles,
     handleUploadClick,
@@ -851,7 +852,7 @@ export function AuthFilesPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".json,application/json,.zip,application/zip"
               multiple
               style={{ display: 'none' }}
               onChange={handleFileChange}
@@ -1160,7 +1161,7 @@ export function AuthFilesPage() {
                   variant="secondary"
                   size="sm"
                   onClick={() => void batchDownload(selectedNames)}
-                  disabled={disableControls || selectedNames.length === 0}
+                  disabled={disableControls || batchDownloading || selectedNames.length === 0}
                 >
                   {t('auth_files.batch_download')}
                 </Button>

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type ChangeEvent, type RefObject } from 'react';
+import { isAxiosError } from 'axios';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { apiClient } from '@/services/api/client';
@@ -7,6 +8,8 @@ import type { AuthFileItem } from '@/types';
 import { formatFileSize } from '@/utils/format';
 import { MAX_AUTH_FILE_SIZE } from '@/utils/constants';
 import { downloadBlob } from '@/utils/download';
+import { extractZipEntries } from '@/utils/unzip';
+import { buildTimestampedZipName, createZip } from '@/utils/zip';
 import {
   getTypeLabel,
   hasAuthFileStatusMessage,
@@ -37,6 +40,7 @@ export type UseAuthFilesDataResult = {
   refreshingAll: boolean;
   statusUpdating: Record<string, boolean>;
   batchStatusUpdating: boolean;
+  batchDownloading: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   loadFiles: () => Promise<void>;
   handleUploadClick: () => void;
@@ -62,6 +66,41 @@ export type UseAuthFilesDataOptions = {
   refreshKeyStats: () => Promise<void>;
 };
 
+type BatchDownloadCounts = { succeeded: number; failed: number };
+
+/**
+ * 老版本后端没有批量下载端点时的回退：前端并行拉取各文件后打包为 ZIP。
+ * 返回成功/失败计数；全部失败时不产出 ZIP（succeeded 为 0）。
+ */
+async function downloadFilesAsClientZip(names: string[]): Promise<BatchDownloadCounts> {
+  const results = await Promise.allSettled(
+    names.map(async (name) => {
+      const response = await apiClient.getRaw(
+        `/auth-files/download?name=${encodeURIComponent(name)}`,
+        { responseType: 'arraybuffer' }
+      );
+      return { name, data: new Uint8Array(response.data as ArrayBuffer) };
+    })
+  );
+
+  const succeeded: { name: string; data: Uint8Array<ArrayBuffer> }[] = [];
+  let failed = 0;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      succeeded.push(result.value);
+    } else {
+      failed += 1;
+    }
+  }
+  if (succeeded.length === 0) {
+    return { succeeded: 0, failed };
+  }
+
+  const zipBlob = new Blob([createZip(succeeded)], { type: 'application/zip' });
+  downloadBlob({ filename: buildTimestampedZipName(), blob: zipBlob });
+  return { succeeded: succeeded.length, failed };
+}
+
 export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFilesDataResult {
   const { refreshKeyStats } = options;
   const { t } = useTranslation();
@@ -77,6 +116,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({});
   const [batchStatusUpdating, setBatchStatusUpdating] = useState(false);
+  const [batchDownloading, setBatchDownloading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -199,21 +239,54 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
       const validFiles: File[] = [];
       const invalidFiles: string[] = [];
       const oversizedFiles: string[] = [];
+      let skippedZipEntries = 0;
 
-      filesToUpload.forEach((file) => {
-        if (!file.name.endsWith('.json')) {
+      for (const file of filesToUpload) {
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.endsWith('.zip')) {
+          try {
+            const archive = new Uint8Array(await file.arrayBuffer());
+            const entries = await extractZipEntries(archive);
+            for (const entry of entries) {
+              const entryName = entry.name.split('/').pop() ?? '';
+              if (!entryName.toLowerCase().endsWith('.json')) {
+                skippedZipEntries += 1;
+                continue;
+              }
+              if (entry.data.length > MAX_AUTH_FILE_SIZE) {
+                oversizedFiles.push(entryName);
+                continue;
+              }
+              validFiles.push(new File([entry.data], entryName, { type: 'application/json' }));
+            }
+          } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : '';
+            showNotification(
+              `${t('auth_files.upload_error_zip')}${errorMessage ? `: ${errorMessage}` : ''}`,
+              'error'
+            );
+          }
+          continue;
+        }
+        if (!lowerName.endsWith('.json')) {
           invalidFiles.push(file.name);
-          return;
+          continue;
         }
         if (file.size > MAX_AUTH_FILE_SIZE) {
           oversizedFiles.push(file.name);
-          return;
+          continue;
         }
         validFiles.push(file);
-      });
+      }
 
       if (invalidFiles.length > 0) {
         showNotification(t('auth_files.upload_error_json'), 'error');
+      }
+      if (skippedZipEntries > 0) {
+        showNotification(
+          t('auth_files.upload_zip_skipped', { count: skippedZipEntries }),
+          'warning'
+        );
       }
       if (oversizedFiles.length > 0) {
         showNotification(
@@ -673,36 +746,79 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
       const uniqueNames = Array.from(new Set(names));
       if (uniqueNames.length === 0) return;
 
-      let successCount = 0;
-      let failCount = 0;
+      // 仅选中一个文件时保持原有单文件下载体验
+      if (uniqueNames.length === 1) {
+        await handleDownload(uniqueNames[0]);
+        return;
+      }
 
-      for (const name of uniqueNames) {
+      setBatchDownloading(true);
+      try {
+        const query = new URLSearchParams();
+        uniqueNames.forEach((name) => query.append('name', name));
+
+        let counts: BatchDownloadCounts;
         try {
           const response = await apiClient.getRaw(
-            `/auth-files/download?name=${encodeURIComponent(name)}`,
-            { responseType: 'blob' }
+            `/auth-files/download-batch?${query.toString()}`,
+            { responseType: 'arraybuffer' }
           );
-          const blob = new Blob([response.data]);
-          downloadBlob({ filename: name, blob });
-          successCount++;
-        } catch {
-          failCount++;
+          downloadBlob({
+            filename: buildTimestampedZipName(),
+            blob: new Blob([response.data as ArrayBuffer], { type: 'application/zip' }),
+          });
+          const headerCount = Number(
+            (response.headers as Record<string, unknown> | undefined)?.['x-auth-files-count']
+          );
+          const succeeded =
+            Number.isFinite(headerCount) && headerCount > 0 ? headerCount : uniqueNames.length;
+          const missingHeader = (response.headers as Record<string, unknown> | undefined)?.[
+            'x-auth-files-missing'
+          ];
+          const failed =
+            typeof missingHeader === 'string'
+              ? missingHeader.split(',').filter((item) => item.trim().length > 0).length
+              : 0;
+          counts = { succeeded, failed };
+        } catch (err) {
+          // 404 且响应非 JSON（gin 默认 404）说明后端没有批量端点，回退为前端打包
+          const notFound = isAxiosError(err) && err.response?.status === 404;
+          const errHeaders = (
+            isAxiosError(err) ? err.response?.headers : undefined
+          ) as Record<string, unknown> | undefined;
+          const contentType = String(errHeaders?.['content-type'] ?? '');
+          if (!notFound || contentType.includes('application/json')) {
+            throw err;
+          }
+          counts = await downloadFilesAsClientZip(uniqueNames);
         }
-      }
 
-      if (failCount === 0) {
-        showNotification(
-          t('auth_files.batch_download_success', { count: successCount }),
-          'success'
-        );
-      } else {
-        showNotification(
-          t('auth_files.batch_download_partial', { success: successCount, failed: failCount }),
-          'warning'
-        );
+        if (counts.succeeded === 0) {
+          showNotification(t('notification.download_failed'), 'error');
+          return;
+        }
+        if (counts.failed === 0) {
+          showNotification(
+            t('auth_files.batch_download_success', { count: counts.succeeded }),
+            'success'
+          );
+        } else {
+          showNotification(
+            t('auth_files.batch_download_partial', {
+              success: counts.succeeded,
+              failed: counts.failed,
+            }),
+            'warning'
+          );
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : '';
+        showNotification(`${t('notification.download_failed')}: ${errorMessage}`, 'error');
+      } finally {
+        setBatchDownloading(false);
       }
     },
-    [showNotification, t]
+    [handleDownload, showNotification, t]
   );
 
   const batchDelete = useCallback(
@@ -780,6 +896,7 @@ export function useAuthFilesData(options: UseAuthFilesDataOptions): UseAuthFiles
     refreshingAll,
     statusUpdating,
     batchStatusUpdating,
+    batchDownloading,
     fileInputRef,
     loadFiles,
     handleUploadClick,
