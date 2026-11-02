@@ -1660,6 +1660,9 @@
     "request_events_filter_model": "Модель",
     "request_events_filter_source": "Источник",
     "request_events_filter_status": "Статус",
+    "request_events_filter_model_search": "Поиск моделей",
+    "request_events_filter_source_search": "Поиск источников",
+    "request_events_filter_no_match": "Совпадений нет",
     "request_events_status_all": "Все",
     "request_events_status_success": "Успешно",
     "request_events_status_failed": "Ошибка",
@@ -2427,6 +2430,7 @@
     "base_usage": "Базовое использование",
     "gift_package": "Подарочный пакет",
     "top_up_package": "Пакет пополнения",
+    "expires_hint": "истекает {{hint}}",
     "remaining": "Остаток"
   }
 }

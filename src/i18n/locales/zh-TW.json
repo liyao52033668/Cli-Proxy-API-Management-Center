@@ -1689,6 +1689,9 @@
     "request_events_filter_model": "模型",
     "request_events_filter_source": "來源",
     "request_events_filter_status": "狀態",
+    "request_events_filter_model_search": "搜尋模型",
+    "request_events_filter_source_search": "搜尋來源",
+    "request_events_filter_no_match": "沒有符合項目",
     "request_events_status_all": "全部",
     "request_events_status_success": "成功",
     "request_events_status_failed": "失敗",
@@ -2454,6 +2457,7 @@
     "base_usage": "基礎用量",
     "gift_package": "權益贈送包",
     "top_up_package": "加量包",
+    "expires_hint": "到期 {{hint}}",
     "remaining": "剩餘配額"
   }
 }

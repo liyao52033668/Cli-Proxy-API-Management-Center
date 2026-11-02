@@ -30,6 +30,34 @@ export function formatQuotaResetDate(value?: string): string {
   });
 }
 
+/**
+ * Expiry label that keeps `MM/DD` for the current year but adds the year once
+ * the date falls outside it — `11/30` alone would read as this year's November
+ * for a package that actually lapses next year.
+ *
+ * `timeZone` pins the calendar day to the issuer's zone. An instant like
+ * `2026-12-01T00:05+08:00` is still 11/30 in UTC or the Americas, so formatting
+ * in the viewer's zone would shift a China-region expiry by a day.
+ */
+export function formatQuotaExpiryDate(
+  value?: string,
+  options?: { timeZone?: string }
+): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  const timeZone = options?.timeZone;
+  const yearInZone = (target: Date): number =>
+    Number(target.toLocaleString('en-US', { year: 'numeric', timeZone }));
+  const showYear = yearInZone(date) !== yearInZone(new Date());
+  return date.toLocaleString(undefined, {
+    year: showYear ? 'numeric' : undefined,
+    month: '2-digit',
+    day: '2-digit',
+    timeZone
+  });
+}
+
 export function formatUnixSeconds(value: number | null): string {
   if (!value) return '-';
   const date = new Date(value * 1000);

@@ -407,6 +407,9 @@ export function RequestEventsDetailsCard({
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_model')}
             fullWidth={false}
+            searchable
+            searchPlaceholder={t('usage_stats.request_events_filter_model_search')}
+            noMatchText={t('usage_stats.request_events_filter_no_match')}
           />
         </div>
         <div className={styles.requestEventsFilterItem}>
@@ -420,6 +423,9 @@ export function RequestEventsDetailsCard({
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_source')}
             fullWidth={false}
+            searchable
+            searchPlaceholder={t('usage_stats.request_events_filter_source_search')}
+            noMatchText={t('usage_stats.request_events_filter_no_match')}
           />
         </div>
         <div className={styles.requestEventsFilterItem}>
@@ -492,9 +498,13 @@ export function RequestEventsDetailsCard({
                     <td title={row.timestamp} className={styles.requestEventsTimestamp}>
                       {row.timestampLabel}
                     </td>
-                    <td className={styles.modelCell}>{row.model}</td>
+                    <td className={styles.modelCell}>
+                      <span className={styles.requestEventsModelName} title={row.model}>
+                        {row.model}
+                      </span>
+                    </td>
                     <td className={styles.requestEventsSourceCell} title={row.source}>
-                      <span>{row.source}</span>
+                      <span className={styles.requestEventsSourceName}>{row.source}</span>
                       {row.sourceType && (
                         <span className={styles.credentialType}>{row.sourceType}</span>
                       )}

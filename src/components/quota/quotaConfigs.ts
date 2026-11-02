@@ -26,6 +26,7 @@ import type {
   CodebuddyQuotaData,
   CodebuddyQuotaRow,
   CodebuddyQuotaState,
+  CodebuddyResourceAccount,
   CodebuddyResourceResponse,
   CommandCodeQuotaData,
   CommandCodeQuotaState,
@@ -90,6 +91,7 @@ import {
   formatCodexResetLabel,
   formatKimiResetHint,
   formatQoderPlanLabel,
+  formatQuotaExpiryDate,
   formatQuotaResetDate,
   formatQuotaResetTime,
   resolveQoderExpiresAt,
@@ -1806,6 +1808,65 @@ const toCodebuddyNumber = (value: unknown): number => {
   return Number.isFinite(number) && number >= 0 ? number : 0;
 };
 
+/**
+ * CodeBuddy timestamps arrive as `YYYY-MM-DD HH:MM:SS` in China Standard Time
+ * with no zone marker, so parse that shape as UTC+8 instead of letting the
+ * browser fall back to its own local zone.
+ */
+const CODEBUDDY_NAIVE_TIME_REGEX = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/;
+
+/**
+ * Cycle bounds sit within minutes of midnight CST (`00:05` starts, `23:59:59`
+ * ends), so the calendar day must be rendered in the issuer's zone as well —
+ * a viewer west of UTC+8 would otherwise see every date shifted one day back.
+ */
+const CODEBUDDY_TIME_ZONE = 'Asia/Shanghai';
+
+/**
+ * `CapacityType` 4 identifies the IDE subscription; every other type is a
+ * one-off package that expires instead of rolling over. `InUsage` only marks
+ * which package the account currently deducts from — a gift package is
+ * normally the one being consumed, so it must not imply a subscription.
+ */
+const isCodebuddySubscription = (account: CodebuddyResourceAccount): boolean =>
+  Number(account.CapacityType) === 4;
+
+const parseCodebuddyInstantMs = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return value < 1e11 ? value * 1000 : value;
+  }
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return parseCodebuddyInstantMs(Number(trimmed));
+
+  const normalized = CODEBUDDY_NAIVE_TIME_REGEX.test(trimmed)
+    ? `${trimmed.replace(' ', 'T')}+08:00`
+    : trimmed;
+  const ms = new Date(normalized).getTime();
+  return Number.isFinite(ms) ? ms : null;
+};
+
+/** Expiry of one-off packages: ExpiredTime, then DeductionEndTime, then the cycle end. */
+const resolveCodebuddyExpiresAt = (account: CodebuddyResourceAccount): string | undefined => {
+  const candidates = [account.ExpiredTime, account.DeductionEndTime, account.CycleEndTime];
+  for (const candidate of candidates) {
+    const ms = parseCodebuddyInstantMs(candidate);
+    if (ms !== null) return new Date(ms).toISOString();
+  }
+  return undefined;
+};
+
+const formatCodebuddyDate = (value: unknown): string => {
+  const ms = parseCodebuddyInstantMs(value);
+  return ms === null
+    ? '-'
+    : formatQuotaExpiryDate(new Date(ms).toISOString(), {
+        timeZone: CODEBUDDY_TIME_ZONE
+      });
+};
+
 const parseCodebuddyResourcePayload = (value: unknown): CodebuddyResourceResponse | null => {
   if (typeof value === 'string') {
     try {
@@ -1853,8 +1914,7 @@ const buildCodebuddyQuotaData = (
     .map((account, index) => {
       // Capacity* is the lifetime/account total. Use CycleCapacity* for the
       // currently active billing cycle when CodeBuddy provides those fields.
-      const isPrimaryUsage =
-        account.InUsage === true || Number(account.CapacityType) === 4;
+      const isPrimaryUsage = isCodebuddySubscription(account);
       const hasCycleValues =
         account.CycleCapacitySize !== undefined ||
         account.CycleCapacityRemain !== undefined ||
@@ -1887,7 +1947,8 @@ const buildCodebuddyQuotaData = (
         capacityType: Number(account.CapacityType),
         inUsage: account.InUsage,
         cycleStart: account.CycleStartTime,
-        cycleEnd: account.CycleEndTime
+        cycleEnd: account.CycleEndTime,
+        expiresAt: resolveCodebuddyExpiresAt(account)
       };
     })
     .filter(
@@ -1955,9 +2016,10 @@ const renderCodebuddyItems = (
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h, Fragment } = React;
   const rows = quota.rows ?? [];
-  const baseUsageRow = rows.find(
-    (row) => row.inUsage === true || row.capacityType === 4
-  );
+  // The card title names the plan itself, so prefer the subscription row and
+  // only fall back to the package being consumed when no subscription exists.
+  const baseUsageRow =
+    rows.find((row) => row.capacityType === 4) ?? rows.find((row) => row.inUsage === true);
   const summary = h(
     'div',
     { key: 'summary', className: styleMap.codexPlan },
@@ -1972,10 +2034,17 @@ const renderCodebuddyItems = (
     const remainingPercent = row.limit > 0
       ? Math.max(0, Math.min(100, Math.round((row.remaining / row.limit) * 100)))
       : null;
-    const period =
-      (row.inUsage === true || row.capacityType === 4) && row.cycleEnd
-        ? formatQuotaResetDate(row.cycleEnd)
-        : '';
+    // Subscription rows roll over at CycleEndTime; gift/top-up packages carry their
+    // own expiry (ExpiredTime / DeductionEndTime), which was previously never shown.
+    const isSubscriptionRow = row.capacityType === 4;
+    const expiryLabel = formatCodebuddyDate(
+      isSubscriptionRow ? row.cycleEnd : row.expiresAt
+    );
+    const period = expiryLabel === '-'
+      ? ''
+      : isSubscriptionRow
+        ? expiryLabel
+        : t('codebuddy_quota.expires_hint', { hint: expiryLabel });
     return h(
       'div',
       { key: row.id, className: styleMap.quotaRow },

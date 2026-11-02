@@ -1673,6 +1673,9 @@
     "request_events_filter_model": "模型",
     "request_events_filter_source": "来源",
     "request_events_filter_status": "状态",
+    "request_events_filter_model_search": "搜索模型",
+    "request_events_filter_source_search": "搜索来源",
+    "request_events_filter_no_match": "没有匹配项",
     "request_events_status_all": "全部",
     "request_events_status_success": "成功",
     "request_events_status_failed": "失败",
@@ -2438,6 +2441,7 @@
     "base_usage": "基础用量",
     "gift_package": "权益赠送包",
     "top_up_package": "加量包",
+    "expires_hint": "到期 {{hint}}",
     "remaining": "剩余额度"
   }
 }

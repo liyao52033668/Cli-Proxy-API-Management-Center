@@ -729,6 +729,10 @@ export interface CodebuddyResourceAccount {
   CycleCapacitySize?: number | string;
   CycleStartTime?: string;
   CycleEndTime?: string;
+  /** Expiry instant for non-subscription packages (milliseconds or seconds). */
+  DeductionEndTime?: number | string;
+  /** Expiry instant for non-subscription packages (date string). */
+  ExpiredTime?: string | number;
   Status?: number | string;
   InUsage?: boolean;
 }
@@ -756,10 +760,14 @@ export interface CodebuddyQuotaRow {
   unit?: string;
   packageCode?: string;
   packageName?: string;
+  /** Raw `CapacityType`: 4 is the IDE subscription, other values are one-off packages. */
   capacityType?: number;
+  /** Package currently being deducted from; says nothing about whether it is a subscription. */
   inUsage?: boolean;
   cycleStart?: string;
   cycleEnd?: string;
+  /** ISO expiry instant for one-off packages (gift / top-up), resolved from the resource payload. */
+  expiresAt?: string;
 }
 
 export interface CodebuddyQuotaData {

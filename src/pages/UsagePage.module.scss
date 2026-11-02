@@ -946,8 +946,25 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
   font-size: 11px;
+  white-space: nowrap;
+}
+
+// Long credential names must not wrap: a wrapped name turns one row into a dozen
+// lines and blows up the table height. Cap the width and ellipsize instead, with
+// the full value still available through the cell's title tooltip.
+.requestEventsSourceName,
+.requestEventsModelName {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.requestEventsModelName {
   max-width: 180px;
-  word-break: break-all;
+  font-weight: 500;
 }
 
 .requestEventsResultSuccess {
