@@ -990,6 +990,82 @@
   white-space: nowrap;
 }
 
+// The failed badge doubles as the trigger for the error detail dialog, so it
+// must keep the badge look while behaving like a button.
+.requestEventsResultButton {
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.requestEventsErrorDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.requestEventsErrorMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.requestEventsErrorMetaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+
+  dt {
+    flex: 0 0 84px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    word-break: break-word;
+  }
+}
+
+.requestEventsErrorBodyLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.requestEventsErrorBody {
+  margin: 0;
+  padding: 12px;
+  max-height: 320px;
+  overflow: auto;
+  border-radius: $radius-md;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .chartLineHeader {
   display: inline-flex;
   align-items: center;

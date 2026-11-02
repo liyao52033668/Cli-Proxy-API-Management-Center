@@ -199,6 +199,8 @@ export interface UsageEvent {
   auth_index?: string;
   isDelete?: boolean;
   failed: boolean;
+  fail_status_code?: number;
+  error_message?: string;
   latency_ms: number;
   first_token_ms?: number;
   input_tokens?: number;

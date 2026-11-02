@@ -4,6 +4,7 @@ import { ListPagination } from '@/components/common/ListPagination';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
 import { usageApi, type UsageEvent, type UsageTimeRange } from '@/services/api/usage';
@@ -27,6 +28,8 @@ type RequestEventRow = {
   source: string;
   sourceType: string;
   failed: boolean;
+  failStatusCode: number | null;
+  errorMessage: string;
   firstTokenMs: number | null;
   latencyMs: number | null;
   inputTokens: number;
@@ -69,6 +72,7 @@ export function RequestEventsDetailsCard({
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER);
   const [availableSources, setAvailableSources] = useState<Map<string, string>>(new Map());
+  const [errorDetailRow, setErrorDetailRow] = useState<RequestEventRow | null>(null);
   const queryIdentity = `${eventSource}::${timeRange}::${modelFilter}::${sourceFilter}::${statusFilter}`;
   const [pageState, setPageState] = useState({ queryIdentity, page: 1 });
   const [totalCount, setTotalCount] = useState(0);
@@ -230,6 +234,9 @@ export function RequestEventsDetailsCard({
           source: sourceInfo.displayName,
           sourceType: sourceInfo.type,
           failed: event.failed === true,
+          failStatusCode:
+            Number(event.fail_status_code) > 0 ? Number(event.fail_status_code) : null,
+          errorMessage: String(event.error_message ?? '').trim(),
           firstTokenMs: Number(event.first_token_ms) > 0 ? Number(event.first_token_ms) : null,
           latencyMs: Number.isFinite(Number(event.latency_ms)) ? Number(event.latency_ms) : null,
           inputTokens: Math.max(Number(tokens?.input_tokens ?? event.input_tokens) || 0, 0),
@@ -510,15 +517,21 @@ export function RequestEventsDetailsCard({
                       )}
                     </td>
                     <td>
-                      <span
-                        className={
-                          row.failed
-                            ? styles.requestEventsResultFailed
-                            : styles.requestEventsResultSuccess
-                        }
-                      >
-                        {row.failed ? t('stats.failure') : t('stats.success')}
-                      </span>
+                      {row.failed ? (
+                        <button
+                          type="button"
+                          className={`${styles.requestEventsResultFailed} ${styles.requestEventsResultButton}`}
+                          onClick={() => setErrorDetailRow(row)}
+                          title={t('usage_stats.request_events_error_view')}
+                          aria-label={t('usage_stats.request_events_error_view')}
+                        >
+                          {t('stats.failure')}
+                        </button>
+                      ) : (
+                        <span className={styles.requestEventsResultSuccess}>
+                          {t('stats.success')}
+                        </span>
+                      )}
                     </td>
                     {hasFirstTokenData && (
                       <td className={styles.durationCell}>{formatDurationMs(row.firstTokenMs)}</td>
@@ -547,6 +560,51 @@ export function RequestEventsDetailsCard({
           />
         </>
       )}
+
+      <Modal
+        open={errorDetailRow !== null}
+        title={t('usage_stats.request_events_error_title')}
+        onClose={() => setErrorDetailRow(null)}
+        footer={
+          <Button variant="secondary" onClick={() => setErrorDetailRow(null)}>
+            {t('common.close')}
+          </Button>
+        }
+        width={640}
+      >
+        {errorDetailRow && (
+          <div className={styles.requestEventsErrorDetail}>
+            <dl className={styles.requestEventsErrorMeta}>
+              <div className={styles.requestEventsErrorMetaRow}>
+                <dt>{t('usage_stats.request_events_error_status')}</dt>
+                <dd>{errorDetailRow.failStatusCode ?? '-'}</dd>
+              </div>
+              <div className={styles.requestEventsErrorMetaRow}>
+                <dt>{t('usage_stats.model_name')}</dt>
+                <dd>{errorDetailRow.model || '-'}</dd>
+              </div>
+              <div className={styles.requestEventsErrorMetaRow}>
+                <dt>{t('usage_stats.request_events_source')}</dt>
+                <dd>{errorDetailRow.source || '-'}</dd>
+              </div>
+              <div className={styles.requestEventsErrorMetaRow}>
+                <dt>{t('usage_stats.request_events_timestamp')}</dt>
+                <dd>{errorDetailRow.timestampLabel}</dd>
+              </div>
+              <div className={styles.requestEventsErrorMetaRow}>
+                <dt>{t('usage_stats.time')}</dt>
+                <dd>{formatDurationMs(errorDetailRow.latencyMs)}</dd>
+              </div>
+            </dl>
+            <div className={styles.requestEventsErrorBodyLabel}>
+              {t('usage_stats.request_events_error_message')}
+            </div>
+            <pre className={styles.requestEventsErrorBody}>
+              {errorDetailRow.errorMessage || t('usage_stats.request_events_error_empty')}
+            </pre>
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 }
