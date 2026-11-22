@@ -2007,6 +2007,10 @@
           "devin_sensitive_words_hint": "One word per entry. Applies to Devin system instructions and prompts; clearing every entry removes the devin block",
           "antigravity_sensitive_words_label": "Antigravity sensitive words",
           "antigravity_sensitive_words_placeholder": "e.g. internal-project",
+          "devin_sensitive_words_replace_label": "Sensitive words to replace (Devin)",
+          "devin_sensitive_words_replace_hint": "Literal phrase to replacement. A replacement wins over obfuscation for the same match; applied before obfuscation.",
+          "antigravity_sensitive_words_replace_label": "Sensitive words to replace (Antigravity)",
+          "antigravity_sensitive_words_replace_hint": "Literal phrase to replacement. A replacement wins over obfuscation for the same match; applied before obfuscation.",
           "antigravity_sensitive_words_hint": "One word per entry. Applies to Antigravity system instructions",
           "codebuddy_ai_sensitive_words_label": "CodeBuddy AI sensitive words",
           "codebuddy_ai_sensitive_words_placeholder": "e.g. custom-sensitive-word",
@@ -2051,7 +2055,9 @@
           "override_raw_rules": "Override Raw Rules",
           "override_raw_rules_desc": "Always overwrite parameter values as raw JSON fragments, useful for response_format, schemas, and other complex fields",
           "filter_rules": "Filter Rules",
-          "filter_rules_desc": "Pre-filter upstream request body via JSON Path, automatically remove non-compliant/redundant parameters (Request Sanitization)"
+          "filter_rules_desc": "Pre-filter upstream request body via JSON Path, automatically remove non-compliant/redundant parameters (Request Sanitization)",
+          "replace_rules": "Replace Rules",
+          "replace_rules_desc": "Rewrite existing text in the final upstream payload by role/position or JSON path. Applied after override and filter rules."
         }
       },
       "api_keys": {
@@ -2110,6 +2116,39 @@
         "value_default": "Value",
         "boolean_true": "true",
         "boolean_false": "false"
+      },
+      "payload_replace": {
+        "target": "Target",
+        "target_mode": "Target mode",
+        "mode_positions": "By message position",
+        "mode_all": "All messages of a role",
+        "mode_paths": "By JSON path",
+        "role": "Message role",
+        "role_user": "User",
+        "role_system": "System",
+        "role_developer": "Developer",
+        "positions": "Positions (one-based)",
+        "positions_placeholder": "e.g. 1, 3",
+        "path_placeholder": "JSON path, e.g. input.0.content.0.text",
+        "replacements": "Replacements (applied in order)",
+        "replacement_kind": "Type",
+        "kind_literal": "Literal",
+        "kind_regex": "Regex (RE2)",
+        "from": "Source",
+        "from_placeholder": "text to replace",
+        "to": "Destination",
+        "to_placeholder": "replacement text",
+        "pattern_placeholder": "RE2 pattern, e.g. TODO\\(\\d+\\)",
+        "capture_placeholder": "replacement, capture groups expand as $1 / ${name}",
+        "add_replacement": "Add replacement"
+      },
+      "sensitive_words_replace": {
+        "from": "Phrase",
+        "from_placeholder": "phrase to replace",
+        "to": "Replacement",
+        "to_placeholder": "replacement text",
+        "add_entry": "Add replacement",
+        "no_entries": "No replacements configured"
       },
       "validation": {
         "validation_blocked": "Fix validation errors before saving",

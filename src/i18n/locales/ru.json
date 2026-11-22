@@ -2000,6 +2000,10 @@
           "devin_sensitive_words_hint": "Одно слово на строку. Применяется к системным инструкциям и подсказкам Devin; при очистке всех слов блок devin удаляется",
           "antigravity_sensitive_words_label": "Чувствительные слова Antigravity",
           "antigravity_sensitive_words_placeholder": "например internal-project",
+          "devin_sensitive_words_replace_label": "Заменяемые чувствительные слова (Devin)",
+          "devin_sensitive_words_replace_hint": "Литеральная фраза и её замена. Замена имеет приоритет над обфускацией для того же совпадения и применяется до обфускации.",
+          "antigravity_sensitive_words_replace_label": "Заменяемые чувствительные слова (Antigravity)",
+          "antigravity_sensitive_words_replace_hint": "Литеральная фраза и её замена. Замена имеет приоритет над обфускацией для того же совпадения и применяется до обфускации.",
           "antigravity_sensitive_words_hint": "Одно слово на строку. Применяется к системным инструкциям Antigravity",
           "codebuddy_ai_sensitive_words_label": "Чувствительные слова CodeBuddy AI",
           "codebuddy_ai_sensitive_words_placeholder": "например custom-sensitive-word",
@@ -2044,7 +2048,9 @@
           "override_raw_rules": "Raw-правила переопределения",
           "override_raw_rules_desc": "Всегда перезаписывать значения как raw JSON-фрагменты; полезно для response_format, схем и других сложных полей",
           "filter_rules": "Правила фильтрации",
-          "filter_rules_desc": "Предварительно фильтровать тело исходящего запроса через JSON Path, автоматически удалять несоответствующие или лишние параметры (санитизация запроса)"
+          "filter_rules_desc": "Предварительно фильтровать тело исходящего запроса через JSON Path, автоматически удалять несоответствующие или лишние параметры (санитизация запроса)",
+          "replace_rules": "Правила замены",
+          "replace_rules_desc": "Переписывает существующий текст в финальном запросе по роли/позиции или JSON-пути. Применяется после правил override и filter."
         }
       },
       "api_keys": {
@@ -2103,6 +2109,39 @@
         "value_default": "Значение",
         "boolean_true": "true",
         "boolean_false": "false"
+      },
+      "payload_replace": {
+        "target": "Цель замены",
+        "target_mode": "Режим выбора",
+        "mode_positions": "По позиции сообщения",
+        "mode_all": "Все сообщения роли",
+        "mode_paths": "По JSON-пути",
+        "role": "Роль сообщения",
+        "role_user": "Пользователь",
+        "role_system": "Система",
+        "role_developer": "Разработчик",
+        "positions": "Позиции (с единицы)",
+        "positions_placeholder": "например 1, 3",
+        "path_placeholder": "JSON-путь, например input.0.content.0.text",
+        "replacements": "Замены (применяются по порядку)",
+        "replacement_kind": "Тип",
+        "kind_literal": "Литерал",
+        "kind_regex": "Регулярное выражение (RE2)",
+        "from": "Источник",
+        "from_placeholder": "заменяемый текст",
+        "to": "Результат",
+        "to_placeholder": "текст замены",
+        "pattern_placeholder": "Шаблон RE2, например TODO\\(\\d+\\)",
+        "capture_placeholder": "Замена, группы раскрываются как $1 / ${name}",
+        "add_replacement": "Добавить замену"
+      },
+      "sensitive_words_replace": {
+        "from": "Фраза",
+        "from_placeholder": "заменяемая фраза",
+        "to": "Замена",
+        "to_placeholder": "текст замены",
+        "add_entry": "Добавить замену",
+        "no_entries": "Замены не настроены"
       },
       "validation": {
         "validation_blocked": "Исправьте ошибки валидации перед сохранением",

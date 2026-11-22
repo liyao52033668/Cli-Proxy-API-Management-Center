@@ -6,7 +6,10 @@ import type {
   PayloadModelEntry,
   PayloadParamEntry,
   PayloadParamValueType,
+  PayloadReplaceRule,
+  PayloadReplacementEntry,
   PayloadRule,
+  SensitiveWordReplacementEntry,
   VisualConfigValues,
   VisualConfigValidationErrors,
   PayloadParamValidationErrorCode,
@@ -301,6 +304,87 @@ function arePayloadFilterRulesEqual(
   return true;
 }
 
+function arePayloadReplaceRulesEqual(
+  left: PayloadReplaceRule[],
+  right: PayloadReplaceRule[]
+): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (!a || !b) return false;
+    if (a.targetMode !== b.targetMode || a.role !== b.role) return false;
+    if (a.positions !== b.positions) return false;
+    if (!arePayloadModelEntriesEqual(a.models, b.models)) return false;
+    if (a.paths.length !== b.paths.length) return false;
+    for (let j = 0; j < a.paths.length; j += 1) {
+      if (a.paths[j] !== b.paths[j]) return false;
+    }
+    if (a.replacements.length !== b.replacements.length) return false;
+    for (let j = 0; j < a.replacements.length; j += 1) {
+      const ra = a.replacements[j];
+      const rb = b.replacements[j];
+      if (!ra || !rb) return false;
+      if (ra.kind !== rb.kind || ra.from !== rb.from || ra.to !== rb.to) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Parses a `sensitive-words-replace` mapping into an editable ordered list.
+ * Map iteration order in JS follows insertion order, which is the order the
+ * operator wrote in YAML, so entries stay stable across load and save.
+ */
+function parseSensitiveWordReplacements(
+  raw: unknown,
+  fieldPrefix: string
+): SensitiveWordReplacementEntry[] {
+  const record = asRecord(raw);
+  if (!record) return [];
+  return Object.keys(record).map((from, index) => {
+    const value = record[from];
+    return {
+      id: `${fieldPrefix}-replacement-${index}`,
+      from,
+      to: typeof value === 'string' ? value : String(value ?? ''),
+    };
+  });
+}
+
+function areSensitiveWordReplacementsEqual(
+  left: SensitiveWordReplacementEntry[],
+  right: SensitiveWordReplacementEntry[]
+): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (!a || !b) return false;
+    if (a.from !== b.from || a.to !== b.to) return false;
+  }
+  return true;
+}
+
+/**
+ * Builds the mapping written back to YAML, dropping entries without a phrase or
+ * a replacement (the backend ignores those anyway).
+ */
+function serializeSensitiveWordReplacements(
+  entries: SensitiveWordReplacementEntry[]
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of entries) {
+    const from = String(entry.from ?? '').trim();
+    const to = String(entry.to ?? '').trim();
+    if (!from || !to) continue;
+    out[from] = to;
+  }
+  return out;
+}
+
 function parsePayloadParamValue(raw: unknown): { valueType: PayloadParamValueType; value: string } {
   if (typeof raw === 'number') {
     return { valueType: 'number', value: String(raw) };
@@ -462,6 +546,99 @@ function parsePayloadFilterRules(rules: unknown): PayloadFilterRule[] {
   });
 }
 
+const PAYLOAD_REPLACE_ROLES = ['user', 'system', 'developer'] as const;
+
+function parsePayloadReplaceTargetMode(
+  record: Record<string, unknown> | null
+): PayloadReplaceRule['targetMode'] {
+  if (Array.isArray(record?.paths)) return 'paths';
+  if (record?.all === true) return 'all';
+  return 'positions';
+}
+
+function parsePayloadReplaceRole(record: Record<string, unknown> | null): PayloadReplaceRule['role'] {
+  const roleRaw = typeof record?.role === 'string' ? record.role.trim().toLowerCase() : '';
+  const match = PAYLOAD_REPLACE_ROLES.find((role) => role === roleRaw);
+  return match ?? 'user';
+}
+
+function parsePayloadReplacementEntries(raw: unknown, ruleIndex: number): PayloadReplacementEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const entries: PayloadReplacementEntry[] = [];
+  raw.forEach((item, index) => {
+    const record = asRecord(item);
+    if (!record) return;
+    const keys = Object.keys(record);
+    // A two-key entry with pattern/replacement is a Go RE2 rule; anything else
+    // is a literal "from": "to" mapping.
+    if (keys.length === 2 && keys.includes('pattern') && keys.includes('replacement')) {
+      const pattern = record.pattern;
+      const replacement = record.replacement;
+      entries.push({
+        id: `payload-replace-replacement-${ruleIndex}-${index}`,
+        kind: 'regex',
+        from: typeof pattern === 'string' ? pattern : String(pattern ?? ''),
+        to: typeof replacement === 'string' ? replacement : String(replacement ?? ''),
+      });
+      return;
+    }
+    for (const key of keys) {
+      const value = record[key];
+      entries.push({
+        id: `payload-replace-replacement-${ruleIndex}-${index}`,
+        kind: 'literal',
+        from: key,
+        to: typeof value === 'string' ? value : String(value ?? ''),
+      });
+    }
+  });
+  return entries;
+}
+
+function parsePayloadReplaceRules(rules: unknown): PayloadReplaceRule[] {
+  if (!Array.isArray(rules)) return [];
+
+  return rules.map((rule, index) => {
+    const record = asRecord(rule) ?? {};
+
+    const modelsRaw = record.models;
+    const models = Array.isArray(modelsRaw)
+      ? modelsRaw.map((model, modelIndex) => {
+          const modelRecord = asRecord(model);
+          const nameRaw =
+            typeof model === 'string' ? model : (modelRecord?.name ?? modelRecord?.id ?? '');
+          const name = typeof nameRaw === 'string' ? nameRaw : String(nameRaw ?? '');
+          return {
+            id: `replace-model-${index}-${modelIndex}`,
+            name,
+            protocol: parsePayloadProtocol(modelRecord?.protocol),
+            raw: deepClone(model),
+          };
+        })
+      : [];
+
+    const target = asRecord(record.target);
+    const targetMode = parsePayloadReplaceTargetMode(target);
+    const positionsRaw = Array.isArray(target?.positions) ? target?.positions : [];
+    const positions = (positionsRaw as unknown[])
+      .map((value) => String(value ?? '').trim())
+      .filter((value) => value !== '')
+      .join(', ');
+    const pathsRaw = Array.isArray(target?.paths) ? target!.paths : [];
+    const paths = (pathsRaw as unknown[]).map((value) => String(value ?? ''));
+
+    return {
+      id: `payload-replace-rule-${index}`,
+      models,
+      targetMode,
+      role: parsePayloadReplaceRole(target),
+      positions,
+      paths,
+      replacements: parsePayloadReplacementEntries(record.replacements, index),
+    };
+  });
+}
+
 function parseRawPayloadRules(rules: unknown): PayloadRule[] {
   if (!Array.isArray(rules)) return [];
 
@@ -588,6 +765,59 @@ function serializePayloadFilterRulesForYaml(
         .filter(Boolean);
 
       return { models, params };
+    })
+    .filter((rule) => rule.models.length > 0);
+}
+
+/**
+ * Parses the free-text position list ("1, 3") into the numeric array the backend
+ * expects, dropping anything that is not a positive integer.
+ */
+function parseReplacePositions(raw: string): number[] {
+  return raw
+    .split(/[,\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => Number(part))
+    .filter((value) => Number.isInteger(value) && value >= 1);
+}
+
+function serializePayloadReplaceRulesForYaml(
+  rules: PayloadReplaceRule[]
+): Array<Record<string, unknown>> {
+  return rules
+    .map((rule) => {
+      const models = serializePayloadModelEntries(rule.models);
+
+      const target: Record<string, unknown> = {};
+      if (rule.targetMode === 'paths') {
+        const paths = rule.paths.map((path) => String(path ?? '').trim()).filter(Boolean);
+        target.paths = paths;
+      } else {
+        target.role = rule.role;
+        if (rule.targetMode === 'all') {
+          target.all = true;
+        } else {
+          target.positions = parseReplacePositions(rule.positions);
+        }
+      }
+
+      // Regex steps must be emitted before literal ones only if they were entered
+      // that way; the backend applies the list in order, so preserve array order.
+      const replacements = rule.replacements
+        .map((entry) => {
+          const from = String(entry.from ?? '');
+          const to = String(entry.to ?? '');
+          if (entry.kind === 'regex') {
+            if (!from) return null;
+            return { pattern: from, replacement: to };
+          }
+          if (!from) return null;
+          return { [from]: to };
+        })
+        .filter((entry): entry is Record<string, string> => entry !== null);
+
+      return { models, target, replacements };
     })
     .filter((rule) => rule.models.length > 0);
 }
@@ -909,12 +1139,30 @@ function getNextDirtyFields(
       left.length === right.length && left.every((item, index) => item === right[index])
     );
   }
+  if (Object.prototype.hasOwnProperty.call(patch, 'devinSensitiveWordsReplace')) {
+    updateDirty(
+      'devinSensitiveWordsReplace',
+      areSensitiveWordReplacementsEqual(
+        nextValues.devinSensitiveWordsReplace,
+        baselineValues.devinSensitiveWordsReplace
+      )
+    );
+  }
   if (Object.prototype.hasOwnProperty.call(patch, 'antigravitySensitiveWords')) {
     const left = nextValues.antigravitySensitiveWords;
     const right = baselineValues.antigravitySensitiveWords;
     updateDirty(
       'antigravitySensitiveWords',
       left.length === right.length && left.every((item, index) => item === right[index])
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'antigravitySensitiveWordsReplace')) {
+    updateDirty(
+      'antigravitySensitiveWordsReplace',
+      areSensitiveWordReplacementsEqual(
+        nextValues.antigravitySensitiveWordsReplace,
+        baselineValues.antigravitySensitiveWordsReplace
+      )
     );
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'codebuddyAiSensitiveWords')) {
@@ -971,6 +1219,12 @@ function getNextDirtyFields(
     updateDirty(
       'payloadFilterRules',
       arePayloadFilterRulesEqual(nextValues.payloadFilterRules, baselineValues.payloadFilterRules)
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'payloadReplaceRules')) {
+    updateDirty(
+      'payloadReplaceRules',
+      arePayloadReplaceRulesEqual(nextValues.payloadReplaceRules, baselineValues.payloadReplaceRules)
     );
   }
   if (patch.streaming) {
@@ -1167,9 +1421,17 @@ export function useVisualConfig() {
         devinSensitiveWords: Array.isArray(devin?.['sensitive-words'])
           ? devin['sensitive-words'].map(String)
           : [],
+        devinSensitiveWordsReplace: parseSensitiveWordReplacements(
+          devin?.['sensitive-words-replace'],
+          'devin'
+        ),
         antigravitySensitiveWords: Array.isArray(antigravity?.['sensitive-words'])
           ? antigravity['sensitive-words'].map(String)
           : [],
+        antigravitySensitiveWordsReplace: parseSensitiveWordReplacements(
+          antigravity?.['sensitive-words-replace'],
+          'antigravity'
+        ),
         codebuddyAiSensitiveWords: Array.isArray(codebuddyAi?.['sensitive-words'])
           ? codebuddyAi['sensitive-words'].map(String)
           : [],
@@ -1194,6 +1456,7 @@ export function useVisualConfig() {
         payloadOverrideRules: parsePayloadRules(payload?.override),
         payloadOverrideRawRules: parseRawPayloadRules(payload?.['override-raw']),
         payloadFilterRules: parsePayloadFilterRules(payload?.filter),
+        payloadReplaceRules: parsePayloadReplaceRules(payload?.replace),
 
         streaming: {
           keepaliveSeconds: String(streaming?.['keepalive-seconds'] ?? ''),
@@ -1485,6 +1748,19 @@ export function useVisualConfig() {
           deleteIfMapEmpty(doc, ['devin']);
         }
 
+        if (isDirty('devinSensitiveWordsReplace')) {
+          const replacements = serializeSensitiveWordReplacements(
+            values.devinSensitiveWordsReplace
+          );
+          if (Object.keys(replacements).length > 0) {
+            ensureMapInDoc(doc, ['devin']);
+            doc.setIn(['devin', 'sensitive-words-replace'], replacements);
+          } else if (docHas(doc, ['devin', 'sensitive-words-replace'])) {
+            doc.deleteIn(['devin', 'sensitive-words-replace']);
+          }
+          deleteIfMapEmpty(doc, ['devin']);
+        }
+
         if (isDirty('antigravitySensitiveWords')) {
           const antigravitySensitiveWords = values.antigravitySensitiveWords
             .map((word) => word.trim())
@@ -1494,6 +1770,19 @@ export function useVisualConfig() {
             setStringSeqInDoc(doc, ['antigravity', 'sensitive-words'], antigravitySensitiveWords);
           } else if (docHas(doc, ['antigravity', 'sensitive-words'])) {
             doc.deleteIn(['antigravity', 'sensitive-words']);
+          }
+          deleteIfMapEmpty(doc, ['antigravity']);
+        }
+
+        if (isDirty('antigravitySensitiveWordsReplace')) {
+          const replacements = serializeSensitiveWordReplacements(
+            values.antigravitySensitiveWordsReplace
+          );
+          if (Object.keys(replacements).length > 0) {
+            ensureMapInDoc(doc, ['antigravity']);
+            doc.setIn(['antigravity', 'sensitive-words-replace'], replacements);
+          } else if (docHas(doc, ['antigravity', 'sensitive-words-replace'])) {
+            doc.deleteIn(['antigravity', 'sensitive-words-replace']);
           }
           deleteIfMapEmpty(doc, ['antigravity']);
         }
@@ -1566,7 +1855,8 @@ export function useVisualConfig() {
             'payloadDefaultRawRules',
             'payloadOverrideRules',
             'payloadOverrideRawRules',
-            'payloadFilterRules'
+            'payloadFilterRules',
+            'payloadReplaceRules'
           )
         ) {
           ensureMapInDoc(doc, ['payload']);
@@ -1609,6 +1899,14 @@ export function useVisualConfig() {
             );
           } else if (docHas(doc, ['payload', 'filter'])) {
             doc.deleteIn(['payload', 'filter']);
+          }
+          if (values.payloadReplaceRules.length > 0) {
+            doc.setIn(
+              ['payload', 'replace'],
+              serializePayloadReplaceRulesForYaml(values.payloadReplaceRules)
+            );
+          } else if (docHas(doc, ['payload', 'replace'])) {
+            doc.deleteIn(['payload', 'replace']);
           }
           deleteIfMapEmpty(doc, ['payload']);
         }

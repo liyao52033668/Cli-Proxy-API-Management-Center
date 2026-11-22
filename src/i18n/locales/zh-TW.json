@@ -2027,6 +2027,10 @@
           "devin_sensitive_words_hint": "每行一個詞，作用於 Devin 的系統指令與提示詞；全部清空後會自動移除 devin 設定區塊",
           "antigravity_sensitive_words_label": "Antigravity 敏感詞",
           "antigravity_sensitive_words_placeholder": "例如 internal-project",
+          "devin_sensitive_words_replace_label": "敏感詞替換（Devin）",
+          "devin_sensitive_words_replace_hint": "依字面短語替換為指定文字。同一詞命中時替換優先於混淆，且在混淆之前執行。",
+          "antigravity_sensitive_words_replace_label": "敏感詞替換（Antigravity）",
+          "antigravity_sensitive_words_replace_hint": "依字面短語替換為指定文字。同一詞命中時替換優先於混淆，且在混淆之前執行。",
           "antigravity_sensitive_words_hint": "每行一個詞，作用於 Antigravity 的系統指令",
           "codebuddy_ai_sensitive_words_label": "CodeBuddy AI 敏感詞",
           "codebuddy_ai_sensitive_words_placeholder": "例如 custom-sensitive-word",
@@ -2071,7 +2075,9 @@
           "override_raw_rules": "覆寫 Raw 規則",
           "override_raw_rules_desc": "始終按原始 JSON 片段覆寫參數值，適合 response_format、schema 等複雜欄位",
           "filter_rules": "篩選規則",
-          "filter_rules_desc": "透過 JSON Path 預篩選上游請求體，自動剔除不合規/冗餘參數（Request Sanitization）"
+          "filter_rules_desc": "透過 JSON Path 預篩選上游請求體，自動剔除不合規/冗餘參數（Request Sanitization）",
+          "replace_rules": "替換規則",
+          "replace_rules_desc": "依角色/位置或 JSON 路徑改寫最終上游請求體中的文字，在覆寫規則與過濾規則之後執行"
         }
       },
       "api_keys": {
@@ -2130,6 +2136,39 @@
         "value_default": "值",
         "boolean_true": "true",
         "boolean_false": "false"
+      },
+      "payload_replace": {
+        "target": "替換目標",
+        "target_mode": "定位方式",
+        "mode_positions": "依訊息位置",
+        "mode_all": "某角色的全部訊息",
+        "mode_paths": "依 JSON 路徑",
+        "role": "訊息角色",
+        "role_user": "使用者",
+        "role_system": "系統",
+        "role_developer": "開發者",
+        "positions": "位置（從 1 開始）",
+        "positions_placeholder": "例如 1, 3",
+        "path_placeholder": "JSON 路徑，例如 input.0.content.0.text",
+        "replacements": "替換清單（依序執行）",
+        "replacement_kind": "類型",
+        "kind_literal": "字面替換",
+        "kind_regex": "正規表達式（RE2）",
+        "from": "原文",
+        "from_placeholder": "要替換的文字",
+        "to": "替換為",
+        "to_placeholder": "替換後的文字",
+        "pattern_placeholder": "RE2 正規表達式，例如 TODO\\(\\d+\\)",
+        "capture_placeholder": "替換文字，捕獲組以 $1 / ${name} 展開",
+        "add_replacement": "新增替換項目"
+      },
+      "sensitive_words_replace": {
+        "from": "原文",
+        "from_placeholder": "要替換的短語",
+        "to": "替換為",
+        "to_placeholder": "替換後的文字",
+        "add_entry": "新增替換",
+        "no_entries": "尚未設定替換"
       },
       "validation": {
         "validation_blocked": "請先修復表單驗證錯誤再儲存",

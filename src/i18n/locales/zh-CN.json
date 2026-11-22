@@ -2011,6 +2011,10 @@
           "devin_sensitive_words_hint": "每行一个词，作用于 Devin 的系统指令和提示词；全部清空后会自动移除 devin 配置段",
           "antigravity_sensitive_words_label": "Antigravity 敏感词",
           "antigravity_sensitive_words_placeholder": "例如 internal-project",
+          "devin_sensitive_words_replace_label": "敏感词替换（Devin）",
+          "devin_sensitive_words_replace_hint": "按字面短语替换为指定文本。同一词命中时替换优先于混淆，且在混淆之前执行。",
+          "antigravity_sensitive_words_replace_label": "敏感词替换（Antigravity）",
+          "antigravity_sensitive_words_replace_hint": "按字面短语替换为指定文本。同一词命中时替换优先于混淆，且在混淆之前执行。",
           "antigravity_sensitive_words_hint": "每行一个词，作用于 Antigravity 的系统指令",
           "codebuddy_ai_sensitive_words_label": "CodeBuddy AI 敏感词",
           "codebuddy_ai_sensitive_words_placeholder": "例如 custom-sensitive-word",
@@ -2055,7 +2059,9 @@
           "override_raw_rules": "覆盖 Raw 规则",
           "override_raw_rules_desc": "始终按原始 JSON 片段覆盖参数值，适合 response_format、schema 等复杂字段",
           "filter_rules": "过滤规则",
-          "filter_rules_desc": "通过 JSON Path 预过滤上游请求体，自动剔除不合规/冗余参数（Request Sanitization）"
+          "filter_rules_desc": "通过 JSON Path 预过滤上游请求体，自动剔除不合规/冗余参数（Request Sanitization）",
+          "replace_rules": "替换规则",
+          "replace_rules_desc": "按角色/位置或 JSON 路径改写最终上游请求体中的文本，在覆盖规则与过滤规则之后执行"
         }
       },
       "api_keys": {
@@ -2114,6 +2120,39 @@
         "value_default": "值",
         "boolean_true": "true",
         "boolean_false": "false"
+      },
+      "payload_replace": {
+        "target": "替换目标",
+        "target_mode": "定位方式",
+        "mode_positions": "按消息位置",
+        "mode_all": "某角色的全部消息",
+        "mode_paths": "按 JSON 路径",
+        "role": "消息角色",
+        "role_user": "用户",
+        "role_system": "系统",
+        "role_developer": "开发者",
+        "positions": "位置（从 1 开始）",
+        "positions_placeholder": "例如 1, 3",
+        "path_placeholder": "JSON 路径，例如 input.0.content.0.text",
+        "replacements": "替换列表（按顺序执行）",
+        "replacement_kind": "类型",
+        "kind_literal": "字面替换",
+        "kind_regex": "正则（RE2）",
+        "from": "原文",
+        "from_placeholder": "要替换的文本",
+        "to": "替换为",
+        "to_placeholder": "替换后的文本",
+        "pattern_placeholder": "RE2 正则，例如 TODO\\(\\d+\\)",
+        "capture_placeholder": "替换文本，捕获组用 $1 / ${name} 展开",
+        "add_replacement": "添加替换项"
+      },
+      "sensitive_words_replace": {
+        "from": "原文",
+        "from_placeholder": "要替换的短语",
+        "to": "替换为",
+        "to_placeholder": "替换后的文本",
+        "add_entry": "添加替换",
+        "no_entries": "尚未配置替换"
       },
       "validation": {
         "validation_blocked": "请先修复表单校验错误再保存",

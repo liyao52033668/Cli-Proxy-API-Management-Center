@@ -28,6 +28,7 @@ import { ConfigSection } from '@/components/config/ConfigSection';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type {
   PayloadFilterRule,
+  PayloadReplaceRule,
   PayloadParamValidationErrorCode,
   PayloadRule,
   VisualConfigFieldPath,
@@ -38,7 +39,9 @@ import type {
 import {
   ApiKeysCardEditor,
   PayloadFilterRulesEditor,
+  PayloadReplaceRulesEditor,
   PayloadRulesEditor,
+  SensitiveWordReplacementEditor,
   StringListEditor,
 } from './VisualConfigEditorBlocks';
 import styles from './VisualConfigEditor.module.scss';
@@ -280,6 +283,10 @@ export function VisualConfigEditor({
   );
   const handlePayloadFilterRulesChange = useCallback(
     (payloadFilterRules: PayloadFilterRule[]) => onChange({ payloadFilterRules }),
+    [onChange]
+  );
+  const handlePayloadReplaceRulesChange = useCallback(
+    (payloadReplaceRules: PayloadReplaceRule[]) => onChange({ payloadReplaceRules }),
     [onChange]
   );
 
@@ -1133,6 +1140,22 @@ export function VisualConfigEditor({
                   </FieldShell>
                   <FieldShell
                     label={t(
+                      'config_management.visual.sections.network.devin_sensitive_words_replace_label'
+                    )}
+                    hint={t(
+                      'config_management.visual.sections.network.devin_sensitive_words_replace_hint'
+                    )}
+                  >
+                    <SensitiveWordReplacementEditor
+                      value={values.devinSensitiveWordsReplace}
+                      disabled={disabled}
+                      onChange={(devinSensitiveWordsReplace) =>
+                        onChange({ devinSensitiveWordsReplace })
+                      }
+                    />
+                  </FieldShell>
+                  <FieldShell
+                    label={t(
                       'config_management.visual.sections.network.antigravity_sensitive_words_label'
                     )}
                     hint={t(
@@ -1150,6 +1173,22 @@ export function VisualConfigEditor({
                       )}
                       onChange={(antigravitySensitiveWords) =>
                         onChange({ antigravitySensitiveWords })
+                      }
+                    />
+                  </FieldShell>
+                  <FieldShell
+                    label={t(
+                      'config_management.visual.sections.network.antigravity_sensitive_words_replace_label'
+                    )}
+                    hint={t(
+                      'config_management.visual.sections.network.antigravity_sensitive_words_replace_hint'
+                    )}
+                  >
+                    <SensitiveWordReplacementEditor
+                      value={values.antigravitySensitiveWordsReplace}
+                      disabled={disabled}
+                      onChange={(antigravitySensitiveWordsReplace) =>
+                        onChange({ antigravitySensitiveWordsReplace })
                       }
                     />
                   </FieldShell>
@@ -1410,6 +1449,17 @@ export function VisualConfigEditor({
                   value={values.payloadFilterRules}
                   disabled={disabled}
                   onChange={handlePayloadFilterRulesChange}
+                />
+              </SectionSubsection>
+
+              <SectionSubsection
+                title={t('config_management.visual.sections.payload.replace_rules')}
+                description={t('config_management.visual.sections.payload.replace_rules_desc')}
+              >
+                <PayloadReplaceRulesEditor
+                  value={values.payloadReplaceRules}
+                  disabled={disabled}
+                  onChange={handlePayloadReplaceRulesChange}
                 />
               </SectionSubsection>
             </SectionStack>

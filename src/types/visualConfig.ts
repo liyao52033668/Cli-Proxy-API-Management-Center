@@ -58,11 +58,56 @@ export type PayloadFilterRule = {
   params: string[];
 };
 
+/**
+ * One replacement step inside a payload replace rule. A literal step maps a
+ * source phrase to its destination; a regex step carries a Go RE2 pattern and a
+ * replacement string, where capture groups expand as $1 / ${name}.
+ */
+export type PayloadReplacementEntry = {
+  id: string;
+  kind: 'literal' | 'regex';
+  /** Literal source phrase, or the RE2 pattern for a regex step. */
+  from: string;
+  /** Literal destination, or the replacement string for a regex step. */
+  to: string;
+};
+
+/**
+ * Selects the text a replace rule edits. Role/positions/all address messages in
+ * the final upstream payload; paths address JSON nodes directly. The two forms
+ * are mutually exclusive, mirroring the backend contract.
+ */
+export type PayloadReplaceTargetMode = 'positions' | 'all' | 'paths';
+
+export type PayloadReplaceRule = {
+  id: string;
+  models: PayloadModelEntry[];
+  targetMode: PayloadReplaceTargetMode;
+  /** Message role when targeting by position; unused for paths. */
+  role: 'user' | 'system' | 'developer';
+  /** One-based message positions; kept as text so partial input is editable. */
+  positions: string;
+  /** JSON paths used when targetMode is 'paths'. */
+  paths: string[];
+  replacements: PayloadReplacementEntry[];
+};
+
 export interface StreamingConfig {
   keepaliveSeconds: string;
   bootstrapRetries: string;
   nonstreamKeepaliveInterval: string;
 }
+
+/**
+ * One sensitive-word replacement entry. The backend maps a literal phrase to its
+ * replacement; entries are held as an ordered list so the UI can edit them while
+ * preserving the order the operator entered.
+ */
+export type SensitiveWordReplacementEntry = {
+  id: string;
+  from: string;
+  to: string;
+};
 
 export type VisualConfigValues = {
   host: string;
@@ -112,7 +157,9 @@ export type VisualConfigValues = {
   antigravityConnectionPoolIdleConnTimeout: string;
   antigravityConnectionPoolMaxIdleConnsPerHost: string;
   devinSensitiveWords: string[];
+  devinSensitiveWordsReplace: SensitiveWordReplacementEntry[];
   antigravitySensitiveWords: string[];
+  antigravitySensitiveWordsReplace: SensitiveWordReplacementEntry[];
   codebuddyAiSensitiveWords: string[];
   routingStrategy: 'round-robin' | 'fill-first';
   routingSessionAffinity: boolean;
@@ -124,6 +171,7 @@ export type VisualConfigValues = {
   payloadOverrideRules: PayloadRule[];
   payloadOverrideRawRules: PayloadRule[];
   payloadFilterRules: PayloadFilterRule[];
+  payloadReplaceRules: PayloadReplaceRule[];
   streaming: StreamingConfig;
 };
 
@@ -180,7 +228,9 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   antigravityConnectionPoolIdleConnTimeout: '',
   antigravityConnectionPoolMaxIdleConnsPerHost: '',
   devinSensitiveWords: [],
+  devinSensitiveWordsReplace: [],
   antigravitySensitiveWords: [],
+  antigravitySensitiveWordsReplace: [],
   codebuddyAiSensitiveWords: [],
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
@@ -192,6 +242,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   payloadOverrideRules: [],
   payloadOverrideRawRules: [],
   payloadFilterRules: [],
+  payloadReplaceRules: [],
   streaming: {
     keepaliveSeconds: '',
     bootstrapRetries: '',

@@ -15,7 +15,10 @@ import type {
   PayloadParamEntry,
   PayloadParamValidationErrorCode,
   PayloadParamValueType,
+  PayloadReplaceRule,
+  PayloadReplacementEntry,
   PayloadRule,
+  SensitiveWordReplacementEntry,
 } from '@/types/visualConfig';
 import { makeClientId } from '@/types/visualConfig';
 import {
@@ -1257,6 +1260,406 @@ export const PayloadFilterRulesEditor = memo(function PayloadFilterRulesEditor({
       <div className={styles.actionRow}>
         <Button variant="secondary" size="sm" onClick={addRule} disabled={disabled}>
           {t('config_management.visual.payload_rules.add_rule')}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+const PAYLOAD_REPLACE_ROLE_VALUES = ['user', 'system', 'developer'] as const;
+
+export const PayloadReplaceRulesEditor = memo(function PayloadReplaceRulesEditor({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: PayloadReplaceRule[];
+  disabled?: boolean;
+  onChange: (next: PayloadReplaceRule[]) => void;
+}) {
+  const { t } = useTranslation();
+  const rules = value;
+  const protocolOptions = useMemo(() => buildProtocolOptions(t, rules), [rules, t]);
+
+  const roleOptions = useMemo(
+    () =>
+      PAYLOAD_REPLACE_ROLE_VALUES.map((role) => ({
+        value: role,
+        label: t(`config_management.visual.payload_replace.role_${role}`),
+      })),
+    [t]
+  );
+
+  const targetModeOptions = useMemo(
+    () => [
+      { value: 'positions', label: t('config_management.visual.payload_replace.mode_positions') },
+      { value: 'all', label: t('config_management.visual.payload_replace.mode_all') },
+      { value: 'paths', label: t('config_management.visual.payload_replace.mode_paths') },
+    ],
+    [t]
+  );
+
+  const replacementKindOptions = useMemo(
+    () => [
+      { value: 'literal', label: t('config_management.visual.payload_replace.kind_literal') },
+      { value: 'regex', label: t('config_management.visual.payload_replace.kind_regex') },
+    ],
+    [t]
+  );
+
+  const addRule = () =>
+    onChange([
+      ...rules,
+      {
+        id: makeClientId(),
+        models: [],
+        targetMode: 'positions',
+        role: 'user',
+        positions: '1',
+        paths: [],
+        replacements: [],
+      },
+    ]);
+  const removeRule = (ruleIndex: number) => onChange(rules.filter((_, i) => i !== ruleIndex));
+
+  const updateRule = (ruleIndex: number, patch: Partial<PayloadReplaceRule>) =>
+    onChange(rules.map((rule, i) => (i === ruleIndex ? { ...rule, ...patch } : rule)));
+
+  const addModel = (ruleIndex: number) => {
+    const rule = rules[ruleIndex];
+    const nextModel: PayloadModelEntry = { id: makeClientId(), name: '', protocol: undefined };
+    updateRule(ruleIndex, { models: [...rule.models, nextModel] });
+  };
+
+  const removeModel = (ruleIndex: number, modelIndex: number) => {
+    const rule = rules[ruleIndex];
+    updateRule(ruleIndex, { models: rule.models.filter((_, i) => i !== modelIndex) });
+  };
+
+  const updateModel = (
+    ruleIndex: number,
+    modelIndex: number,
+    patch: Partial<PayloadModelEntry>
+  ) => {
+    const rule = rules[ruleIndex];
+    updateRule(ruleIndex, {
+      models: rule.models.map((m, i) => (i === modelIndex ? { ...m, ...patch } : m)),
+    });
+  };
+
+  const addReplacement = (ruleIndex: number) => {
+    const rule = rules[ruleIndex];
+    const entry: PayloadReplacementEntry = {
+      id: makeClientId(),
+      kind: 'literal',
+      from: '',
+      to: '',
+    };
+    updateRule(ruleIndex, { replacements: [...rule.replacements, entry] });
+  };
+
+  const removeReplacement = (ruleIndex: number, entryIndex: number) => {
+    const rule = rules[ruleIndex];
+    updateRule(ruleIndex, {
+      replacements: rule.replacements.filter((_, i) => i !== entryIndex),
+    });
+  };
+
+  const updateReplacement = (
+    ruleIndex: number,
+    entryIndex: number,
+    patch: Partial<PayloadReplacementEntry>
+  ) => {
+    const rule = rules[ruleIndex];
+    updateRule(ruleIndex, {
+      replacements: rule.replacements.map((entry, i) =>
+        i === entryIndex ? { ...entry, ...patch } : entry
+      ),
+    });
+  };
+
+  return (
+    <div className={styles.blockStack}>
+      {rules.map((rule, ruleIndex) => (
+        <div key={rule.id} className={styles.ruleCard}>
+          <div className={styles.ruleCardHeader}>
+            <div className={styles.ruleCardTitle}>
+              {t('config_management.visual.payload_rules.rule')} {ruleIndex + 1}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => removeRule(ruleIndex)}
+              disabled={disabled}
+            >
+              {t('config_management.visual.common.delete')}
+            </Button>
+          </div>
+
+          <div className={styles.blockStack}>
+            <div className={styles.blockLabel}>
+              {t('config_management.visual.payload_rules.models')}
+            </div>
+            {rule.models.map((model, modelIndex) => (
+              <div key={model.id} className={styles.payloadFilterModelRow}>
+                <div className={styles.payloadRuleModelRowMain}>
+                  <ExpandableInput
+                    placeholder={t('config_management.visual.payload_rules.model_name')}
+                    ariaLabel={t('config_management.visual.payload_rules.model_name')}
+                    value={model.name}
+                    onChange={(nextValue) => updateModel(ruleIndex, modelIndex, { name: nextValue })}
+                    disabled={disabled}
+                  />
+                </div>
+                <div className={styles.payloadRuleModelRowControls}>
+                  <Select
+                    value={model.protocol ?? ''}
+                    options={protocolOptions}
+                    disabled={disabled}
+                    ariaLabel={t('config_management.visual.payload_rules.provider_type')}
+                    onChange={(nextValue) =>
+                      updateModel(ruleIndex, modelIndex, {
+                        protocol: (nextValue || undefined) as PayloadModelEntry['protocol'],
+                      })
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={styles.payloadRowActionButton}
+                    onClick={() => removeModel(ruleIndex, modelIndex)}
+                    disabled={disabled}
+                  >
+                    {t('config_management.visual.common.delete')}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <div className={styles.actionRow}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => addModel(ruleIndex)}
+                disabled={disabled}
+              >
+                {t('config_management.visual.payload_rules.add_model')}
+              </Button>
+            </div>
+          </div>
+
+          <div className={styles.blockStack}>
+            <div className={styles.blockLabel}>
+              {t('config_management.visual.payload_replace.target')}
+            </div>
+            <div className={styles.payloadRuleModelRow}>
+              <div className={styles.payloadRuleModelRowMain}>
+                <Select
+                  value={rule.targetMode}
+                  options={targetModeOptions}
+                  disabled={disabled}
+                  ariaLabel={t('config_management.visual.payload_replace.target_mode')}
+                  onChange={(nextValue) =>
+                    updateRule(ruleIndex, {
+                      targetMode: (nextValue || 'positions') as PayloadReplaceRule['targetMode'],
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            {rule.targetMode === 'paths' ? (
+              <StringListEditor
+                value={rule.paths}
+                disabled={disabled}
+                placeholder={t('config_management.visual.payload_replace.path_placeholder')}
+                inputAriaLabel={t('config_management.visual.payload_replace.path_placeholder')}
+                onChange={(paths) => updateRule(ruleIndex, { paths })}
+              />
+            ) : (
+              <>
+                <div className={styles.payloadRuleModelRow}>
+                  <div className={styles.payloadRuleModelRowMain}>
+                    <Select
+                      value={rule.role}
+                      options={roleOptions}
+                      disabled={disabled}
+                      ariaLabel={t('config_management.visual.payload_replace.role')}
+                      onChange={(nextValue) =>
+                        updateRule(ruleIndex, {
+                          role: (nextValue || 'user') as PayloadReplaceRule['role'],
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                {rule.targetMode === 'positions' && (
+                  <ExpandableInput
+                    placeholder={t('config_management.visual.payload_replace.positions_placeholder')}
+                    ariaLabel={t('config_management.visual.payload_replace.positions')}
+                    value={rule.positions}
+                    onChange={(nextValue) => updateRule(ruleIndex, { positions: nextValue })}
+                    disabled={disabled}
+                  />
+                )}
+              </>
+            )}
+          </div>
+
+          <div className={styles.blockStack}>
+            <div className={styles.blockLabel}>
+              {t('config_management.visual.payload_replace.replacements')}
+            </div>
+            {rule.replacements.map((entry, entryIndex) => (
+              <div key={entry.id} className={styles.ruleCard}>
+                <div className={styles.payloadRuleModelRow}>
+                  <div className={styles.payloadRuleModelRowMain}>
+                    <Select
+                      value={entry.kind}
+                      options={replacementKindOptions}
+                      disabled={disabled}
+                      ariaLabel={t('config_management.visual.payload_replace.replacement_kind')}
+                      onChange={(nextValue) =>
+                        updateReplacement(ruleIndex, entryIndex, {
+                          kind: (nextValue || 'literal') as PayloadReplacementEntry['kind'],
+                        })
+                      }
+                    />
+                  </div>
+                  <div className={styles.payloadRuleModelRowControls}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={styles.payloadRowActionButton}
+                      onClick={() => removeReplacement(ruleIndex, entryIndex)}
+                      disabled={disabled}
+                    >
+                      {t('config_management.visual.common.delete')}
+                    </Button>
+                  </div>
+                </div>
+                <ExpandableInput
+                  placeholder={
+                    entry.kind === 'regex'
+                      ? t('config_management.visual.payload_replace.pattern_placeholder')
+                      : t('config_management.visual.payload_replace.from_placeholder')
+                  }
+                  ariaLabel={t('config_management.visual.payload_replace.from')}
+                  value={entry.from}
+                  onChange={(nextValue) => updateReplacement(ruleIndex, entryIndex, { from: nextValue })}
+                  disabled={disabled}
+                />
+                <ExpandableInput
+                  placeholder={
+                    entry.kind === 'regex'
+                      ? t('config_management.visual.payload_replace.capture_placeholder')
+                      : t('config_management.visual.payload_replace.to_placeholder')
+                  }
+                  ariaLabel={t('config_management.visual.payload_replace.to')}
+                  value={entry.to}
+                  onChange={(nextValue) => updateReplacement(ruleIndex, entryIndex, { to: nextValue })}
+                  disabled={disabled}
+                />
+              </div>
+            ))}
+            <div className={styles.actionRow}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => addReplacement(ruleIndex)}
+                disabled={disabled}
+              >
+                {t('config_management.visual.payload_replace.add_replacement')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {rules.length === 0 && (
+        <div className={styles.emptyState}>
+          {t('config_management.visual.payload_rules.no_rules')}
+        </div>
+      )}
+
+      <div className={styles.actionRow}>
+        <Button variant="secondary" size="sm" onClick={addRule} disabled={disabled}>
+          {t('config_management.visual.payload_rules.add_rule')}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Edits an ordered list of literal phrase -> replacement pairs. The backend maps
+ * a phrase to its replacement inside the same sensitive-word matcher, where a
+ * replacement wins over obfuscation for the same match.
+ */
+export const SensitiveWordReplacementEditor = memo(function SensitiveWordReplacementEditor({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: SensitiveWordReplacementEntry[];
+  disabled?: boolean;
+  onChange: (next: SensitiveWordReplacementEntry[]) => void;
+}) {
+  const { t } = useTranslation();
+  const entries = value;
+
+  const addEntry = () =>
+    onChange([...entries, { id: makeClientId(), from: '', to: '' }]);
+
+  const removeEntry = (index: number) => onChange(entries.filter((_, i) => i !== index));
+
+  const updateEntry = (index: number, patch: Partial<SensitiveWordReplacementEntry>) =>
+    onChange(entries.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
+
+  return (
+    <div className={styles.blockStack}>
+      {entries.map((entry, index) => (
+        <div key={entry.id} className={styles.payloadRuleModelRow}>
+          <div className={styles.payloadRuleModelRowMain}>
+            <ExpandableInput
+              placeholder={t('config_management.visual.sensitive_words_replace.from_placeholder')}
+              ariaLabel={t('config_management.visual.sensitive_words_replace.from')}
+              value={entry.from}
+              onChange={(nextValue) => updateEntry(index, { from: nextValue })}
+              disabled={disabled}
+            />
+          </div>
+          <div className={styles.payloadRuleModelRowMain}>
+            <ExpandableInput
+              placeholder={t('config_management.visual.sensitive_words_replace.to_placeholder')}
+              ariaLabel={t('config_management.visual.sensitive_words_replace.to')}
+              value={entry.to}
+              onChange={(nextValue) => updateEntry(index, { to: nextValue })}
+              disabled={disabled}
+            />
+          </div>
+          <div className={styles.payloadRuleModelRowControls}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={styles.payloadRowActionButton}
+              onClick={() => removeEntry(index)}
+              disabled={disabled}
+            >
+              {t('config_management.visual.common.delete')}
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {entries.length === 0 && (
+        <div className={styles.emptyState}>
+          {t('config_management.visual.sensitive_words_replace.no_entries')}
+        </div>
+      )}
+
+      <div className={styles.actionRow}>
+        <Button variant="secondary" size="sm" onClick={addEntry} disabled={disabled}>
+          {t('config_management.visual.sensitive_words_replace.add_entry')}
         </Button>
       </div>
     </div>
